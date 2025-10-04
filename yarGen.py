@@ -190,32 +190,15 @@ if __name__ == "__main__":
             )
 
             try:
-
-                if os.path.isfile(strings_db):
-                    input(
-                        "File %s alread exists. Press enter to proceed or CTRL+C to exit."
-                        % strings_db
-                    )
-                    os.remove(strings_db)
-                if os.path.isfile(opcodes_db):
-                    input(
-                        "File %s alread exists. Press enter to proceed or CTRL+C to exit."
-                        % opcodes_db
-                    )
-                    os.remove(opcodes_db)
-                if os.path.isfile(imphashes_db):
-                    input(
-                        "File %s alread exists. Press enter to proceed or CTRL+C to exit."
-                        % imphashes_db
-                    )
-                    os.remove(imphashes_db)
-                if os.path.isfile(exports_db):
-                    input(
-                        "File %s alread exists. Press enter to proceed or CTRL+C to exit."
-                        % exports_db
-                    )
-                    os.remove(exports_db)
-
+                for file in [strings_db, opcodes_db, imphashes_db, exports_db]:
+                        
+                    if os.path.isfile(file):
+                        input(
+                            "File %s alread exists. Press enter to proceed or CTRL+C to exit."
+                            % file
+                        )
+                        os.remove(file) 
+                        
                 # Strings
                 good_json = Counter()
                 good_json = good_strings_db
@@ -264,66 +247,31 @@ if __name__ == "__main__":
         strings_num = 0
         imphash_num = 0
         exports_num = 0
+        def load_db(file, local_counter, prefix):
+            # String databases
+            if file.startswith(prefix):
+                try:
+                    filePath = os.path.join("./dbs/", file)
+                    print("[+] Loading %s ..." % filePath)
+                    js = load(get_abs_path(filePath))
+                    local_counter.update(js)
+                    print(
+                        "[+] Total: %s / Added %d entries"
+                        % (len(local_counter), len(local_counter) - strings_num)
+                    )
+                except Exception as e:
+                    traceback.print_exc()
+            return len(local_counter)
+
 
         # Initialize all databases
         for file in os.listdir(get_abs_path("./dbs/")):
             if not file.endswith(".db"):
-                continue
-            filePath = os.path.join("./dbs/", file)
-            # String databases
-            if file.startswith("good-strings"):
-                try:
-                    print("[+] Loading %s ..." % filePath)
-                    good_json = load(get_abs_path(filePath))
-                    good_strings_db.update(good_json)
-                    print(
-                        "[+] Total: %s / Added %d entries"
-                        % (len(good_strings_db), len(good_strings_db) - strings_num)
-                    )
-                    strings_num = len(good_strings_db)
-                except Exception as e:
-                    traceback.print_exc()
-            # Opcode databases
-            if file.startswith("good-opcodes"):
-                try:
-                    if args.opcodes:
-                        print("[+] Loading %s ..." % filePath)
-                        good_op_json = load(get_abs_path(filePath))
-                        good_opcodes_db.update(good_op_json)
-                        print(
-                            "[+] Total: %s (removed duplicates) / Added %d entries"
-                            % (len(good_opcodes_db), len(good_opcodes_db) - opcodes_num)
-                        )
-                        opcodes_num = len(good_opcodes_db)
-                except Exception as e:
-                    args.opcodes = False
-                    traceback.print_exc()
-            # Imphash databases
-            if file.startswith("good-imphash"):
-                try:
-                    print("[+] Loading %s ..." % filePath)
-                    good_imphashes_json = load(get_abs_path(filePath))
-                    good_imphashes_db.update(good_imphashes_json)
-                    print(
-                        "[+] Total: %s / Added %d entries"
-                        % (len(good_imphashes_db), len(good_imphashes_db) - imphash_num)
-                    )
-                    imphash_num = len(good_imphashes_db)
-                except Exception as e:
-                    traceback.print_exc()
-            # Export databases
-            if file.startswith("good-exports"):
-                try:
-                    print("[+] Loading %s ..." % filePath)
-                    good_exports_json = load(get_abs_path(filePath))
-                    good_exports_db.update(good_exports_json)
-                    print(
-                        "[+] Total: %s / Added %d entries"
-                        % (len(good_exports_db), len(good_exports_db) - exports_num)
-                    )
-                    exports_num = len(good_exports_db)
-                except Exception as e:
-                    traceback.print_exc()
+                continue            # String databases
+            strings_num = load_db(file, good_strings_db, "good-strings")
+            opcodes_num = load_db(file, good_opcodes_db, "good-opcodes")
+            imphash_num = load_db(file, good_imphashes_db, "good-imphash")
+            exports_num = load_db(file, good_exports_db, "good-exports") 
 
         if args.opcodes and len(good_opcodes_db) < 1:
             print(
