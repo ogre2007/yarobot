@@ -20,9 +20,7 @@ from collections import Counter
 import signal as signal_module
 
 import dbs
-from parse_files import parse_good_dir, parse_sample_dir
-from rule_generator import generate_rules
-from scoring import sample_string_evaluation
+from parse_files import parse_good_dir, processSampleDir
 from utils import (
     emptyFolder,
     get_abs_path,
@@ -34,68 +32,29 @@ from utils import (
 )
 
 
-def processSampleDir(targetDir):
-    """
-    Processes samples in a given directory and creates a yara rule file
-    :param directory:
-    :return:
-    """
-    # Special strings
-    base64strings = {}
-    hexEncStrings = {}
-    reversedStrings = {}
-    pestudioMarker = {}
-    stringScores = {}
-
-    # Extract all information
-    (sample_string_stats, sample_opcode_stats, file_info) = parse_sample_dir(
-        args, targetDir, args.nr, generateInfo=True, onlyRelevantExtensions=args.oe
-    )
-
-    # Evaluate Strings
-    (file_strings, file_opcodes, combinations, super_rules, inverse_stats) = (
-        sample_string_evaluation(
-            sample_string_stats,
-            sample_opcode_stats,
-            file_info,
-            args,
-            good_strings_db,
-            pestudio_available,
-            pestudio_strings,
-            pestudioMarker,
-            stringScores,
-            reversedStrings,
-            base64strings,
-            hexEncStrings,
-        )
-    )
-
-    # Create Rule Files
-    (rule_count, inverse_rule_count, super_rule_count) = generate_rules(
+class State:
+    def __init__(
+        self,
         args,
-        file_strings,
-        file_opcodes,
-        super_rules,
-        file_info,
-        inverse_stats,
         good_strings_db,
         good_opcodes_db,
+        good_imphashes_db,
+        good_exports_db,
         pestudio_available,
         pestudio_strings,
-        pestudioMarker,
-        stringScores,
-        reversedStrings,
-        base64strings,
-        hexEncStrings,
-    )
-
-    if args.inverse:
-        print("[=] Generated %s INVERSE rules." % str(inverse_rule_count))
-    else:
-        print("[=] Generated %s SIMPLE rules." % str(rule_count))
-        if not args.nosuper:
-            print("[=] Generated %s SUPER rules." % str(super_rule_count))
-        print("[=] All rules written to %s" % args.o)
+    ):
+        self.base64strings = {}
+        self.reversedStrings = {}
+        self.hexEncStrings = {}
+        self.pestudioMarker = {}
+        self.stringScores = {}
+        self.good_strings_db = (good_strings_db,)
+        self.good_opcodes_db = (good_opcodes_db,)
+        self.good_imphashes_db = (good_imphashes_db,)
+        good_exports_db = (good_exports_db,)
+        self.pestudio_available = (pestudio_available,)
+        self.pestudio_strings = (pestudio_strings,)
+        self.args = (args,)
 
 
 # CTRL+C Handler --------------------------------------------------------------
@@ -680,12 +639,15 @@ Recommended command line:
             args.strings_per_rule = 200
 
         # Special strings
-        base64strings = {}
-        reversedStrings = {}
-        hexEncStrings = {}
-        pestudioMarker = {}
-        stringScores = {}
-
+        state = State(
+            args,
+            good_strings_db,
+            good_opcodes_db,
+            good_imphashes_db,
+            good_exports_db,
+            pestudio_available,
+            pestudio_strings,
+        )
         # Dropzone mode
         if args.dropzone:
             # Monitoring folder for changes
@@ -707,13 +669,13 @@ Recommended command line:
                     # Generate a new description prefix
                     prefix = getPrefix(args.p, identifier)
                     # Process the samples
-                    processSampleDir(args.m)
+                    processSampleDir(args.m, state)
                     # Delete all samples from the dropzone folder
                     emptyFolder(args.m)
                 time.sleep(1)
         else:
             # Scan malware files
             print("[+] Processing malware files ...")
-            processSampleDir(args.m)
+            processSampleDir(args.m, state)
 
         print("[+] yarGen run finished")

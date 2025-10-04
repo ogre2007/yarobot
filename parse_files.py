@@ -5,6 +5,8 @@ import lief
 import re
 import traceback
 from hashlib import sha256
+from rule_generator import generate_rules
+from scoring import sample_string_evaluation
 
 from utils import get_files, is_ascii_string
 
@@ -76,14 +78,14 @@ def extract_hex_strings(s):
     return strings
 
 
-def extract_strings(args, fileData) -> list[str]:
+def extract_strings(maxlen, fileData) -> list[str]:
     # String list
     cleaned_strings = []
     # Read file data
     try:
         # Read strings
         strings_full = re.findall(b"[\x1f-\x7e]{6,}", fileData)
-        strings_limited = re.findall(b"[\x1f-\x7e]{6,%d}" % args.s, fileData)
+        strings_limited = re.findall(b"[\x1f-\x7e]{6,%d}" % maxlen, fileData)
         strings_hex = extract_hex_strings(fileData)
         strings = list(set(strings_full) | set(strings_limited) | set(strings_hex))
         wide_strings = [ws for ws in re.findall(b"(?:[\x1f-\x7e][\x00]){6,}", fileData)]
@@ -110,15 +112,14 @@ def extract_strings(args, fileData) -> list[str]:
                 traceback.print_exc()
 
     except Exception as e:
-        if args.debug:
-            print(string)
-            traceback.print_exc()
+        print(string)
+        traceback.print_exc()
         pass
 
     return cleaned_strings
 
 
-def extract_opcodes(args, fileData) -> list[str]:
+def extract_opcodes(fileData) -> list[str]:
     # Opcode list
     opcodes = []
 
@@ -136,15 +137,13 @@ def extract_opcodes(args, fileData) -> list[str]:
                     <= ep
                     < sec.virtual_address + binary.imagebase + sec.virtual_size
                 ):
-                    if args.debug:
-                        print(f"EP is located at {sec.name} section")
+                    print(f"EP is located at {sec.name} section")
                     text = sec.content.tobytes()
                     break
         elif isinstance(binary, lief.ELF.Binary):
             for sec in binary.sections:
                 if sec.virtual_address <= ep < sec.virtual_address + sec.size:
-                    if args.debug:
-                        print(f"EP is located at {sec.name} section")
+                    print(f"EP is located at {sec.name} section")
                     text = sec.content.tobytes()
                     break
 
@@ -159,14 +158,13 @@ def extract_opcodes(args, fileData) -> list[str]:
                     binascii.hexlify(text_part[:16]).decode(encoding="ascii")
                 )
     except Exception as e:
-        if args.debug:
-            traceback.print_exc()
+        traceback.print_exc()
         pass
 
     return opcodes
 
 
-def get_pe_info(args, fileData: bytes) -> tuple[str, list[str]]:
+def get_pe_info(fileData: bytes) -> tuple[str, list[str]]:
     """
     Get different PE attributes and hashes by lief
     :param fileData:
@@ -178,8 +176,8 @@ def get_pe_info(args, fileData: bytes) -> tuple[str, list[str]]:
     if fileData[:2] != b"MZ":
         return imphash, exports
     try:
-        if args.debug:
-            print("Extracting PE information")
+
+        print("Extracting PE information")
         binary: lief.PE.Binary = lief.parse(fileData)
         # Imphash
         imphash = lief.PE.get_imphash(binary, lief.PE.IMPHASH_MODE.PEFILE)
@@ -188,15 +186,14 @@ def get_pe_info(args, fileData: bytes) -> tuple[str, list[str]]:
             exp: lief.PE.ExportEntry
             exports.append(str(exp.name))
     except Exception as e:
-        if args.debug:
-            traceback.print_exc()
+        traceback.print_exc()
         pass
 
     return imphash, exports
 
 
 def parse_sample_dir(
-    args, dir, notRecursive=False, generateInfo=False, onlyRelevantExtensions=False
+    dir, state, notRecursive=False, generateInfo=False, onlyRelevantExtensions=False
 ):
     # Prepare dictionary
     string_stats = {}
@@ -211,22 +208,22 @@ def parse_sample_dir(
             # Get Extension
             extension = os.path.splitext(filePath)[1].lower()
             if not extension in RELEVANT_EXTENSIONS and onlyRelevantExtensions:
-                if args.debug:
+                if state.args.debug:
                     print("[-] EXTENSION %s - Skipping file %s" % (extension, filePath))
                 continue
 
             # Info file check
             if os.path.basename(filePath) == os.path.basename(
-                args.b
-            ) or os.path.basename(filePath) == os.path.basename(args.r):
+                state.args.b
+            ) or os.path.basename(filePath) == os.path.basename(state.args.r):
                 continue
 
             # Size Check
             size = 0
             try:
                 size = os.stat(filePath).st_size
-                if size > (args.fs * 1024 * 1024):
-                    if args.debug:
+                if size > (state.args.fs * 1024 * 1024):
+                    if state.args.debug:
                         print(
                             "[-] File is to big - Skipping file %s (use -fs to adjust this behaviour)"
                             % (filePath)
@@ -243,13 +240,13 @@ def parse_sample_dir(
                 print("[-] Cannot read file - skipping %s" % filePath)
 
             # Extract strings from file
-            strings = extract_strings(args, fileData)
+            strings = extract_strings(state.args.s, fileData)
 
             # Extract opcodes from file
             opcodes = []
-            if args.opcodes:
+            if state.args.opcodes:
                 print("[-] Extracting OpCodes: %s" % filePath)
-                opcodes = extract_opcodes(args, fileData)
+                opcodes = extract_opcodes(fileData)
 
             # Add sha256 value
             if generateInfo:
@@ -257,12 +254,12 @@ def parse_sample_dir(
                 file_info[filePath] = {}
                 file_info[filePath]["hash"] = sha256sum
                 file_info[filePath]["imphash"], file_info[filePath]["exports"] = (
-                    get_pe_info(args, fileData)
+                    get_pe_info(fileData)
                 )
 
             # Skip if hash already known - avoid duplicate files
             if sha256sum in known_sha1sums:
-                # if args.debug:
+                # if state.args.debug:
                 print(
                     "[-] Skipping strings/opcodes from %s due to MD5 duplicate detection"
                     % filePath
@@ -272,7 +269,7 @@ def parse_sample_dir(
                 known_sha1sums.append(sha256sum)
 
             # Magic evaluation
-            if not args.nomagic:
+            if not state.args.nomagic:
                 file_info[filePath]["magic"] = binascii.hexlify(fileData[:2]).decode(
                     "ascii"
                 )
@@ -329,7 +326,7 @@ def parse_sample_dir(
                 if filePath not in opcode_stats[opcode]["files"]:
                     opcode_stats[opcode]["files"].append(filePath)
 
-            if args.debug:
+            if state.args.debug:
                 print(
                     "[+] Processed "
                     + filePath
@@ -349,7 +346,7 @@ def parse_sample_dir(
     return string_stats, opcode_stats, file_info
 
 
-def parse_good_dir(args, dir, notRecursive=False, onlyRelevantExtensions=True):
+def parse_good_dir(state, dir, notRecursive=False, onlyRelevantExtensions=True):
     # Prepare dictionary
     all_strings = Counter()
     all_opcodes = Counter()
@@ -360,7 +357,7 @@ def parse_good_dir(args, dir, notRecursive=False, onlyRelevantExtensions=True):
         # Get Extension
         extension = os.path.splitext(filePath)[1].lower()
         if extension not in RELEVANT_EXTENSIONS and onlyRelevantExtensions:
-            if args.debug:
+            if state.args.debug:
                 print("[-] EXTENSION %s - Skipping file %s" % (extension, filePath))
             continue
 
@@ -368,7 +365,7 @@ def parse_good_dir(args, dir, notRecursive=False, onlyRelevantExtensions=True):
         size = 0
         try:
             size = os.stat(filePath).st_size
-            if size > (args.fs * 1024 * 1024):
+            if size > (state.args.fs * 1024 * 1024):
                 continue
         except Exception as e:
             pass
@@ -381,24 +378,24 @@ def parse_good_dir(args, dir, notRecursive=False, onlyRelevantExtensions=True):
             print("[-] Cannot read file - skipping %s" % filePath)
 
         # Extract strings from file
-        strings = extract_strings(args, fileData)
+        strings = extract_strings(state.args.s, fileData)
         # Append to all strings
         all_strings.update(strings)
 
         # Extract Opcodes from file
         opcodes = []
-        if args.opcodes:
+        if state.args.opcodes:
             print("[-] Extracting OpCodes: %s" % filePath)
-            opcodes = extract_opcodes(args, fileData)
+            opcodes = extract_opcodes(fileData)
             # Append to all opcodes
             all_opcodes.update(opcodes)
 
         # Imphash and Exports
-        (imphash, exports) = get_pe_info(args, fileData)
+        (imphash, exports) = get_pe_info(fileData)
         if imphash != "":
             all_imphashes.update([imphash])
         all_exports.update(exports)
-        if args.debug:
+        if state.args.debug:
             print(
                 "[+] Processed %s - %d strings %d opcodes %d exports and imphash %s"
                 % (filePath, len(strings), len(opcodes), len(exports), imphash)
@@ -406,3 +403,45 @@ def parse_good_dir(args, dir, notRecursive=False, onlyRelevantExtensions=True):
 
     # return it as a set (unique strings)
     return all_strings, all_opcodes, all_imphashes, all_exports
+
+
+def processSampleDir(targetDir, state):
+    """
+    Processes samples in a given directory and creates a yara rule file
+    :param directory:
+    :return:
+    """
+
+    # Extract all information
+    (sample_string_stats, sample_opcode_stats, file_info) = parse_sample_dir(
+        targetDir,
+        state,
+        state.args.nr,
+        generateInfo=True,
+        onlyRelevantExtensions=state.args.oe,
+    )
+
+    # Evaluate Strings
+    (file_strings, file_opcodes, combinations, super_rules, inverse_stats) = (
+        sample_string_evaluation(
+            sample_string_stats, sample_opcode_stats, file_info, state
+        )
+    )
+
+    # Create Rule Files
+    (rule_count, inverse_rule_count, super_rule_count) = generate_rules(
+        state,
+        file_strings,
+        file_opcodes,
+        super_rules,
+        file_info,
+        inverse_stats,
+    )
+
+    if state.args.inverse:
+        print("[=] Generated %s INVERSE rules." % str(inverse_rule_count))
+    else:
+        print("[=] Generated %s SIMPLE rules." % str(rule_count))
+        if not state.args.nosuper:
+            print("[=] Generated %s SUPER rules." % str(super_rule_count))
+        print("[=] All rules written to %s" % state.args.o)
