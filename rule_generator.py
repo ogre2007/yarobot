@@ -333,6 +333,7 @@ def generate_rules(
                     string_rule_count,
                     high_scoring_strings,
                 ) = get_rule_strings(
+                    state,
                     file_strings[filePath],
                     file_opcodes[filePath],
                 )

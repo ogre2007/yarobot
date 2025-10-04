@@ -9,7 +9,7 @@
 
 __version__ = "0.24.0"
 
-from json import load
+from utils import load
 import os
 import sys
 
@@ -48,13 +48,13 @@ class State:
         self.hexEncStrings = {}
         self.pestudioMarker = {}
         self.stringScores = {}
-        self.good_strings_db = (good_strings_db,)
-        self.good_opcodes_db = (good_opcodes_db,)
-        self.good_imphashes_db = (good_imphashes_db,)
-        good_exports_db = (good_exports_db,)
-        self.pestudio_available = (pestudio_available,)
-        self.pestudio_strings = (pestudio_strings,)
-        self.args = (args,)
+        self.good_strings_db = good_strings_db,
+        self.good_opcodes_db = good_opcodes_db
+        self.good_imphashes_db = good_imphashes_db
+        self.good_exports_db = good_exports_db
+        self.pestudio_available = pestudio_available
+        self.pestudio_strings = pestudio_strings
+        self.args = args
 
 
 # CTRL+C Handler --------------------------------------------------------------
