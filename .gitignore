@@ -1,6 +1,7 @@
 # IDE & Virtual Environment
 .idea/
 venv/
+__pycache__
 
 # MacOS
 .DS_Store
