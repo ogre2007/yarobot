@@ -1,6 +1,6 @@
 import binascii
 from collections import Counter
-import os 
+import os
 import traceback
 from hashlib import sha256
 from rule_generator import generate_rules
@@ -42,7 +42,6 @@ RELEVANT_EXTENSIONS = [
     ".psm1",
     ".py",
 ]
-
 
 
 def parse_sample_dir(

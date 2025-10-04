@@ -5,7 +5,7 @@ import re
 import traceback
 
 
-from regex_base import REGEX_BASE
+from regex_base import REGEX_BASE, REGEX_SENSETIVE
 from utils import *
 
 
@@ -37,12 +37,32 @@ def score_with_regex(string):
     # Repeated characters
     if re.search(r"(?!.* ([A-Fa-f0-9])\1{8,})", string):
         score -= 5
-    for _, regexes in REGEX_BASE.items():
-        for regex in regexes:
-            # print(regex)
-            if re.search(regex[0], string, re.IGNORECASE):
-                score += regex[1]
-    return score
+    
+    def filter_rg(string, regex_base, ignorecase=True):
+        score_local = 0
+        cats = ""
+        for cat, regexes in regex_base.items():
+            found = False
+            for regex in regexes:
+                # print(regex)
+                flags = 0
+                if ignorecase:
+                    flags = re.IGNORECASE
+                if re.search(regex[0], string, flags):
+                    score_local += regex[1]
+                    found = True
+            if found:
+                cats += cat + ", "
+        return score_local, cats
+    cats = ""
+    new_score, new_cats = filter_rg(string, REGEX_BASE, ignorecase=True)
+    score += new_score
+    cats += new_cats
+    new_score, new_cats = filter_rg(string, REGEX_SENSETIVE, ignorecase=False)
+    score += new_score
+    cats += new_cats
+
+    return score, cats
 
 
 def filter_string_set(string_set, state):
@@ -75,6 +95,7 @@ def filter_string_set(string_set, state):
             # print "removed UTF16LE from %s" % string
             string = string[8:]
             utfstrings.append(string)
+            
 
         # Good string evaluation (after the UTF modification)
         if goodstring:
@@ -97,8 +118,9 @@ def filter_string_set(string_set, state):
                 localStringScores[string] = pescore
 
         if not goodstring:
-
-            localStringScores[string] += score_with_regex(string)
+            score, cats = score_with_regex(string)
+            localStringScores[string] += score 
+            state.string_to_comms[string] = cats
             # ENCODING DETECTIONS --------------------------------------------------
             try:
                 if len(string) > 8:

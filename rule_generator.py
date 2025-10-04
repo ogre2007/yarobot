@@ -781,6 +781,7 @@ def get_rule_strings(state, string_elements, opcode_elements):
     string_rule_count = 0
 
     # Adding the strings --------------------------------------
+    string_elements = list(set(string_elements))
     for i, string in enumerate(string_elements):
 
         # Collect the data
@@ -802,7 +803,8 @@ def get_rule_strings(state, string_elements, opcode_elements):
 
         if string in state.stringScores:
             if state.args.score:
-                score_comment += " /* score: '%.2f'*/" % (state.stringScores[string])
+                cat_comment = state.string_to_comms[string]
+                score_comment += f" /* score: {state.stringScores[string]}  {cat_comment}*/"
         else:
             print("NO SCORE: %s" % string)
 

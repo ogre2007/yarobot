@@ -25,6 +25,22 @@ from utils import (
 )
 
 
+def load_db(file, local_counter, prefix):
+    if file.startswith(prefix):
+        try:
+            filePath = os.path.join("./dbs/", file)
+            print("[+] Loading %s ..." % filePath)
+            js = load(get_abs_path(filePath))
+            local_counter.update(js)
+            print(
+                "[+] Total: %s / Added %d entries"
+                % (len(local_counter), len(local_counter) - strings_num)
+            )
+        except Exception as e:
+            traceback.print_exc()
+    return len(local_counter)
+
+
 class State:
     def __init__(
         self,
@@ -48,6 +64,7 @@ class State:
         self.pestudio_available = pestudio_available
         self.pestudio_strings = pestudio_strings
         self.args = args
+        self.string_to_comms = dict()
 
 
 # CTRL+C Handler --------------------------------------------------------------
@@ -191,14 +208,14 @@ if __name__ == "__main__":
 
             try:
                 for file in [strings_db, opcodes_db, imphashes_db, exports_db]:
-                        
+
                     if os.path.isfile(file):
                         input(
                             "File %s alread exists. Press enter to proceed or CTRL+C to exit."
                             % file
                         )
-                        os.remove(file) 
-                        
+                        os.remove(file)
+
                 # Strings
                 good_json = Counter()
                 good_json = good_strings_db
@@ -247,31 +264,15 @@ if __name__ == "__main__":
         strings_num = 0
         imphash_num = 0
         exports_num = 0
-        def load_db(file, local_counter, prefix):
-            # String databases
-            if file.startswith(prefix):
-                try:
-                    filePath = os.path.join("./dbs/", file)
-                    print("[+] Loading %s ..." % filePath)
-                    js = load(get_abs_path(filePath))
-                    local_counter.update(js)
-                    print(
-                        "[+] Total: %s / Added %d entries"
-                        % (len(local_counter), len(local_counter) - strings_num)
-                    )
-                except Exception as e:
-                    traceback.print_exc()
-            return len(local_counter)
-
 
         # Initialize all databases
         for file in os.listdir(get_abs_path("./dbs/")):
             if not file.endswith(".db"):
-                continue            # String databases
+                continue  # String databases
             strings_num = load_db(file, good_strings_db, "good-strings")
             opcodes_num = load_db(file, good_opcodes_db, "good-opcodes")
             imphash_num = load_db(file, good_imphashes_db, "good-imphash")
-            exports_num = load_db(file, good_exports_db, "good-exports") 
+            exports_num = load_db(file, good_exports_db, "good-exports")
 
         if args.opcodes and len(good_opcodes_db) < 1:
             print(

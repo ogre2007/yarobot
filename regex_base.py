@@ -41,9 +41,7 @@ REGEX_BASE = {
     ],
     "copyright": [(r"(coded | c0d3d |cr3w\b|Coded by |codedby)", 7)],
     "extensions_generic": [(r"\.[a-zA-Z]{3}\b", 3)],
-    "all_caps": [(r"^[A-Z]{6,}$", 3)],
-    "all_lower": [(r"^[a-z]{6,}$", 3)],
-    "all_lower_with_space": [(r"^[a-z\s]{6,}$", 2)],
+
     "alll_characters": [(r"^[A-Z][a-z]{5,}$", 2)],
     "URL": [(r"(%[a-z][:\-,;]|\\\\%s|\\\\[A-Z0-9a-z%]+\\[A-Z0-9a-z%]+)", 2.5)],
     "certificates": [
@@ -69,7 +67,7 @@ REGEX_BASE = {
             3,
         )
     ],
-    "malware": [(r"(\.[a-z]/[^/]+\.txt|)", 3)],
+    "malware": [(r"(\.[a-z]/[^/]+\.txt)", 3)],
     "variables": [(r"%[A-Z_]+%", 4)],
     "RATs": [
         (
@@ -135,12 +133,7 @@ REGEX_BASE = {
             3,
         )
     ],
-    "javascript": [
-        (
-            r'(new ActiveXObject\("WScript.Shell"\).Run|.Run\("cmd.exe|.Run\("%comspec%\)|.Run\("c:\\Windows|.RegisterXLL\()',
-            3,
-        )
-    ],
+
     "signing_certificates": [(r"( Inc | Co.|  Ltd.,| LLC| Limited)", 2)],
     "privilege_escalation": [(r"(sysprep|cryptbase|secur32)", 2)],
     "webshells": [(r"(isset\($post\[|isset\($get\[|eval\(Request)", 2)],
@@ -183,12 +176,24 @@ REGEX_BASE = {
     "less_value": [
         (r"(abcdefghijklmnopqsst|ABCDEFGHIJKLMNOPQRSTUVWXYZ|0123456789:;)", -5)
     ],
-    "vb_backdoors": [(r"(kill|wscript|plugins|svr32|Select |)", 3)],
-    "susp_strings_combo": [(r"([a-z]{4,}[!\?]|\[[!+\-]\] |[a-zA-Z]{4,}...)", 3)],
+    "vb_backdoors": [(r"(kill|wscript|plugins|svr32|Select )", 3)],
+    "susp_strings_combo": [(r"([a-z]{4,}[!\?]|\[[!+\-]\] )", 3)], 
     "special_chars": [(r"(-->|!!!| <<< | >>> )", 5)],
     "swear": [(r"\b(fuck|damn|shit|penis)\b", 5)],
     "scripts": [
         (r"(%APPDATA%|%USERPROFILE%|Public|Roaming|& del|& rm| && |script)", 3)
     ],
     "uacme": [(r"(Elevation|pwnd|pawn|elevate to)", 3)],
+}
+
+REGEX_SENSETIVE = {
+    "all_caps": [(r"^[A-Z]{6,}$", 3)],
+    "all_lower": [(r"^[a-z]{6,}$", 3)],
+    "all_lower_with_space": [(r"^[a-z\s]{6,}$", 2)],
+    "javascript": [
+    (
+        r'(new ActiveXObject\("WScript.Shell"\).Run|.Run\("cmd.exe|.Run\("%comspec%\)|.Run\("c:\\Windows|.RegisterXLL\()',
+        3,
+    )
+    ],
 }

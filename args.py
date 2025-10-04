@@ -21,7 +21,7 @@ def get_args():
         "-z",
         help="Minimum score to consider (default=0)",
         metavar="min-score",
-        default=0,
+        default=5,
     )
     group_creation.add_argument(
         "-x",

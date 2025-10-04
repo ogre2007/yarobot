@@ -12,8 +12,6 @@ from lxml import etree
 PE_STRINGS_FILE = "./3rdparty/strings.xml"
 
 
-
-
 # TODO: Still buggy after port to Python3
 def extract_hex_strings(s):
     strings = []
