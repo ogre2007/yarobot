@@ -1,11 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: iso-8859-1 -*-
-# -*- coding: utf-8 -*-
-#
-# yarGen
-# A Rule Generator for YARA Rules
-#
-# Florian Roth
 
 __version__ = "0.24.0"
 
