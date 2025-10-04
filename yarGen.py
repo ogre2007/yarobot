@@ -9,22 +9,29 @@
 
 __version__ = "0.24.0"
 
+from json import load
 import os
 import sys
 
-import argparse 
-import traceback 
-import time 
+import argparse
+import traceback
+import time
 from collections import Counter
 import signal as signal_module
 
 import dbs
-from parse_files import *
+from parse_files import parse_good_dir, parse_sample_dir
 from rule_generator import generate_rules
-from scoring import filter_string_set, sample_string_evaluation
-from utils import *
-
-
+from scoring import sample_string_evaluation
+from utils import (
+    emptyFolder,
+    get_abs_path,
+    getIdentifier,
+    getPrefix,
+    getReference,
+    initialize_pestudio_strings,
+    save,
+)
 
 
 def processSampleDir(targetDir):
@@ -41,16 +48,46 @@ def processSampleDir(targetDir):
     stringScores = {}
 
     # Extract all information
-    (sample_string_stats, sample_opcode_stats, file_info) = \
-        parse_sample_dir(args, targetDir, args.nr, generateInfo=True, onlyRelevantExtensions=args.oe)
+    (sample_string_stats, sample_opcode_stats, file_info) = parse_sample_dir(
+        args, targetDir, args.nr, generateInfo=True, onlyRelevantExtensions=args.oe
+    )
 
     # Evaluate Strings
-    (file_strings, file_opcodes, combinations, super_rules, inverse_stats) = \
-        sample_string_evaluation(sample_string_stats, sample_opcode_stats, file_info, args, good_strings_db, pestudio_available,pestudio_strings, pestudioMarker, stringScores, reversedStrings, base64strings, hexEncStrings)
+    (file_strings, file_opcodes, combinations, super_rules, inverse_stats) = (
+        sample_string_evaluation(
+            sample_string_stats,
+            sample_opcode_stats,
+            file_info,
+            args,
+            good_strings_db,
+            pestudio_available,
+            pestudio_strings,
+            pestudioMarker,
+            stringScores,
+            reversedStrings,
+            base64strings,
+            hexEncStrings,
+        )
+    )
 
     # Create Rule Files
-    (rule_count, inverse_rule_count, super_rule_count) = \
-        generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inverse_stats, good_strings_db, good_opcodes_db, pestudio_available, pestudio_strings, pestudioMarker, stringScores, reversedStrings, base64strings, hexEncStrings)
+    (rule_count, inverse_rule_count, super_rule_count) = generate_rules(
+        args,
+        file_strings,
+        file_opcodes,
+        super_rules,
+        file_info,
+        inverse_stats,
+        good_strings_db,
+        good_opcodes_db,
+        pestudio_available,
+        pestudio_strings,
+        pestudioMarker,
+        stringScores,
+        reversedStrings,
+        base64strings,
+        hexEncStrings,
+    )
 
     if args.inverse:
         print("[=] Generated %s INVERSE rules." % str(inverse_rule_count))
@@ -59,6 +96,7 @@ def processSampleDir(targetDir):
         if not args.nosuper:
             print("[=] Generated %s SUPER rules." % str(super_rule_count))
         print("[=] All rules written to %s" % args.o)
+
 
 # CTRL+C Handler --------------------------------------------------------------
 def signal_handler(signal_name, frame):
@@ -81,96 +119,250 @@ def print_welcome():
 
 
 # MAIN ################################################################
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     # Signal handler for CTRL+C
     signal_module.signal(signal_module.SIGINT, signal_handler)
 
     # Parse Arguments
-    parser = argparse.ArgumentParser(description='yarGen')
+    parser = argparse.ArgumentParser(description="yarGen")
 
-    group_creation = parser.add_argument_group('Rule Creation')
-    group_creation.add_argument('-m', help='Path to scan for malware')
-    group_creation.add_argument('-y', help='Minimum string length to consider (default=8)', metavar='min-size',
-                                default=8)
-    group_creation.add_argument('-z', help='Minimum score to consider (default=0)', metavar='min-score', default=0)
-    group_creation.add_argument('-x', help='Score required to set string as \'highly specific string\' (default: 30)',
-                                metavar='high-scoring', default=30)
-    group_creation.add_argument('-w', help='Minimum number of strings that overlap to create a super rule (default: 5)',
-                                metavar='superrule-overlap', default=5)
-    group_creation.add_argument('-s', help='Maximum length to consider (default=128)', metavar='max-size', default=128, type=int)
-    group_creation.add_argument('-rc', help='Maximum number of strings per rule (default=20, intelligent filtering '
-                                            'will be applied)', metavar='maxstrings', default=20)
-    group_creation.add_argument('--excludegood', help='Force the exclude all goodware strings', action='store_true',
-                                default=False)
+    group_creation = parser.add_argument_group("Rule Creation")
+    group_creation.add_argument("-m", help="Path to scan for malware")
+    group_creation.add_argument(
+        "-y",
+        help="Minimum string length to consider (default=8)",
+        metavar="min-size",
+        default=8,
+    )
+    group_creation.add_argument(
+        "-z",
+        help="Minimum score to consider (default=0)",
+        metavar="min-score",
+        default=0,
+    )
+    group_creation.add_argument(
+        "-x",
+        help="Score required to set string as 'highly specific string' (default: 30)",
+        metavar="high-scoring",
+        default=30,
+    )
+    group_creation.add_argument(
+        "-w",
+        help="Minimum number of strings that overlap to create a super rule (default: 5)",
+        metavar="superrule-overlap",
+        default=5,
+    )
+    group_creation.add_argument(
+        "-s",
+        help="Maximum length to consider (default=128)",
+        metavar="max-size",
+        default=128,
+        type=int,
+    )
+    group_creation.add_argument(
+        "-rc",
+        help="Maximum number of strings per rule (default=20, intelligent filtering "
+        "will be applied)",
+        metavar="maxstrings",
+        default=20,
+    )
+    group_creation.add_argument(
+        "--excludegood",
+        help="Force the exclude all goodware strings",
+        action="store_true",
+        default=False,
+    )
 
-    group_output = parser.add_argument_group('Rule Output')
-    group_output.add_argument('-o', help='Output rule file', metavar='output_rule_file', default='yargen_rules.yar')
-    group_output.add_argument('-e', help='Output directory for string exports', metavar='output_dir_strings', default='')
-    group_output.add_argument('-a', help='Author Name', metavar='author', default='yarGen Rule Generator')
-    group_output.add_argument('-r', help='Reference (can be string or text file)', metavar='ref',
-                              default='https://github.com/Neo23x0/yarGen')
-    group_output.add_argument('-l', help='License', metavar='lic', default='')
-    group_output.add_argument('-p', help='Prefix for the rule description', metavar='prefix',
-                              default='Auto-generated rule')
-    group_output.add_argument('-b', help='Text file from which the identifier is read (default: last folder name in '
-                                         'the full path, e.g. "myRAT" if -m points to /mnt/mal/myRAT)',
-                              metavar='identifier',
-                              default='not set')
-    group_output.add_argument('--score', help='Show the string scores as comments in the rules', action='store_true',
-                              default=False)
-    group_output.add_argument('--strings', help='Show the string scores as comments in the rules', action='store_true',
-                              default=False)
-    group_output.add_argument('--nosimple', help='Skip simple rule creation for files included in super rules',
-                              action='store_true', default=False)
-    group_output.add_argument('--nomagic', help='Don\'t include the magic header condition statement',
-                              action='store_true', default=False)
-    group_output.add_argument('--nofilesize', help='Don\'t include the filesize condition statement',
-                              action='store_true', default=False)
-    group_output.add_argument('-fm', help='Multiplier for the maximum \'filesize\' condition value (default: 3)',
-                              default=3)
-    group_output.add_argument('--globalrule', help='Create global rules (improved rule set speed)',
-                              action='store_true', default=False)
-    group_output.add_argument('--nosuper', action='store_true', default=False, help='Don\'t try to create super rules '
-                                                                                    'that match against various files')
+    group_output = parser.add_argument_group("Rule Output")
+    group_output.add_argument(
+        "-o",
+        help="Output rule file",
+        metavar="output_rule_file",
+        default="yargen_rules.yar",
+    )
+    group_output.add_argument(
+        "-e",
+        help="Output directory for string exports",
+        metavar="output_dir_strings",
+        default="",
+    )
+    group_output.add_argument(
+        "-a", help="Author Name", metavar="author", default="yarGen Rule Generator"
+    )
+    group_output.add_argument(
+        "-r",
+        help="Reference (can be string or text file)",
+        metavar="ref",
+        default="https://github.com/Neo23x0/yarGen",
+    )
+    group_output.add_argument("-l", help="License", metavar="lic", default="")
+    group_output.add_argument(
+        "-p",
+        help="Prefix for the rule description",
+        metavar="prefix",
+        default="Auto-generated rule",
+    )
+    group_output.add_argument(
+        "-b",
+        help="Text file from which the identifier is read (default: last folder name in "
+        'the full path, e.g. "myRAT" if -m points to /mnt/mal/myRAT)',
+        metavar="identifier",
+        default="not set",
+    )
+    group_output.add_argument(
+        "--score",
+        help="Show the string scores as comments in the rules",
+        action="store_true",
+        default=False,
+    )
+    group_output.add_argument(
+        "--strings",
+        help="Show the string scores as comments in the rules",
+        action="store_true",
+        default=False,
+    )
+    group_output.add_argument(
+        "--nosimple",
+        help="Skip simple rule creation for files included in super rules",
+        action="store_true",
+        default=False,
+    )
+    group_output.add_argument(
+        "--nomagic",
+        help="Don't include the magic header condition statement",
+        action="store_true",
+        default=False,
+    )
+    group_output.add_argument(
+        "--nofilesize",
+        help="Don't include the filesize condition statement",
+        action="store_true",
+        default=False,
+    )
+    group_output.add_argument(
+        "-fm",
+        help="Multiplier for the maximum 'filesize' condition value (default: 3)",
+        default=3,
+    )
+    group_output.add_argument(
+        "--globalrule",
+        help="Create global rules (improved rule set speed)",
+        action="store_true",
+        default=False,
+    )
+    group_output.add_argument(
+        "--nosuper",
+        action="store_true",
+        default=False,
+        help="Don't try to create super rules " "that match against various files",
+    )
 
-    group_db = parser.add_argument_group('Database Operations')
-    group_db.add_argument('--update', action='store_true', default=False, help='Update the local strings and opcodes '
-                                                                               'dbs from the online repository')
-    group_db.add_argument('-g', help='Path to scan for goodware (dont use the database shipped with yaraGen)')
-    group_db.add_argument('-u', action='store_true', default=False, help='Update local standard goodware database with '
-                                                                         'a new analysis result (used with -g)')
-    group_db.add_argument('-c', action='store_true', default=False, help='Create new local goodware database '
-                                                                         '(use with -g and optionally -i "identifier")')
-    group_db.add_argument('-i', default="", help='Specify an identifier for the newly created databases '
-                                                 '(good-strings-identifier.db, good-opcodes-identifier.db)')
+    group_db = parser.add_argument_group("Database Operations")
+    group_db.add_argument(
+        "--update",
+        action="store_true",
+        default=False,
+        help="Update the local strings and opcodes " "dbs from the online repository",
+    )
+    group_db.add_argument(
+        "-g",
+        help="Path to scan for goodware (dont use the database shipped with yaraGen)",
+    )
+    group_db.add_argument(
+        "-u",
+        action="store_true",
+        default=False,
+        help="Update local standard goodware database with "
+        "a new analysis result (used with -g)",
+    )
+    group_db.add_argument(
+        "-c",
+        action="store_true",
+        default=False,
+        help="Create new local goodware database "
+        '(use with -g and optionally -i "identifier")',
+    )
+    group_db.add_argument(
+        "-i",
+        default="",
+        help="Specify an identifier for the newly created databases "
+        "(good-strings-identifier.db, good-opcodes-identifier.db)",
+    )
 
-    group_general = parser.add_argument_group('General Options')
-    group_general.add_argument('--dropzone', action='store_true', default=False,
-                               help='Dropzone mode - monitors a directory [-m] for new samples to process. '
-                                    'WARNING: Processed files will be deleted!')
-    group_general.add_argument('--nr', action='store_true', default=False, help='Do not recursively scan directories')
-    group_general.add_argument('--oe', action='store_true', default=False, help='Only scan executable extensions EXE, '
-                                                                                'DLL, ASP, JSP, PHP, BIN, INFECTED')
-    group_general.add_argument('-fs', help='Max file size in MB to analyze (default=10)', metavar='size-in-MB',
-                               default=10)
-    group_general.add_argument('--noextras', action='store_true', default=False,
-                              help='Don\'t use extras like Imphash or PE header specifics')
-    group_general.add_argument('--ai', action='store_true', default=False, help='Create output to be used as ChatGPT4 input')
-    group_general.add_argument('--debug', action='store_true', default=False, help='Debug output')
-    group_general.add_argument('--trace', action='store_true', default=False, help='Trace output')
+    group_general = parser.add_argument_group("General Options")
+    group_general.add_argument(
+        "--dropzone",
+        action="store_true",
+        default=False,
+        help="Dropzone mode - monitors a directory [-m] for new samples to process. "
+        "WARNING: Processed files will be deleted!",
+    )
+    group_general.add_argument(
+        "--nr",
+        action="store_true",
+        default=False,
+        help="Do not recursively scan directories",
+    )
+    group_general.add_argument(
+        "--oe",
+        action="store_true",
+        default=False,
+        help="Only scan executable extensions EXE, "
+        "DLL, ASP, JSP, PHP, BIN, INFECTED",
+    )
+    group_general.add_argument(
+        "-fs",
+        help="Max file size in MB to analyze (default=10)",
+        metavar="size-in-MB",
+        default=10,
+    )
+    group_general.add_argument(
+        "--noextras",
+        action="store_true",
+        default=False,
+        help="Don't use extras like Imphash or PE header specifics",
+    )
+    group_general.add_argument(
+        "--ai",
+        action="store_true",
+        default=False,
+        help="Create output to be used as ChatGPT4 input",
+    )
+    group_general.add_argument(
+        "--debug", action="store_true", default=False, help="Debug output"
+    )
+    group_general.add_argument(
+        "--trace", action="store_true", default=False, help="Trace output"
+    )
 
-    group_opcode = parser.add_argument_group('Other Features')
-    group_opcode.add_argument('--opcodes', action='store_true', default=False, help='Do use the OpCode feature '
-                                                                                    '(use this if not enough high '
-                                                                                    'scoring strings can be found)')
-    group_opcode.add_argument('-n', help='Number of opcodes to add if not enough high scoring string could be found '
-                                         '(default=3)', metavar='opcode-num', default=3)
+    group_opcode = parser.add_argument_group("Other Features")
+    group_opcode.add_argument(
+        "--opcodes",
+        action="store_true",
+        default=False,
+        help="Do use the OpCode feature "
+        "(use this if not enough high "
+        "scoring strings can be found)",
+    )
+    group_opcode.add_argument(
+        "-n",
+        help="Number of opcodes to add if not enough high scoring string could be found "
+        "(default=3)",
+        metavar="opcode-num",
+        default=3,
+    )
 
-    group_inverse = parser.add_argument_group('Inverse Mode (unstable)')
-    group_inverse.add_argument('--inverse', help=argparse.SUPPRESS, action='store_true', default=False)
-    group_inverse.add_argument('--nodirname', help=argparse.SUPPRESS, action='store_true', default=False)
-    group_inverse.add_argument('--noscorefilter', help=argparse.SUPPRESS, action='store_true', default=False)
+    group_inverse = parser.add_argument_group("Inverse Mode (unstable)")
+    group_inverse.add_argument(
+        "--inverse", help=argparse.SUPPRESS, action="store_true", default=False
+    )
+    group_inverse.add_argument(
+        "--nodirname", help=argparse.SUPPRESS, action="store_true", default=False
+    )
+    group_inverse.add_argument(
+        "--noscorefilter", help=argparse.SUPPRESS, action="store_true", default=False
+    )
 
     args = parser.parse_args()
 
@@ -180,13 +372,15 @@ if __name__ == '__main__':
     if not args.update and not args.m and not args.g:
         parser.print_help()
         print("")
-        print("""
+        print(
+            """
 [E] You have to select --update to update yarGens database or -m for signature generation or -g for the 
 creation of goodware string collections 
 (see https://github.com/Neo23x0/yarGen#examples for more details)
 
 Recommended command line:
-    python yarGen.py -a 'Your Name' --opcodes --dropzone -m ./dropzone""")
+    python yarGen.py -a 'Your Name' --opcodes --dropzone -m ./dropzone"""
+        )
         sys.exit(1)
 
     # Update
@@ -209,7 +403,6 @@ Recommended command line:
     # Read PEStudio string list
     pestudio_strings = {}
     pestudio_available = False
- 
 
     # Identifier
     sourcepath = args.m
@@ -226,8 +419,6 @@ Recommended command line:
     args.prefix = getPrefix(args.p, args.identifier)
     print("[+] Using prefix '%s'" % args.prefix)
 
-
-        
     if strs := initialize_pestudio_strings():
         pestudio_available = True
         pestudio_strings = strs
@@ -238,8 +429,9 @@ Recommended command line:
     # Scan goodware files
     if args.g:
         print("[+] Processing goodware files ...")
-        good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = \
+        good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
             parse_good_dir(args, args.g, args.nr, args.oe)
+        )
 
         # Update existing databases
         if args.u:
@@ -303,24 +495,48 @@ Recommended command line:
             exports_db = "./dbs/good-exports%s.db" % db_identifier
 
             # Creating the databases
-            print("[+] Using '%s' as filename for newly created strings database" % strings_db)
-            print("[+] Using '%s' as filename for newly created opcodes database" % opcodes_db)
-            print("[+] Using '%s' as filename for newly created opcodes database" % imphashes_db)
-            print("[+] Using '%s' as filename for newly created opcodes database" % exports_db)
+            print(
+                "[+] Using '%s' as filename for newly created strings database"
+                % strings_db
+            )
+            print(
+                "[+] Using '%s' as filename for newly created opcodes database"
+                % opcodes_db
+            )
+            print(
+                "[+] Using '%s' as filename for newly created opcodes database"
+                % imphashes_db
+            )
+            print(
+                "[+] Using '%s' as filename for newly created opcodes database"
+                % exports_db
+            )
 
             try:
 
                 if os.path.isfile(strings_db):
-                    input("File %s alread exists. Press enter to proceed or CTRL+C to exit." % strings_db)
+                    input(
+                        "File %s alread exists. Press enter to proceed or CTRL+C to exit."
+                        % strings_db
+                    )
                     os.remove(strings_db)
                 if os.path.isfile(opcodes_db):
-                    input("File %s alread exists. Press enter to proceed or CTRL+C to exit." % opcodes_db)
+                    input(
+                        "File %s alread exists. Press enter to proceed or CTRL+C to exit."
+                        % opcodes_db
+                    )
                     os.remove(opcodes_db)
                 if os.path.isfile(imphashes_db):
-                    input("File %s alread exists. Press enter to proceed or CTRL+C to exit." % imphashes_db)
+                    input(
+                        "File %s alread exists. Press enter to proceed or CTRL+C to exit."
+                        % imphashes_db
+                    )
                     os.remove(imphashes_db)
                 if os.path.isfile(exports_db):
-                    input("File %s alread exists. Press enter to proceed or CTRL+C to exit." % exports_db)
+                    input(
+                        "File %s alread exists. Press enter to proceed or CTRL+C to exit."
+                        % exports_db
+                    )
                     os.remove(exports_db)
 
                 # Strings
@@ -342,16 +558,25 @@ Recommended command line:
                 save(good_imphashes_json, imphashes_db)
                 save(good_exports_json, exports_db)
 
-                print("New database with %d string, %d opcode, %d imphash, %d export entries created. " \
-                      "(remember to use --opcodes to extract opcodes from the samples and create the opcode databases)"\
-                      % (len(good_strings_db), len(good_opcodes_db), len(good_imphashes_db), len(good_exports_db)))
+                print(
+                    "New database with %d string, %d opcode, %d imphash, %d export entries created. "
+                    "(remember to use --opcodes to extract opcodes from the samples and create the opcode databases)"
+                    % (
+                        len(good_strings_db),
+                        len(good_opcodes_db),
+                        len(good_imphashes_db),
+                        len(good_exports_db),
+                    )
+                )
             except Exception as e:
                 traceback.print_exc()
 
     # Analyse malware samples and create rules
     else:
         print("[+] Reading goodware strings from database 'good-strings.db' ...")
-        print("    (This could take some time and uses several Gigabytes of RAM depending on your db size)")
+        print(
+            "    (This could take some time and uses several Gigabytes of RAM depending on your db size)"
+        )
 
         good_strings_db = Counter()
         good_opcodes_db = Counter()
@@ -374,8 +599,10 @@ Recommended command line:
                     print("[+] Loading %s ..." % filePath)
                     good_json = load(get_abs_path(filePath))
                     good_strings_db.update(good_json)
-                    print("[+] Total: %s / Added %d entries" % (
-                    len(good_strings_db), len(good_strings_db) - strings_num))
+                    print(
+                        "[+] Total: %s / Added %d entries"
+                        % (len(good_strings_db), len(good_strings_db) - strings_num)
+                    )
                     strings_num = len(good_strings_db)
                 except Exception as e:
                     traceback.print_exc()
@@ -386,8 +613,10 @@ Recommended command line:
                         print("[+] Loading %s ..." % filePath)
                         good_op_json = load(get_abs_path(filePath))
                         good_opcodes_db.update(good_op_json)
-                        print("[+] Total: %s (removed duplicates) / Added %d entries" % (
-                        len(good_opcodes_db), len(good_opcodes_db) - opcodes_num))
+                        print(
+                            "[+] Total: %s (removed duplicates) / Added %d entries"
+                            % (len(good_opcodes_db), len(good_opcodes_db) - opcodes_num)
+                        )
                         opcodes_num = len(good_opcodes_db)
                 except Exception as e:
                     args.opcodes = False
@@ -398,8 +627,10 @@ Recommended command line:
                     print("[+] Loading %s ..." % filePath)
                     good_imphashes_json = load(get_abs_path(filePath))
                     good_imphashes_db.update(good_imphashes_json)
-                    print("[+] Total: %s / Added %d entries" % (
-                    len(good_imphashes_db), len(good_imphashes_db) - imphash_num))
+                    print(
+                        "[+] Total: %s / Added %d entries"
+                        % (len(good_imphashes_db), len(good_imphashes_db) - imphash_num)
+                    )
                     imphash_num = len(good_imphashes_db)
                 except Exception as e:
                     traceback.print_exc()
@@ -409,28 +640,36 @@ Recommended command line:
                     print("[+] Loading %s ..." % filePath)
                     good_exports_json = load(get_abs_path(filePath))
                     good_exports_db.update(good_exports_json)
-                    print("[+] Total: %s / Added %d entries" % (
-                    len(good_exports_db), len(good_exports_db) - exports_num))
+                    print(
+                        "[+] Total: %s / Added %d entries"
+                        % (len(good_exports_db), len(good_exports_db) - exports_num)
+                    )
                     exports_num = len(good_exports_db)
                 except Exception as e:
                     traceback.print_exc()
 
         if args.opcodes and len(good_opcodes_db) < 1:
-            print("[E] Missing goodware opcode databases."
-                  "    Please run 'yarGen.py --update' to retrieve the newest database set.")
+            print(
+                "[E] Missing goodware opcode databases."
+                "    Please run 'yarGen.py --update' to retrieve the newest database set."
+            )
             args.opcodes = False
 
         if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
-            print("[E] Missing goodware imphash/export databases. "
-                  "    Please run 'yarGen.py --update' to retrieve the newest database set.")
+            print(
+                "[E] Missing goodware imphash/export databases. "
+                "    Please run 'yarGen.py --update' to retrieve the newest database set."
+            )
 
         if len(good_strings_db) < 1 and not args.c:
-            print("[E] Error - no goodware databases found. "
-                  "    Please run 'yarGen.py --update' to retrieve the newest database set.")
+            print(
+                "[E] Error - no goodware databases found. "
+                "    Please run 'yarGen.py --update' to retrieve the newest database set."
+            )
             sys.exit(1)
 
     # If malware directory given
-    if args.m: 
+    if args.m:
         # Deactivate super rule generation if there's only a single file in the folder
         if len(os.listdir(args.m)) < 2:
             args.nosuper = True
@@ -450,8 +689,11 @@ Recommended command line:
         # Dropzone mode
         if args.dropzone:
             # Monitoring folder for changes
-            print("Monitoring %s for new sample files (processed samples will be removed)" % args.m)
-            while(True):
+            print(
+                "Monitoring %s for new sample files (processed samples will be removed)"
+                % args.m
+            )
+            while True:
                 if len(os.listdir(args.m)) > 0:
                     # Deactivate super rule generation if there's only a single file in the folder
                     if len(os.listdir(args.m)) < 2:

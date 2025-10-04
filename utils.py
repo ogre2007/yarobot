@@ -9,14 +9,16 @@ from lxml import etree
 
 PE_STRINGS_FILE = "./3rdparty/strings.xml"
 
+
 def get_abs_path(filename):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+
 
 def initialize_pestudio_strings():
     if not os.path.isfile(get_abs_path(PE_STRINGS_FILE)):
         return None
     print("[+] Processing PEStudio strings ...")
-    
+
     pestudio_strings = {}
 
     tree = etree.parse(get_abs_path(PE_STRINGS_FILE))
@@ -69,17 +71,19 @@ def getReference(ref):
     else:
         return ref
 
+
 def save(object, filename):
-    file = gzip.GzipFile(filename, 'wb')
-    file.write(bytes(json.dumps(object), 'utf-8'))
+    file = gzip.GzipFile(filename, "wb")
+    file.write(bytes(json.dumps(object), "utf-8"))
     file.close()
+
 
 def removeNonAsciiDrop(string):
     nonascii = "error"
     try:
         byte_list = [i.to_bytes(1, sys.byteorder) for i in string]
         # Generate a new string without disturbing characters
-        nonascii = b"".join(i for i in byte_list if ord(i)<127 and ord(i)>31)
+        nonascii = b"".join(i for i in byte_list if ord(i) < 127 and ord(i) > 31)
     except Exception as e:
         traceback.print_exc()
         pass
@@ -87,10 +91,11 @@ def removeNonAsciiDrop(string):
 
 
 def load(filename):
-    file = gzip.GzipFile(filename, 'rb')
+    file = gzip.GzipFile(filename, "rb")
     object = json.loads(file.read())
     file.close()
     return object
+
 
 def getIdentifier(id, path):
     """
@@ -102,7 +107,7 @@ def getIdentifier(id, path):
     # Identifier
     if id == "not set" or not os.path.exists(id):
         # Identifier is the highest folder name
-        return os.path.basename(path.rstrip('/'))
+        return os.path.basename(path.rstrip("/"))
     else:
         # Read identifier from file
         identifier = getFileContent(id)
@@ -133,6 +138,7 @@ def getPrefix(prefix, identifier):
     else:
         return prefix
 
+
 def getFileContent(file):
     """
     Gets the contents of a file (limited to 1024 characters)
@@ -144,6 +150,7 @@ def getFileContent(file):
             return f.read(1024)
     except Exception as e:
         return "not found"
+
 
 def get_timestamp_basic(date_obj=None):
     if not date_obj:
@@ -174,7 +181,8 @@ def is_ascii_string(string, padding_allowed=False):
 
 
 def is_base_64(s):
-    return (len(s) % 4 == 0) and re.match('^[A-Za-z0-9+/]+[=]{0,2}$', s)
+    return (len(s) % 4 == 0) and re.match("^[A-Za-z0-9+/]+[=]{0,2}$", s)
+
 
 def get_files(folder, notRecursive):
     # Not Recursive
@@ -186,13 +194,14 @@ def get_files(folder, notRecursive):
             yield filePath
     # Recursive
     else:
-        for root, dirs, files in os.walk(folder, topdown = False):
+        for root, dirs, files in os.walk(folder, topdown=False):
             for name in files:
                 filePath = os.path.join(root, name)
                 yield filePath
 
+
 def is_hex_encoded(s, check_length=True):
-    if re.match('^[A-Fa-f0-9]+$', s):
+    if re.match("^[A-Fa-f0-9]+$", s):
         if check_length:
             if len(s) % 2 == 0:
                 return True
@@ -200,13 +209,16 @@ def is_hex_encoded(s, check_length=True):
             return True
     return False
 
+
 def get_opcode_string(opcode):
-    return ' '.join(opcode[i:i + 2] for i in range(0, len(opcode), 2))
+    return " ".join(opcode[i : i + 2] for i in range(0, len(opcode), 2))
 
 
 def get_uint_string(magic):
     if len(magic) == 2:
         return "uint8(0) == 0x{0}{1}".format(magic[0], magic[1])
     if len(magic) == 4:
-        return "uint16(0) == 0x{2}{3}{0}{1}".format(magic[0], magic[1], magic[2], magic[3])
+        return "uint16(0) == 0x{2}{3}{0}{1}".format(
+            magic[0], magic[1], magic[2], magic[3]
+        )
     return ""

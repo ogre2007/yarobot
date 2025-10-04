@@ -1,45 +1,41 @@
-
 import base64
 import binascii
 import operator
-import re 
+import re
 import traceback
- 
-from typing import Dict, List, Tuple
- 
+
+
 from regex_base import REGEX_BASE
 from utils import *
 
 
-
-
 def score_with_regex(string):
-    
+
     # Length Score
-    #length = len(string)
-    #if length > int(args.y) and length < int(args.s):
+    # length = len(string)
+    # if length > int(args.y) and length < int(args.s):
     #    localStringScores[string] += round(len(string) / 8, 2)
-    #if length >= int(args.s):
+    # if length >= int(args.s):
     #    localStringScores[string] += 1
 
     # Reduction
 
-    score = 0 
+    score = 0
     if ".." in string:
         score -= 5
     if "   " in string:
         score -= 5
     # Packer Strings
-    if re.search(r'(WinRAR\\SFX)', string):
+    if re.search(r"(WinRAR\\SFX)", string):
         score -= 4
     # US ASCII char
     if "\x1f" in string:
         score -= 4
     # Chains of 00s
-    if string.count('0000000000') > 2:
+    if string.count("0000000000") > 2:
         score -= 5
     # Repeated characters
-    if re.search(r'(?!.* ([A-Fa-f0-9])\1{8,})', string):
+    if re.search(r"(?!.* ([A-Fa-f0-9])\1{8,})", string):
         score -= 5
     for _, regexes in REGEX_BASE.items():
         for regex in regexes:
@@ -47,7 +43,19 @@ def score_with_regex(string):
                 score += regex[1]
     return score
 
-def filter_string_set(string_set, args, good_strings_db, pestudio_available, pestudio_strings, pestudioMarker, stringScores, reversedStrings, base64strings, hexEncStrings):
+
+def filter_string_set(
+    string_set,
+    args,
+    good_strings_db,
+    pestudio_available,
+    pestudio_strings,
+    pestudioMarker,
+    stringScores,
+    reversedStrings,
+    base64strings,
+    hexEncStrings,
+):
     # This is the only set we have - even if it's a weak one
     useful_set = []
 
@@ -100,7 +108,6 @@ def filter_string_set(string_set, args, good_strings_db, pestudio_available, pes
 
         if not goodstring:
 
-
             localStringScores[string] += score_with_regex(string)
             # ENCODING DETECTIONS --------------------------------------------------
             try:
@@ -109,10 +116,19 @@ def filter_string_set(string_set, args, good_strings_db, pestudio_available, pes
                     # Base64
                     if args.trace:
                         print("Starting Base64 string analysis ...")
-                    for m_string in (string, string[1:], string[:-1], string[1:] + "=", string + "=", string + "=="):
+                    for m_string in (
+                        string,
+                        string[1:],
+                        string[:-1],
+                        string[1:] + "=",
+                        string + "=",
+                        string + "==",
+                    ):
                         if is_base_64(m_string):
                             try:
-                                decoded_string = base64.b64decode(m_string, validate=False)
+                                decoded_string = base64.b64decode(
+                                    m_string, validate=False
+                                )
                             except binascii.Error as e:
                                 continue
                             if is_ascii_string(decoded_string, padding_allowed=True):
@@ -122,18 +138,21 @@ def filter_string_set(string_set, args, good_strings_db, pestudio_available, pes
                     # Hex Encoded string
                     if args.trace:
                         print("Starting Hex encoded string analysis ...")
-                    for m_string in ([string, re.sub('[^a-zA-Z0-9]', '', string)]):
-                        #print m_string
+                    for m_string in [string, re.sub("[^a-zA-Z0-9]", "", string)]:
+                        # print m_string
                         if is_hex_encoded(m_string):
-                            #print("^ is HEX")
+                            # print("^ is HEX")
                             decoded_string = bytes.fromhex(m_string)
-                            #print removeNonAsciiDrop(decoded_string)
+                            # print removeNonAsciiDrop(decoded_string)
                             if is_ascii_string(decoded_string, padding_allowed=True):
                                 # not too many 00s
-                                if '00' in m_string:
-                                    if len(m_string) / float(m_string.count('0')) <= 1.2:
+                                if "00" in m_string:
+                                    if (
+                                        len(m_string) / float(m_string.count("0"))
+                                        <= 1.2
+                                    ):
                                         continue
-                                #print("^ is ASCII / WIDE")
+                                # print("^ is ASCII / WIDE")
                                 localStringScores[string] += 8
                                 hexEncStrings[string] = decoded_string
             except Exception as e:
@@ -147,7 +166,7 @@ def filter_string_set(string_set, args, good_strings_db, pestudio_available, pes
                 reversedStrings[string] = string[::-1]
 
             # Certain string reduce	-----------------------------------------------
-            if re.search(r'(rundll32\.exe$|kernel\.dll$)', string, re.IGNORECASE):
+            if re.search(r"(rundll32\.exe$|kernel\.dll$)", string, re.IGNORECASE):
                 localStringScores[string] -= 4
 
         # Set the global string score
@@ -160,7 +179,9 @@ def filter_string_set(string_set, args, good_strings_db, pestudio_available, pes
                 is_utf = False
                 # print "SCORE: %s\tUTF: %s\tSTRING: %s" % ( localStringScores[string], is_utf, string )
 
-    sorted_set = sorted(localStringScores.items(), key=operator.itemgetter(1), reverse=True)
+    sorted_set = sorted(
+        localStringScores.items(), key=operator.itemgetter(1), reverse=True
+    )
 
     # Only the top X strings
     c = 0
@@ -177,8 +198,8 @@ def filter_string_set(string_set, args, good_strings_db, pestudio_available, pes
         else:
             result_set.append(string[0])
 
-        #c += 1
-        #if c > int(args.rc):
+        # c += 1
+        # if c > int(args.rc):
         #    break
 
     if args.trace:
@@ -188,9 +209,10 @@ def filter_string_set(string_set, args, good_strings_db, pestudio_available, pes
     # return the filtered set
     return result_set
 
+
 def filter_opcode_set(args, opcode_set: list[str], good_opcodes_db) -> list[str]:
     # Preferred Opcodes
-    pref_opcodes = [' 34 ', 'ff ff ff ']
+    pref_opcodes = [" 34 ", "ff ff ff "]
 
     # Useful set
     useful_set = []
@@ -223,11 +245,23 @@ def filter_opcode_set(args, opcode_set: list[str], good_opcodes_db) -> list[str]
     useful_set = pref_set + useful_set
 
     # Only return the number of opcodes defined with the "-n" parameter
-    return useful_set[:int(args.n)]
+    return useful_set[: int(args.n)]
 
 
-
-def sample_string_evaluation(string_stats, opcode_stats, file_info, args, good_strings_db, pestudio_available,pestudio_strings, pestudioMarker, stringScores, reversedStrings, base64strings, hexEncStrings):
+def sample_string_evaluation(
+    string_stats,
+    opcode_stats,
+    file_info,
+    args,
+    good_strings_db,
+    pestudio_available,
+    pestudio_strings,
+    pestudioMarker,
+    stringScores,
+    reversedStrings,
+    base64strings,
+    hexEncStrings,
+):
     # Generate Stats -----------------------------------------------------------
     print("[+] Generating statistical data ...")
     file_strings = {}
@@ -271,7 +305,9 @@ def sample_string_evaluation(string_stats, opcode_stats, file_info, args, good_s
                 # INVERSE RULE GENERATION -------------------------------------
                 if args.inverse:
                     for fileName in string_stats[string]["files_basename"]:
-                        string_occurrance_count = string_stats[string]["files_basename"][fileName]
+                        string_occurrance_count = string_stats[string][
+                            "files_basename"
+                        ][fileName]
                         total_count_basename = file_info[fileName]["count"]
                         # print "string_occurance_count %s - total_count_basename %s" % ( string_occurance_count,
                         # total_count_basename )
@@ -290,8 +326,14 @@ def sample_string_evaluation(string_stats, opcode_stats, file_info, args, good_s
             # print sample_string_stats[string]["count"]
             if string_stats[string]["count"] > 1:
                 if args.debug:
-                    print("OVERLAP Count: %s\nString: \"%s\"%s" % (string_stats[string]["count"], string,
-                                                                   "\nFILE: ".join(string_stats[string]["files"])))
+                    print(
+                        'OVERLAP Count: %s\nString: "%s"%s'
+                        % (
+                            string_stats[string]["count"],
+                            string,
+                            "\nFILE: ".join(string_stats[string]["files"]),
+                        )
+                    )
                 # Create a combination string from the file set that matches to that string
                 combi = ":".join(sorted(string_stats[string]["files"]))
                 # print "STRING: " + string
@@ -323,7 +365,18 @@ def sample_string_evaluation(string_stats, opcode_stats, file_info, args, good_s
                 # print combinations[combi]["strings"]
                 string_set = combinations[combi]["strings"]
                 combinations[combi]["strings"] = []
-                combinations[combi]["strings"] = filter_string_set(string_set, args, good_strings_db, pestudio_available,pestudio_strings, pestudioMarker, stringScores, reversedStrings, base64strings, hexEncStrings)
+                combinations[combi]["strings"] = filter_string_set(
+                    string_set,
+                    args,
+                    good_strings_db,
+                    pestudio_available,
+                    pestudio_strings,
+                    pestudioMarker,
+                    stringScores,
+                    reversedStrings,
+                    base64strings,
+                    hexEncStrings,
+                )
                 # print combinations[combi]["strings"]
                 # print "AFTER"
                 # print len(combinations[combi]["strings"])
@@ -338,7 +391,10 @@ def sample_string_evaluation(string_stats, opcode_stats, file_info, args, good_s
                             if file in file_strings:
                                 del file_strings[file]
                     # Add it as a super rule
-                    print("[-] Adding Super Rule with %s strings." % str(len(combinations[combi]["strings"])))
+                    print(
+                        "[-] Adding Super Rule with %s strings."
+                        % str(len(combinations[combi]["strings"]))
+                    )
                     # if args.debug:
                     # print "Rule Combi: %s" % combi
                     super_rules.append(combinations[combi])

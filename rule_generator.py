@@ -1,20 +1,19 @@
-
-
 from collections import Counter
 import traceback
 
 from scoring import filter_opcode_set, filter_string_set
 from utils import *
 
-KNOWN_IMPHASHES = {'a04dd9f5ee88d7774203e0a0cfa1b941': 'PsExec',
-                   '2b8c9d9ab6fefc247adaf927e83dcea6': 'RAR SFX variant'}
+KNOWN_IMPHASHES = {
+    "a04dd9f5ee88d7774203e0a0cfa1b941": "PsExec",
+    "2b8c9d9ab6fefc247adaf927e83dcea6": "RAR SFX variant",
+}
 
 
 AI_COMMENT = """
 The provided rule is a YARA rule, encompassing a wide range of suspicious strings. Kindly review the list and pinpoint the twenty strings that are most distinctive or appear most suited for a YARA rule focused on malware detection. Arrange them in descending order based on their level of suspicion. Then, swap out the current list of strings in the YARA rule with your chosen set and supply the revised rule.
 ---
 """
-
 
 
 def get_strings(string_elements, base64strings, hexEncStrings, reversedStrings):
@@ -28,7 +27,7 @@ def get_strings(string_elements, base64strings, hexEncStrings, reversedStrings):
         "wide": [],
         "base64 encoded": [],
         "hex encoded": [],
-        "reversed": []
+        "reversed": [],
     }
 
     # Adding the strings --------------------------------------
@@ -71,7 +70,9 @@ def write_strings(filePath, strings, output_dir, scores, stringScores):
             continue
         # Section
         output_string.append("%s Strings" % key.upper())
-        output_string.append("------------------------------------------------------------------------")
+        output_string.append(
+            "------------------------------------------------------------------------"
+        )
         for string in strings[key]:
             if scores:
                 score = "unknown"
@@ -86,9 +87,6 @@ def write_strings(filePath, strings, output_dir, scores, stringScores):
         output_string.append("\n")
     with open(strings_filename, "w") as fh:
         fh.write("\n".join(output_string))
-
-
-
 
 
 def generate_general_condition(args, file_info):
@@ -137,7 +135,7 @@ def generate_general_condition(args, file_info):
 
         # If different magic headers are less than 5
         if len(imphashes) == 1:
-            conditions.append("pe.imphash() == \"{0}\"".format(imphashes[0]))
+            conditions.append('pe.imphash() == "{0}"'.format(imphashes[0]))
             pe_module_neccessary = True
 
         # If enough attributes were special
@@ -147,9 +145,12 @@ def generate_general_condition(args, file_info):
         if args.debug:
             traceback.print_exc()
             exit(1)
-        print("[E] ERROR while generating general condition - check the global rule and remove it if it's faulty")
+        print(
+            "[E] ERROR while generating general condition - check the global rule and remove it if it's faulty"
+        )
 
     return condition_string, pe_module_neccessary
+
 
 def get_file_range(args, size):
     size_string = ""
@@ -173,20 +174,40 @@ def get_file_range(args, size):
             max_size = int(round(max_size, -3))
         size_string = "filesize < {0}KB".format(max_size)
         if args.debug:
-            print("File Size Eval: SampleSize (b): {0} SizeWithMultiplier (b/Kb): {1} / {2} RoundedSize: {3}".format(
-                str(size), str(max_size_b), str(max_size_kb), str(max_size)))
+            print(
+                "File Size Eval: SampleSize (b): {0} SizeWithMultiplier (b/Kb): {1} / {2} RoundedSize: {3}".format(
+                    str(size), str(max_size_b), str(max_size_kb), str(max_size)
+                )
+            )
     except Exception as e:
         traceback.print_exc()
     finally:
         return size_string
 
-def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inverse_stats,
-                    good_strings_db, good_opcodes_db, pestudio_available, pestudio_strings, pestudioMarker, stringScores, reversedStrings, base64strings, hexEncStrings, good_imphashes_db,
-                    good_exports_db):
+
+def generate_rules(
+    args,
+    file_strings,
+    file_opcodes,
+    super_rules,
+    file_info,
+    inverse_stats,
+    good_strings_db,
+    good_opcodes_db,
+    pestudio_available,
+    pestudio_strings,
+    pestudioMarker,
+    stringScores,
+    reversedStrings,
+    base64strings,
+    hexEncStrings,
+    good_imphashes_db,
+    good_exports_db,
+):
     # Write to file ---------------------------------------------------
     if args.o:
         try:
-            fh = open(args.o, 'w')
+            fh = open(args.o, "w")
         except Exception as e:
             traceback.print_exc()
 
@@ -201,7 +222,7 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
         general_info += "   License: {0}\n".format(args.l)
     general_info += "*/\n\n"
 
-    if args.ai: 
+    if args.ai:
         fh.write(AI_COMMENT)
     else:
         fh.write(general_info)
@@ -243,27 +264,48 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
             print("[-] Filtering string set for %s ..." % filePath)
 
             # Replace the original string set with the filtered one
-            file_strings[filePath] = filter_string_set(file_strings[filePath], args, good_strings_db, pestudio_available,pestudio_strings, pestudioMarker, stringScores, reversedStrings, base64strings, hexEncStrings)
- 
+            file_strings[filePath] = filter_string_set(
+                file_strings[filePath],
+                args,
+                good_strings_db,
+                pestudio_available,
+                pestudio_strings,
+                pestudioMarker,
+                stringScores,
+                reversedStrings,
+                base64strings,
+                hexEncStrings,
+            )
 
             print("[-] Filtering opcode set for %s ..." % filePath)
 
             # Replace the original opcode set with the filtered one
-            file_opcodes[filePath] = filter_opcode_set(args, file_opcodes[filePath], good_opcodes_db) if filePath in file_opcodes else []
+            file_opcodes[filePath] = (
+                filter_opcode_set(args, file_opcodes[filePath], good_opcodes_db)
+                if filePath in file_opcodes
+                else []
+            )
 
         # GENERATE SIMPLE RULES -------------------------------------------
-        fh.write("/* Rule Set ----------------------------------------------------------------- */\n\n")
+        fh.write(
+            "/* Rule Set ----------------------------------------------------------------- */\n\n"
+        )
 
         for filePath in file_strings:
 
             # Skip if there is nothing to do
             if len(file_strings[filePath]) == 0:
-                print("[W] Not enough high scoring strings to create a rule. "
-                      "(Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s" % filePath)
+                print(
+                    "[W] Not enough high scoring strings to create a rule. "
+                    "(Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s"
+                    % filePath
+                )
                 continue
             elif len(file_strings[filePath]) == 0 and len(file_opcodes[filePath]) == 0:
-                print("[W] Not enough high scoring strings and opcodes to create a rule. " \
-                      "(Try -z 0 to reduce the min score) FILE: %s" % filePath)
+                print(
+                    "[W] Not enough high scoring strings and opcodes to create a rule. "
+                    "(Try -z 0 to reduce the min score) FILE: %s" % filePath
+                )
                 continue
 
             # Create Rule
@@ -276,12 +318,12 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
                 cleanedName = fileBase
                 # Adapt length of rule name
                 if len(fileBase) < 8:  # if name is too short add part from path
-                    cleanedName = path.split('\\')[-1:][0] + "_" + cleanedName
+                    cleanedName = path.split("\\")[-1:][0] + "_" + cleanedName
                 # File name starts with a number
-                if re.search(r'^[0-9]', cleanedName):
+                if re.search(r"^[0-9]", cleanedName):
                     cleanedName = "sig_" + cleanedName
                 # clean name from all characters that would cause errors
-                cleanedName = re.sub(r'[^\w]', '_', cleanedName)
+                cleanedName = re.sub(r"[^\w]", "_", cleanedName)
                 # Check if already printed
                 if cleanedName in printed_rules:
                     printed_rules[cleanedName] += 1
@@ -294,22 +336,42 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
 
                 # Meta data -----------------------------------------------
                 rule += "   meta:\n"
-                rule += "      description = \"%s - file %s\"\n" % (args.prefix, file)
-                rule += "      author = \"%s\"\n" % args.a
-                rule += "      reference = \"%s\"\n" % args.reference
-                rule += "      date = \"%s\"\n" % get_timestamp_basic()
-                rule += "      hash1 = \"%s\"\n" % file_info[filePath]["hash"]
+                rule += '      description = "%s - file %s"\n' % (args.prefix, file)
+                rule += '      author = "%s"\n' % args.a
+                rule += '      reference = "%s"\n' % args.reference
+                rule += '      date = "%s"\n' % get_timestamp_basic()
+                rule += '      hash1 = "%s"\n' % file_info[filePath]["hash"]
                 rule += "   strings:\n"
 
                 # Get the strings -----------------------------------------
                 # Rule String generation
-                (rule_strings, opcodes_included, string_rule_count, high_scoring_strings) = get_rule_strings(file_strings[filePath], file_opcodes[filePath], args, good_strings_db, stringScores, base64strings, hexEncStrings, pestudioMarker, reversedStrings)
+                (
+                    rule_strings,
+                    opcodes_included,
+                    string_rule_count,
+                    high_scoring_strings,
+                ) = get_rule_strings(
+                    file_strings[filePath],
+                    file_opcodes[filePath],
+                    args,
+                    good_strings_db,
+                    stringScores,
+                    base64strings,
+                    hexEncStrings,
+                    pestudioMarker,
+                    reversedStrings,
+                )
 
                 rule += rule_strings
 
                 # Extract rul strings
                 if args.strings:
-                    strings = get_strings(file_strings[filePath], base64strings, hexEncStrings, reversedStrings)
+                    strings = get_strings(
+                        file_strings[filePath],
+                        base64strings,
+                        hexEncStrings,
+                        reversedStrings,
+                    )
                     write_strings(filePath, strings, args.e, args.score, stringScores)
 
                 # Condition -----------------------------------------------
@@ -324,20 +386,27 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
                 condition_pe_part2 = []
                 if not args.noextras and file_info[filePath]["magic"] == "MZ":
                     # Add imphash - if certain conditions are met
-                    if file_info[filePath]["imphash"] not in good_imphashes_db and file_info[filePath]["imphash"] != "":
+                    if (
+                        file_info[filePath]["imphash"] not in good_imphashes_db
+                        and file_info[filePath]["imphash"] != ""
+                    ):
                         # Comment to imphash
                         imphash = file_info[filePath]["imphash"]
                         comment = ""
                         if imphash in KNOWN_IMPHASHES:
                             comment = " /* {0} */".format(KNOWN_IMPHASHES[imphash])
                         # Add imphash to condition
-                        condition_pe_part1.append("pe.imphash() == \"{0}\"{1}".format(imphash, comment))
+                        condition_pe_part1.append(
+                            'pe.imphash() == "{0}"{1}'.format(imphash, comment)
+                        )
                         pe_module_necessary = True
                     if file_info[filePath]["exports"]:
                         e_count = 0
                         for export in file_info[filePath]["exports"]:
                             if export not in good_exports_db:
-                                condition_pe_part2.append("pe.exports(\"{0}\")".format(export))
+                                condition_pe_part2.append(
+                                    'pe.exports("{0}")'.format(export)
+                                )
                                 e_count += 1
                                 pe_module_necessary = True
                             if e_count > 5:
@@ -347,7 +416,9 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
                 basic_conditions = []
                 # Filesize
                 if not args.nofilesize:
-                    basic_conditions.insert(0, get_file_range(file_info[filePath]["size"]))
+                    basic_conditions.insert(
+                        0, get_file_range(file_info[filePath]["size"])
+                    )
                 # Magic
                 if file_info[filePath]["magic"] != "":
                     uint_string = get_uint_string(file_info[filePath]["magic"])
@@ -377,7 +448,7 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
                 cond_hs = ""  # high scoring strings condition
                 cond_ls = ""  # low scoring strings condition
 
-                low_scoring_strings = (string_rule_count - high_scoring_strings)
+                low_scoring_strings = string_rule_count - high_scoring_strings
                 if high_scoring_strings > 0:
                     cond_hs = "1 of ($x*)"
                 if low_scoring_strings > 0:
@@ -480,10 +551,10 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
                 file_listing = ", ".join(file_list)
 
                 # File name starts with a number
-                if re.search(r'^[0-9]', rule_name):
+                if re.search(r"^[0-9]", rule_name):
                     rule_name = "sig_" + rule_name
                 # clean name from all characters that would cause errors
-                rule_name = re.sub(r'[^\w]', '_', rule_name)
+                rule_name = re.sub(r"[^\w]", "_", rule_name)
                 # Check if already printed
                 if rule_name in printed_rules:
                     printed_combi[rule_name] += 1
@@ -494,12 +565,18 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
                 # Print rule title
                 rule += "rule %s {\n" % rule_name
                 rule += "   meta:\n"
-                rule += "      description = \"%s - from files %s\"\n" % (args.prefix, file_listing)
-                rule += "      author = \"%s\"\n" % args.a
-                rule += "      reference = \"%s\"\n" % args.reference
-                rule += "      date = \"%s\"\n" % get_timestamp_basic()
+                rule += '      description = "%s - from files %s"\n' % (
+                    args.prefix,
+                    file_listing,
+                )
+                rule += '      author = "%s"\n' % args.a
+                rule += '      reference = "%s"\n' % args.reference
+                rule += '      date = "%s"\n' % get_timestamp_basic()
                 for i, filePath in enumerate(super_rule["files"]):
-                    rule += "      hash%s = \"%s\"\n" % (str(i + 1), file_info[filePath]["hash"])
+                    rule += '      hash%s = "%s"\n' % (
+                        str(i + 1),
+                        file_info[filePath]["hash"],
+                    )
 
                 rule += "   strings:\n"
 
@@ -508,7 +585,22 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
                     tmp_file_opcodes = {}
                 else:
                     tmp_file_opcodes = file_opcodes.get(filePath)
-                (rule_strings, opcodes_included, string_rule_count, high_scoring_strings) = get_rule_strings(super_rule["strings"], tmp_file_opcodes, args, good_strings_db, stringScores, base64strings, hexEncStrings, pestudioMarker, reversedStrings)
+                (
+                    rule_strings,
+                    opcodes_included,
+                    string_rule_count,
+                    high_scoring_strings,
+                ) = get_rule_strings(
+                    super_rule["strings"],
+                    tmp_file_opcodes,
+                    args,
+                    good_strings_db,
+                    stringScores,
+                    base64strings,
+                    hexEncStrings,
+                    pestudioMarker,
+                    reversedStrings,
+                )
                 rule += rule_strings
 
                 # Condition -----------------------------------------------
@@ -520,9 +612,11 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
                 file_info_super = {}
                 for filePath in super_rule["files"]:
                     file_info_super[filePath] = file_info[filePath]
-                condition_strings, pe_module_necessary_gen = generate_general_condition(file_info_super)
+                condition_strings, pe_module_necessary_gen = generate_general_condition(
+                    file_info_super
+                )
                 if pe_module_necessary_gen:
-                     pe_module_necessary = True
+                    pe_module_necessary = True
 
                 # 2nd condition
                 # String combinations
@@ -530,7 +624,7 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
                 cond_hs = ""  # high scoring strings condition
                 cond_ls = ""  # low scoring strings condition
 
-                low_scoring_strings = (string_rule_count - high_scoring_strings)
+                low_scoring_strings = string_rule_count - high_scoring_strings
                 if high_scoring_strings > 0:
                     cond_hs = "1 of ($x*)"
                 if low_scoring_strings > 0:
@@ -602,14 +696,27 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
             # Replace the original string set with the filtered one
             string_set = inverse_stats[fileName]
             inverse_stats[fileName] = []
-            inverse_stats[fileName] = filter_string_set(string_set, args, good_strings_db, pestudio_available,pestudio_strings, pestudioMarker, stringScores, reversedStrings, base64strings, hexEncStrings)
+            inverse_stats[fileName] = filter_string_set(
+                string_set,
+                args,
+                good_strings_db,
+                pestudio_available,
+                pestudio_strings,
+                pestudioMarker,
+                stringScores,
+                reversedStrings,
+                base64strings,
+                hexEncStrings,
+            )
 
             # Preset if empty
             if fileName not in file_opcodes:
                 file_opcodes[fileName] = {}
 
         # GENERATE INVERSE RULES -------------------------------------------
-        fh.write("/* Inverse Rules ------------------------------------------------------------- */\n\n")
+        fh.write(
+            "/* Inverse Rules ------------------------------------------------------------- */\n\n"
+        )
 
         for fileName in inverse_stats:
             try:
@@ -619,10 +726,10 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
                 # Add ANOMALY
                 cleanedName += "_ANOMALY"
                 # File name starts with a number
-                if re.search(r'^[0-9]', cleanedName):
+                if re.search(r"^[0-9]", cleanedName):
                     cleanedName = "sig_" + cleanedName
                 # clean name from all characters that would cause errors
-                cleanedName = re.sub(r'[^\w]', '_', cleanedName)
+                cleanedName = re.sub(r"[^\w]", "_", cleanedName)
                 # Check if already printed
                 if cleanedName in printed_rules:
                     printed_rules[cleanedName] += 1
@@ -635,29 +742,51 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
 
                 # Meta data -----------------------------------------------
                 rule += "   meta:\n"
-                rule += "      description = \"%s for anomaly detection - file %s\"\n" % (args.prefix, fileName)
-                rule += "      author = \"%s\"\n" % args.a
-                rule += "      reference = \"%s\"\n" % args.reference
-                rule += "      date = \"%s\"\n" % get_timestamp_basic()
+                rule += '      description = "%s for anomaly detection - file %s"\n' % (
+                    args.prefix,
+                    fileName,
+                )
+                rule += '      author = "%s"\n' % args.a
+                rule += '      reference = "%s"\n' % args.reference
+                rule += '      date = "%s"\n' % get_timestamp_basic()
                 for i, hash in enumerate(file_info[fileName]["hashes"]):
-                    rule += "      hash%s = \"%s\"\n" % (str(i + 1), hash)
+                    rule += '      hash%s = "%s"\n' % (str(i + 1), hash)
 
                 rule += "   strings:\n"
 
                 # Get the strings -----------------------------------------
                 # Rule String generation
-                (rule_strings, opcodes_included, string_rule_count, high_scoring_strings) = \
-                    get_rule_strings(inverse_stats[fileName], file_opcodes[fileName], args, good_strings_db, stringScores, base64strings, hexEncStrings, pestudioMarker, reversedStrings)
-        
+                (
+                    rule_strings,
+                    opcodes_included,
+                    string_rule_count,
+                    high_scoring_strings,
+                ) = get_rule_strings(
+                    inverse_stats[fileName],
+                    file_opcodes[fileName],
+                    args,
+                    good_strings_db,
+                    stringScores,
+                    base64strings,
+                    hexEncStrings,
+                    pestudioMarker,
+                    reversedStrings,
+                )
+
                 rule += rule_strings
 
                 # Condition -----------------------------------------------
                 folderNames = ""
                 if not args.nodirname:
                     folderNames += "and ( filepath matches /"
-                    folderNames += "$/ or filepath matches /".join(file_info[fileName]["folder_names"])
+                    folderNames += "$/ or filepath matches /".join(
+                        file_info[fileName]["folder_names"]
+                    )
                     folderNames += "$/ )"
-                condition = "filename == \"%s\" %s and not ( all of them )" % (fileName, folderNames)
+                condition = 'filename == "%s" %s and not ( all of them )' % (
+                    fileName,
+                    folderNames,
+                )
 
                 rule += "   condition:\n"
                 rule += "      %s\n" % condition
@@ -692,7 +821,17 @@ def generate_rules(args, file_strings, file_opcodes, super_rules, file_info, inv
     return (rule_count, inverse_rule_count, super_rule_count)
 
 
-def get_rule_strings(string_elements, opcode_elements, args, good_strings_db, stringScores, base64strings, hexEncStrings, pestudioMarker, reversedStrings):
+def get_rule_strings(
+    string_elements,
+    opcode_elements,
+    args,
+    good_strings_db,
+    stringScores,
+    base64strings,
+    hexEncStrings,
+    pestudioMarker,
+    reversedStrings,
+):
     rule_strings = ""
     high_scoring_strings = 0
     string_rule_count = 0
@@ -713,7 +852,9 @@ def get_rule_strings(string_elements, opcode_elements, args, good_strings_db, st
         goodware_comment = ""
 
         if string in good_strings_db:
-            goodware_comment = " /* Goodware String - occured %s times */" % (good_strings_db[string])
+            goodware_comment = " /* Goodware String - occured %s times */" % (
+                good_strings_db[string]
+            )
 
         if string in stringScores:
             if args.score:
@@ -725,13 +866,20 @@ def get_rule_strings(string_elements, opcode_elements, args, good_strings_db, st
             string = string[8:]
             enc = " wide"
         if string in base64strings:
-            base64comment = " /* base64 encoded string '%s' */" % base64strings[string].decode()
+            base64comment = (
+                " /* base64 encoded string '%s' */" % base64strings[string].decode()
+            )
         if string in hexEncStrings:
-            hexEncComment = " /* hex encoded string '%s' */" % removeNonAsciiDrop(hexEncStrings[string]).decode()
+            hexEncComment = (
+                " /* hex encoded string '%s' */"
+                % removeNonAsciiDrop(hexEncStrings[string]).decode()
+            )
         if string in pestudioMarker and args.score:
             pestudio_comment = " /* PEStudio Blacklist: %s */" % pestudioMarker[string]
         if string in reversedStrings:
-            reversedComment = " /* reversed goodware string '%s' */" % reversedStrings[string]
+            reversedComment = (
+                " /* reversed goodware string '%s' */" % reversedStrings[string]
+            )
 
         # Extra checks
         if is_hex_encoded(string, check_length=False):
@@ -740,7 +888,7 @@ def get_rule_strings(string_elements, opcode_elements, args, good_strings_db, st
         # Checking string length
         if len(string) >= args.s:
             # cut string
-            string = string[:args.s].rstrip("\\")
+            string = string[: args.s].rstrip("\\")
             # not fullword anymore
             is_fullword = False
         # Show as fullword
@@ -750,13 +898,31 @@ def get_rule_strings(string_elements, opcode_elements, args, good_strings_db, st
         # Now compose the rule line
         if float(stringScores[initial_string]) > args.score_highly_specific:
             high_scoring_strings += 1
-            rule_strings += "      $x%s = \"%s\"%s%s%s%s%s%s%s%s\n" % (
-            str(i + 1), string, fullword, enc, base64comment, reversedComment, pestudio_comment, score_comment,
-            goodware_comment, hexEncComment)
+            rule_strings += '      $x%s = "%s"%s%s%s%s%s%s%s%s\n' % (
+                str(i + 1),
+                string,
+                fullword,
+                enc,
+                base64comment,
+                reversedComment,
+                pestudio_comment,
+                score_comment,
+                goodware_comment,
+                hexEncComment,
+            )
         else:
-            rule_strings += "      $s%s = \"%s\"%s%s%s%s%s%s%s%s\n" % (
-            str(i + 1), string, fullword, enc, base64comment, reversedComment, pestudio_comment, score_comment,
-            goodware_comment, hexEncComment)
+            rule_strings += '      $s%s = "%s"%s%s%s%s%s%s%s%s\n' % (
+                str(i + 1),
+                string,
+                fullword,
+                enc,
+                base64comment,
+                reversedComment,
+                pestudio_comment,
+                score_comment,
+                goodware_comment,
+                hexEncComment,
+            )
 
         # If too many string definitions found - cut it at the
         # count defined via command line param -rc

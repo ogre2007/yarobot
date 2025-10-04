@@ -1,14 +1,47 @@
 import binascii
 from collections import Counter
+import os
 import lief
-from utils import *
+import re
+import traceback
 from hashlib import sha256
 
+from utils import get_files, is_ascii_string
 
-RELEVANT_EXTENSIONS = [".asp", ".vbs", ".ps", ".ps1", ".tmp", ".bas", ".bat", ".cmd", ".com", ".cpl",
-                       ".crt", ".dll", ".exe", ".msc", ".scr", ".sys", ".vb", ".vbe", ".vbs", ".wsc",
-                       ".wsf", ".wsh", ".input", ".war", ".jsp", ".php", ".asp", ".aspx", ".psd1", ".psm1", ".py"]
 
+RELEVANT_EXTENSIONS = [
+    ".asp",
+    ".vbs",
+    ".ps",
+    ".ps1",
+    ".tmp",
+    ".bas",
+    ".bat",
+    ".cmd",
+    ".com",
+    ".cpl",
+    ".crt",
+    ".dll",
+    ".exe",
+    ".msc",
+    ".scr",
+    ".sys",
+    ".vb",
+    ".vbe",
+    ".vbs",
+    ".wsc",
+    ".wsf",
+    ".wsh",
+    ".input",
+    ".war",
+    ".jsp",
+    ".php",
+    ".asp",
+    ".aspx",
+    ".psd1",
+    ".psm1",
+    ".py",
+]
 
 
 # TODO: Still buggy after port to Python3
@@ -16,13 +49,15 @@ def extract_hex_strings(s):
     strings = []
     hex_strings = re.findall(b"([a-fA-F0-9]{10,})", s)
     for string in list(hex_strings):
-        hex_strings += string.split(b'0000')
-        hex_strings += string.split(b'0d0a')
-        hex_strings += re.findall(b'((?:0000|002[a-f0-9]|00[3-9a-f][0-9a-f]){6,})', string, re.IGNORECASE)
+        hex_strings += string.split(b"0000")
+        hex_strings += string.split(b"0d0a")
+        hex_strings += re.findall(
+            b"((?:0000|002[a-f0-9]|00[3-9a-f][0-9a-f]){6,})", string, re.IGNORECASE
+        )
     hex_strings = list(set(hex_strings))
     # ASCII Encoded Strings
     for string in hex_strings:
-        for x in string.split(b'00'):
+        for x in string.split(b"00"):
             if len(x) > 10:
                 strings.append(x)
     # WIDE Encoded Strings
@@ -31,9 +66,9 @@ def extract_hex_strings(s):
             if len(string) % 2 != 0 or len(string) < 8:
                 continue
             # Skip
-            if b'0000' in string:
+            if b"0000" in string:
                 continue
-            dec = string.replace(b'00', b'')
+            dec = string.replace(b"00", b"")
             if is_ascii_string(dec, padding_allowed=False):
                 strings.append(string)
         except Exception as e:
@@ -57,19 +92,19 @@ def extract_strings(args, fileData) -> list[str]:
         # WIDE
         for ws in wide_strings:
             # Decode UTF16 and prepend a marker (facilitates handling)
-            wide_string = ("UTF16LE:%s" % ws.decode('utf-16')).encode('utf-8')
+            wide_string = ("UTF16LE:%s" % ws.decode("utf-16")).encode("utf-8")
             if wide_string not in strings:
                 strings.append(wide_string)
         for string in strings:
             # Escape strings
             if len(string) > 0:
-                string = string.replace(b'\\', b'\\\\')
+                string = string.replace(b"\\", b"\\\\")
                 string = string.replace(b'"', b'\\"')
             try:
                 if isinstance(string, str):
                     cleaned_strings.append(string)
                 else:
-                    cleaned_strings.append(string.decode('utf-8'))
+                    cleaned_strings.append(string.decode("utf-8"))
             except AttributeError as e:
                 print(string)
                 traceback.print_exc()
@@ -96,27 +131,33 @@ def extract_opcodes(args, fileData) -> list[str]:
         text = None
         if isinstance(binary, lief.PE.Binary):
             for sec in binary.sections:
-                if sec.virtual_address + binary.imagebase <= ep < sec.virtual_address + binary.imagebase + sec.virtual_size:
+                if (
+                    sec.virtual_address + binary.imagebase
+                    <= ep
+                    < sec.virtual_address + binary.imagebase + sec.virtual_size
+                ):
                     if args.debug:
-                        print(f'EP is located at {sec.name} section')
+                        print(f"EP is located at {sec.name} section")
                     text = sec.content.tobytes()
                     break
         elif isinstance(binary, lief.ELF.Binary):
             for sec in binary.sections:
                 if sec.virtual_address <= ep < sec.virtual_address + sec.size:
                     if args.debug:
-                        print(f'EP is located at {sec.name} section')
+                        print(f"EP is located at {sec.name} section")
                     text = sec.content.tobytes()
                     break
-        
+
         if text is not None:
             # Split text into subs
             text_parts = re.split(b"[\x00]{3,}", text)
             # Now truncate and encode opcodes
             for text_part in text_parts:
-                if text_part == '' or len(text_part) < 8:
+                if text_part == "" or len(text_part) < 8:
                     continue
-                opcodes.append(binascii.hexlify(text_part[:16]).decode(encoding='ascii'))
+                opcodes.append(
+                    binascii.hexlify(text_part[:16]).decode(encoding="ascii")
+                )
     except Exception as e:
         if args.debug:
             traceback.print_exc()
@@ -153,7 +194,10 @@ def get_pe_info(args, fileData: bytes) -> tuple[str, list[str]]:
 
     return imphash, exports
 
-def parse_sample_dir(args, dir, notRecursive=False, generateInfo=False, onlyRelevantExtensions=False):
+
+def parse_sample_dir(
+    args, dir, notRecursive=False, generateInfo=False, onlyRelevantExtensions=False
+):
     # Prepare dictionary
     string_stats = {}
     opcode_stats = {}
@@ -172,8 +216,9 @@ def parse_sample_dir(args, dir, notRecursive=False, generateInfo=False, onlyRele
                 continue
 
             # Info file check
-            if os.path.basename(filePath) == os.path.basename(args.b) or \
-                    os.path.basename(filePath) == os.path.basename(args.r):
+            if os.path.basename(filePath) == os.path.basename(
+                args.b
+            ) or os.path.basename(filePath) == os.path.basename(args.r):
                 continue
 
             # Size Check
@@ -182,14 +227,17 @@ def parse_sample_dir(args, dir, notRecursive=False, generateInfo=False, onlyRele
                 size = os.stat(filePath).st_size
                 if size > (args.fs * 1024 * 1024):
                     if args.debug:
-                        print("[-] File is to big - Skipping file %s (use -fs to adjust this behaviour)" % (filePath))
+                        print(
+                            "[-] File is to big - Skipping file %s (use -fs to adjust this behaviour)"
+                            % (filePath)
+                        )
                     continue
             except Exception as e:
                 pass
 
             # Check and read file
             try:
-                with open(filePath, 'rb') as f:
+                with open(filePath, "rb") as f:
                     fileData = f.read()
             except Exception as e:
                 print("[-] Cannot read file - skipping %s" % filePath)
@@ -208,19 +256,26 @@ def parse_sample_dir(args, dir, notRecursive=False, generateInfo=False, onlyRele
                 sha256sum = sha256(fileData).hexdigest()
                 file_info[filePath] = {}
                 file_info[filePath]["hash"] = sha256sum
-                file_info[filePath]["imphash"], file_info[filePath]["exports"] = get_pe_info(args, fileData)
+                file_info[filePath]["imphash"], file_info[filePath]["exports"] = (
+                    get_pe_info(args, fileData)
+                )
 
             # Skip if hash already known - avoid duplicate files
             if sha256sum in known_sha1sums:
                 # if args.debug:
-                print("[-] Skipping strings/opcodes from %s due to MD5 duplicate detection" % filePath)
+                print(
+                    "[-] Skipping strings/opcodes from %s due to MD5 duplicate detection"
+                    % filePath
+                )
                 continue
             else:
                 known_sha1sums.append(sha256sum)
 
             # Magic evaluation
             if not args.nomagic:
-                file_info[filePath]["magic"] = binascii.hexlify(fileData[:2]).decode('ascii')
+                file_info[filePath]["magic"] = binascii.hexlify(fileData[:2]).decode(
+                    "ascii"
+                )
             else:
                 file_info[filePath]["magic"] = ""
 
@@ -275,8 +330,17 @@ def parse_sample_dir(args, dir, notRecursive=False, generateInfo=False, onlyRele
                     opcode_stats[opcode]["files"].append(filePath)
 
             if args.debug:
-                print("[+] Processed " + filePath + " Size: " + str(size) + " Strings: " + str(len(string_stats)) + \
-                      " OpCodes: " + str(len(opcode_stats)) + " ... ")
+                print(
+                    "[+] Processed "
+                    + filePath
+                    + " Size: "
+                    + str(size)
+                    + " Strings: "
+                    + str(len(string_stats))
+                    + " OpCodes: "
+                    + str(len(opcode_stats))
+                    + " ... "
+                )
 
         except Exception as e:
             traceback.print_exc()
@@ -311,7 +375,7 @@ def parse_good_dir(args, dir, notRecursive=False, onlyRelevantExtensions=True):
 
         # Check and read file
         try:
-            with open(filePath, 'rb') as f:
+            with open(filePath, "rb") as f:
                 fileData = f.read()
         except Exception as e:
             print("[-] Cannot read file - skipping %s" % filePath)
@@ -335,9 +399,10 @@ def parse_good_dir(args, dir, notRecursive=False, onlyRelevantExtensions=True):
             all_imphashes.update([imphash])
         all_exports.update(exports)
         if args.debug:
-            print("[+] Processed %s - %d strings %d opcodes %d exports and imphash %s" % (filePath, len(strings),
-                                                                                          len(opcodes), len(exports),
-                                                                                          imphash))
+            print(
+                "[+] Processed %s - %d strings %d opcodes %d exports and imphash %s"
+                % (filePath, len(strings), len(opcodes), len(exports), imphash)
+            )
 
     # return it as a set (unique strings)
     return all_strings, all_opcodes, all_imphashes, all_exports
