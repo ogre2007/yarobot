@@ -258,9 +258,7 @@ def generate_rules(
 
             # Replace the original opcode set with the filtered one
             file_opcodes[filePath] = (
-                filter_opcode_set(
-                    state.args, file_opcodes[filePath], state.good_opcodes_db
-                )
+                filter_opcode_set(state, file_opcodes[filePath], state.good_opcodes_db)
                 if filePath in file_opcodes
                 else []
             )
@@ -346,7 +344,7 @@ def generate_rules(
                         state,
                         file_strings[filePath],
                     )
-                    state.write_strings(
+                    write_strings(
                         filePath,
                         strings,
                         state.args.e,

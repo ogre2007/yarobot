@@ -4,7 +4,9 @@ REGEX_BASE = {
     "drives": [(r"[A-Za-z]:\\", -4)],
     "exe_extensions": [
         (
-            r"(\.exe|\.pdb|\.scr|\.log|\.cfg|\.txt|\.dat|\.msi|\.com|\.bat|\.dll|\.pdb|\.vbs|\.tmp|\.sys|\.ps1|\.vbp|\.hta|\.lnk)", 4)
+            r"(\.exe|\.pdb|\.scr|\.log|\.cfg|\.txt|\.dat|\.msi|\.com|\.bat|\.dll|\.pdb|\.vbs|\.tmp|\.sys|\.ps1|\.vbp|\.hta|\.lnk)",
+            4,
+        )
     ],
     "system_keywords": [
         (

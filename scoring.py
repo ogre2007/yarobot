@@ -39,7 +39,7 @@ def score_with_regex(string):
         score -= 5
     for _, regexes in REGEX_BASE.items():
         for regex in regexes:
-            #print(regex)
+            # print(regex)
             if re.search(regex[0], string, re.IGNORECASE):
                 score += regex[1]
     return score
