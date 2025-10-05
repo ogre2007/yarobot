@@ -1,5 +1,5 @@
 
-from parse_files import extract_strings 
+from yarobot.parse_files import extract_strings 
 
 def test_string_extraction():  
     strings, utf16strs = extract_strings(b"string1\0string2\nmultilinestring\n1\0string1") 
