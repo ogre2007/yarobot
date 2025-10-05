@@ -14,13 +14,8 @@ lazy_static::lazy_static! {
     static ref HEX_STRING_REGEX: Regex = Regex::new(r"([a-fA-F0-9]{10,})").unwrap();
 }
  
-
-use serde::de::DeserializeOwned;
-use std::fs::File;
-use std::io::BufReader;
-use flate2::read::GzDecoder;
-use serde_json::{self, Value};
-    use pythonize::pythonize;
+ 
+use pythonize::pythonize;
 
 
 use pyo3::exceptions::PyException;
@@ -45,10 +40,10 @@ fn extract_and_count_ascii_strings(data: &[u8], min_len: usize, max_len: usize, 
     let mut current_string = String::new();
 
     for &byte in data {
-        if (0x20..=0x7E).contains(&byte) {
+        if (0x20..=0x7E).contains(&byte) && current_string.len() <= max_len {
             current_string.push(byte as char);
         } else {
-            if current_string.len() >= min_len && current_string.len() <= max_len {
+            if current_string.len() >= min_len  {
                 *counts.entry(current_string.clone()).or_insert(0) += 1;
             }
             current_string.clear();
@@ -76,10 +71,14 @@ fn extract_and_count_utf16_strings(data: &[u8], min_len: usize, max_len: usize, 
                 if let Some(ch) = char::from_u32(code_unit as u32) {
                     current_string.push(ch);
                 }
+                if current_string.len() == max_len {
+                    *counts.entry(current_string.clone()).or_insert(0) += 1;
+                }
+                current_string.clear();
             }
             // Null character or other control characters - end of string
             _ => {
-                if current_string.len() >= min_len && current_string.len() <= max_len {
+                if current_string.len() >= min_len {
                     *counts.entry(current_string.clone()).or_insert(0) += 1;
                 }
                 current_string.clear();
@@ -90,8 +89,11 @@ fn extract_and_count_utf16_strings(data: &[u8], min_len: usize, max_len: usize, 
     }
     
     // Final string
-    if current_string.len() >= min_len && current_string.len() <= max_len {
-        *counts.entry(current_string).or_insert(0) += 1;
+    if current_string.len() >= min_len {
+        *counts.entry(current_string[0..max_len].to_owned()).or_insert(0) += 1;
+        if current_string.len() - max_len >= min_len {
+            *counts.entry(current_string[max_len..].to_owned()).or_insert(0) += 1;
+        }
     }
 }
 

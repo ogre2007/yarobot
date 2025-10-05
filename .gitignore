@@ -19,4 +19,4 @@ yarobot_rules.yar
 out.log
 target/
 *.lock
-dist/*
+dist/* 
