@@ -64,7 +64,12 @@ def get_strings(state, string_elements):
 
     # Adding the strings --------------------------------------
     if state.args.debug:
-        print(state.base64strings, state.hexEncStrings, state.reversedStrings, state.utf16strings)
+        print(
+            state.base64strings,
+            state.hexEncStrings,
+            state.reversedStrings,
+            state.utf16strings,
+        )
     for i, string in enumerate(string_elements):
 
         if string[:8] == "UTF16LE:":
@@ -214,10 +219,7 @@ def generate_rules(
         general_info += "   License: {0}\n".format(state.args.l)
     general_info += "*/\n\n"
 
-    if state.args.ai:
-        fh.write(AI_COMMENT)
-    else:
-        fh.write(general_info)
+    fh.write(general_info)
 
     # GLOBAL RULES ----------------------------------------------------
     if state.args.globalrule:
@@ -786,10 +788,12 @@ def get_rule_strings(state, string_elements, opcode_elements):
     string_rule_count = 0
 
     # Adding the strings --------------------------------------
-    
+
     string_elements = list(set(string_elements))
 
-    string_elements = sorted(string_elements, key=lambda x: state.stringScores[x], reverse=True)
+    string_elements = sorted(
+        string_elements, key=lambda x: state.stringScores[x], reverse=True
+    )
     for i, string in enumerate(string_elements):
 
         # Collect the data
@@ -814,13 +818,14 @@ def get_rule_strings(state, string_elements, opcode_elements):
         if string in state.stringScores:
             if state.args.score:
                 cat_comment = state.string_to_comms[string]
-                score_comment += f" /* score: {state.stringScores[string]}  {cat_comment}*/"
+                score_comment += (
+                    f" /* score: {state.stringScores[string]}  {cat_comment}*/"
+                )
         else:
             print("NO SCORE: %s" % string)
 
-
         if string in state.utf16strings:
-            enc = " wide" 
+            enc = " wide"
         if string in state.base64strings:
             base64comment = (
                 " /* base64 encoded string '%s' */"
@@ -885,7 +890,7 @@ def get_rule_strings(state, string_elements, opcode_elements):
 
         # If too many string definitions found - cut it at the
         # count defined via command line param -rc
-        if (i + 1) >= state.args.strings_per_rule:
+        if (i + 1) >= 20:  # state.args.strings_per_rule:
             break
 
         string_rule_count += 1

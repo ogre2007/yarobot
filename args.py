@@ -46,7 +46,7 @@ def get_args():
         "-rc",
         help="Maximum number of strings per rule (default=20, intelligent filtering "
         "will be applied)",
-        metavar="maxstrings",
+        metavar="strings-per-rule",
         default=20,
     )
     group_creation.add_argument(
@@ -204,12 +204,6 @@ def get_args():
         action="store_true",
         default=False,
         help="Don't use extras like Imphash or PE header specifics",
-    )
-    group_general.add_argument(
-        "--ai",
-        action="store_true",
-        default=False,
-        help="Create output to be used as ChatGPT4 input",
     )
     group_general.add_argument(
         "--debug", action="store_true", default=False, help="Debug output"

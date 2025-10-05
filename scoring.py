@@ -37,22 +37,24 @@ def score_with_regex(string):
     # Repeated characters
     if re.search(r"(?!.* ([A-Fa-f0-9])\1{8,})", string):
         score -= 5
-    #print("processing string: ", string)
+
+    # print("processing string: ", string)
     def filter_rg(string, regex_base, ignorecase):
         score_local = 0
         cats = ""
-        flags = 0 if not ignorecase else re.IGNORECASE 
+        flags = 0 if not ignorecase else re.IGNORECASE
         for cat, regexes in regex_base.items():
-            found = False 
-            for regex in regexes: 
+            found = False
+            for regex in regexes:
                 if m := re.search(regex[0], string, flags):
                     score_local += regex[1]
-                    #print(cat, m)
+                    # print(cat, m)
                     found = True
             if found:
                 cats += cat + ", "
-        
+
         return score_local, cats
+
     cats = ""
     new_score, new_cats = filter_rg(string, REGEX_INSENSETIVE, True)
     score += new_score
@@ -73,7 +75,7 @@ def filter_string_set(string_set, state):
 
     # Local UTF strings
     if getattr(state, "utf16strings", None) is None:
-        state.utf16strings = [] 
+        state.utf16strings = []
 
     for string in string_set:
 
@@ -95,7 +97,6 @@ def filter_string_set(string_set, state):
             # print "removed UTF16LE from %s" % string
             string = string[8:]
             state.utf16strings.append(string)
-            
 
         # Good string evaluation (after the UTF modification)
         if goodstring:
@@ -121,7 +122,7 @@ def filter_string_set(string_set, state):
             score, cats = score_with_regex(string)
             if state.args.trace:
                 print(f"{string} - {score} - {cats}")
-            localStringScores[string] += score 
+            localStringScores[string] += score
             state.string_to_comms[string] = cats
             # ENCODING DETECTIONS --------------------------------------------------
             try:
@@ -232,7 +233,7 @@ def filter_opcode_set(state, opcode_set: list[str], good_opcodes_db) -> list[str
     useful_set = []
     pref_set = []
 
-    for opcode in opcode_set: 
+    for opcode in opcode_set:
         # Exclude all opcodes found in goodware
         if opcode in good_opcodes_db:
             if state.args.trace:
@@ -261,81 +262,64 @@ def filter_opcode_set(state, opcode_set: list[str], good_opcodes_db) -> list[str
     return useful_set[: int(state.args.n)]
 
 
-def sample_string_evaluation(string_stats, opcode_stats, file_info, state):
+def sample_string_evaluation(
+    string_stats, opcode_stats, file_info, state, utf16string_stats
+):
     # Generate Stats -----------------------------------------------------------
     print("[+] Generating statistical data ...")
     file_strings = {}
+    file_utf16strings = {}
     file_opcodes = {}
     combinations = {}
     inverse_stats = {}
     max_combi_count = 0
     super_rules = []
 
-    # OPCODE EVALUATION --------------------------------------------------------
-    for opcode in opcode_stats:
-        # If string occurs not too often in sample files
-        if opcode_stats[opcode]["count"] < 10:
-            # If string list in file dictionary not yet exists
-            for filePath in opcode_stats[opcode]["files"]:
-                if filePath in file_opcodes:
-                    # Append string
-                    file_opcodes[filePath].append(opcode)
-                else:
-                    # Create list and then add the first string to the file
-                    file_opcodes[filePath] = []
-                    file_opcodes[filePath].append(opcode)
+    def extract_stats_by_file(stats, outer_dict, flt=lambda x: x):
+        for token, value in stats.items():
+            # print(value)
+            count = 0
+            files = []
+            if type(value) == dict:
+                count = value["count"]
+                files = value["files"]
+            else:
+                count = value.count
+                files = value.files
+            if flt(count):
+                for filePath in files:
+                    if filePath in outer_dict:
+                        outer_dict[filePath].append(token)
+                    else:
+                        outer_dict[filePath] = [token]
+
+    # OPCODE EVALUATION -----------------------------------------------
+    extract_stats_by_file(opcode_stats, file_opcodes, lambda x: x < 10)
 
     # STRING EVALUATION -------------------------------------------------------
 
     # Iterate through strings found in malware files
-    for string in string_stats:
 
-        # If string occurs not too often in (goodware) sample files
-        if string_stats[string]["count"] < 10:
-            # If string list in file dictionary not yet exists
-            for filePath in string_stats[string]["files"]:
-                if filePath in file_strings:
-                    # Append string
-                    file_strings[filePath].append(string)
-                else:
-                    # Create list and then add the first string to the file
-                    file_strings[filePath] = []
-                    file_strings[filePath].append(string)
-
-                # INVERSE RULE GENERATION -------------------------------------
-                if state.args.inverse:
-                    for fileName in string_stats[string]["files_basename"]:
-                        string_occurrance_count = string_stats[string][
-                            "files_basename"
-                        ][fileName]
-                        total_count_basename = file_info[fileName]["count"]
-                        # print "string_occurance_count %s - total_count_basename %s" % ( string_occurance_count,
-                        # total_count_basename )
-                        if string_occurrance_count == total_count_basename:
-                            if fileName not in inverse_stats:
-                                inverse_stats[fileName] = []
-                            if state.args.trace:
-                                print("Appending %s to %s" % (string, fileName))
-                            inverse_stats[fileName].append(string)
-
-        # SUPER RULE GENERATION -----------------------------------------------
-        if not state.args.nosuper and not state.args.inverse:
-
+    extract_stats_by_file(string_stats, file_strings)
+    extract_stats_by_file(utf16string_stats, file_utf16strings)
+    if not state.args.nosuper:
+        for string in string_stats:
+            # SUPER RULE GENERATION -----------------------------------------------
             # SUPER RULES GENERATOR	- preliminary work
             # If a string occurs more than once in different files
-            # print sample_string_stats[string]["count"]
-            if string_stats[string]["count"] > 1:
+            # print sample_string_stats[string].count
+            if len(string_stats[string].files) > 1:
                 if state.args.debug:
                     print(
                         'OVERLAP Count: %s\nString: "%s"%s'
                         % (
-                            string_stats[string]["count"],
+                            string_stats[string].count,
                             string,
-                            "\nFILE: ".join(string_stats[string]["files"]),
+                            "\nFILE: ".join(string_stats[string].files),
                         )
                     )
                 # Create a combination string from the file set that matches to that string
-                combi = ":".join(sorted(string_stats[string]["files"]))
+                combi = ":".join(sorted(string_stats[string].files))
                 # print "STRING: " + string
                 if state.args.debug:
                     print("COMBI: " + combi)
@@ -345,14 +329,17 @@ def sample_string_evaluation(string_stats, opcode_stats, file_info, state):
                     combinations[combi]["count"] = 1
                     combinations[combi]["strings"] = []
                     combinations[combi]["strings"].append(string)
-                    combinations[combi]["files"] = string_stats[string]["files"]
+                    combinations[combi]["files"] = string_stats[string].files
                 else:
                     combinations[combi]["count"] += 1
                     combinations[combi]["strings"].append(string)
                 # Set the maximum combination count
-                if combinations[combi]["count"] > max_combi_count:
-                    max_combi_count = combinations[combi]["count"]
-                    # print "Max Combi Count set to: %s" % max_combi_count
+                max_combi_count = (
+                    combinations[combi]["count"]
+                    if combinations[combi]["count"] > max_combi_count
+                    else max_combi_count
+                )
+                # print "Max Combi Count set to: %s" % max_combi_count
 
     print("[+] Generating Super Rules ... (a lot of magic)")
     for combi_count in range(max_combi_count, 1, -1):

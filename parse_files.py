@@ -2,11 +2,47 @@ import binascii
 from collections import Counter
 import os
 import traceback
+from dataclasses import dataclass
+
 from hashlib import sha256
+from typing import Self, Tuple
 from rule_generator import generate_rules
 from scoring import sample_string_evaluation
 
-from utils import extract_opcodes, extract_strings, get_files, get_pe_info
+from utils import extract_opcodes, get_files, get_pe_info
+import yargen_rs
+
+
+@dataclass
+class StringInfo:
+    def __init__(
+        self,
+        count: int,
+        is_utf16: bool = False,
+        files: list[str] = [],
+    ):
+        self.count = count
+        self.is_utf16 = is_utf16
+        self.files = files
+
+    def __str__(self):
+        if self.is_utf16:
+            return "UTF16: %s" % self.count
+        else:
+            return "%s" % self.count
+
+
+def extract_strings(fileData):
+    """Use Rust implementation for better performance"""
+    strings = {
+        s[0]: StringInfo(s[1])
+        for s in yargen_rs.extract_strings(fileData, 5, 128, False)
+    }
+    utf16_strings = {
+        s[0]: StringInfo(s[1], True)
+        for s in yargen_rs.extract_strings(fileData, 5, 128, True)
+    }
+    return strings, utf16_strings
 
 
 RELEVANT_EXTENSIONS = [
@@ -49,6 +85,7 @@ def parse_sample_dir(
 ):
     # Prepare dictionary
     string_stats = {}
+    utf16string_stats = {}
     opcode_stats = {}
     file_info = {}
     known_sha1sums = []
@@ -92,8 +129,12 @@ def parse_sample_dir(
                 print("[-] Cannot read file - skipping %s" % filePath)
 
             # Extract strings from file
-            strings = extract_strings(state.args.s, fileData)
-
+            strings, utf16strings = extract_strings(fileData)
+            for s in strings:
+                strings[s].files = set(set(strings[s].files) | {filePath})
+            for s in utf16strings:
+                utf16strings[s].files = set(set(utf16strings[s].files) | {filePath})
+            # print(strings, utf16strings)
             # Extract opcodes from file
             opcodes = []
             if state.args.opcodes:
@@ -144,22 +185,21 @@ def parse_sample_dir(
             if folderName not in file_info[fileName]["folder_names"]:
                 file_info[fileName]["folder_names"].append(folderName)
 
-            # Add strings to statistics
-            for string in strings:
-                # String is not already known
-                if string not in string_stats:
-                    string_stats[string] = {}
-                    string_stats[string]["count"] = 0
-                    string_stats[string]["files"] = []
-                    string_stats[string]["files_basename"] = {}
-                # String count
-                string_stats[string]["count"] += 1
-                # Add file information
-                if fileName not in string_stats[string]["files_basename"]:
-                    string_stats[string]["files_basename"][fileName] = 0
-                string_stats[string]["files_basename"][fileName] += 1
-                if filePath not in string_stats[string]["files"]:
-                    string_stats[string]["files"].append(filePath)
+            def merge_stats(new_stats, old_stats):
+                for string, info in new_stats.items():
+                    if string not in old_stats:
+                        old_stats[string] = info
+
+                    elif info.is_utf16 == old_stats[string].is_utf16:
+                        old_stats[string].count += new_stats[string].count
+                        for f in new_stats[string].files:
+                            if f not in old_stats[string].files:
+                                old_stats[string].files.append(f)
+                    else:
+                        raise ValueError("String %s has different encoding" % string)
+
+            merge_stats(strings, string_stats)
+            merge_stats(utf16strings, utf16string_stats)
 
             # Add opcodes to statistics
             for opcode in opcodes:
@@ -195,7 +235,7 @@ def parse_sample_dir(
             traceback.print_exc()
             print("[E] ERROR reading file: %s" % filePath)
 
-    return string_stats, opcode_stats, file_info
+    return string_stats, opcode_stats, file_info, utf16string_stats
 
 
 def parse_good_dir(state, dir, notRecursive=False, onlyRelevantExtensions=True):
@@ -265,18 +305,24 @@ def processSampleDir(targetDir, state):
     """
 
     # Extract all information
-    (sample_string_stats, sample_opcode_stats, file_info) = parse_sample_dir(
-        targetDir,
-        state,
-        state.args.nr,
-        generateInfo=True,
-        onlyRelevantExtensions=state.args.oe,
+    (sample_string_stats, sample_opcode_stats, file_info, sample_utf16string_stats) = (
+        parse_sample_dir(
+            targetDir,
+            state,
+            state.args.nr,
+            generateInfo=True,
+            onlyRelevantExtensions=state.args.oe,
+        )
     )
 
     # Evaluate Strings
     (file_strings, file_opcodes, combinations, super_rules, inverse_stats) = (
         sample_string_evaluation(
-            sample_string_stats, sample_opcode_stats, file_info, state
+            sample_string_stats,
+            sample_opcode_stats,
+            file_info,
+            state,
+            sample_utf16string_stats,
         )
     )
 

@@ -300,11 +300,6 @@ if __name__ == "__main__":
         if len(os.listdir(args.m)) < 2:
             args.nosuper = True
 
-        # AI input generation
-        args.strings_per_rule = int(args.rc)
-        if args.ai:
-            args.strings_per_rule = 200
-
         # Special strings
         state = State(
             args,

@@ -16,7 +16,6 @@ REGEX_INSENSETIVE = {
     ],
     "protocol_keywords": [(r"(ftp|irc|smtp|command|GET|POST|Agent|tor2web|HEAD)", 5)],
     "connection_keywords": [(r"(error|http|closed|fail|version|proxy)", 3)],
-
     "temp_and_recycler": [(r"(TEMP|Temporary|Appdata|Recycler)", 4)],
     "malicious_keywords": [
         (
@@ -39,7 +38,6 @@ REGEX_INSENSETIVE = {
     ],
     "copyright": [(r"(coded | c0d3d |cr3w\b|Coded by |codedby)", 7)],
     "extensions_generic": [(r"\.[a-zA-Z]{3}\b", 3)],
-
     "alll_characters": [(r"^[A-Z][a-z]{5,}$", 2)],
     "URL": [(r"(%[a-z][:\-,;]|\\\\%s|\\\\[A-Z0-9a-z%]+\\[A-Z0-9a-z%]+)", 2.5)],
     "certificates": [
@@ -130,7 +128,6 @@ REGEX_INSENSETIVE = {
             3,
         )
     ],
-
     "signing_certificates": [(r"( Inc | Co.|  Ltd.,| LLC| Limited)", 2)],
     "privilege_escalation": [(r"(sysprep|cryptbase|secur32)", 2)],
     "webshells": [(r"(isset\($post\[|isset\($get\[|eval\(Request)", 2)],
@@ -174,7 +171,7 @@ REGEX_INSENSETIVE = {
         (r"(abcdefghijklmnopqsst|ABCDEFGHIJKLMNOPQRSTUVWXYZ|0123456789:;)", -5)
     ],
     "vb_backdoors": [(r"(kill|wscript|plugins|svr32|Select )", 3)],
-    "susp_strings_combo": [(r"([a-z]{4,}[!\?]|\[[!+\-]\] )", 3)], 
+    "susp_strings_combo": [(r"([a-z]{4,}[!\?]|\[[!+\-]\] )", 3)],
     "special_chars": [(r"(-->|!!!| <<< | >>> )", 5)],
     "swear": [(r"\b(fuck|damn|shit|penis|nigger)\b", 5)],
     "scripts": [
@@ -188,13 +185,12 @@ REGEX_SENSETIVE = {
     "all_lower": [(r"^[a-z]{6,}$", 3)],
     "all_lower_with_space": [(r"^[a-z\s]{6,}$", 2)],
     "javascript": [
-    (
-        r'(new ActiveXObject\("WScript.Shell"\).Run|.Run\("cmd.exe|.Run\("%comspec%\)|.Run\("c:\\Windows|.RegisterXLL\()',
-        3,
-    )
+        (
+            r'(new ActiveXObject\("WScript.Shell"\).Run|.Run\("cmd.exe|.Run\("%comspec%\)|.Run\("c:\\Windows|.RegisterXLL\()',
+            3,
+        )
     ],
-        "ua_keywords": [
+    "ua_keywords": [
         (r"(Mozilla|MSIE|Windows NT|Macintosh|Gecko|Opera|User\-Agent)", 5)
     ],
-    
 }

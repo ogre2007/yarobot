@@ -21,51 +21,182 @@ use std::io::BufReader;
 use flate2::read::GzDecoder;
 use serde_json::{self, Value};
     use pythonize::pythonize;
- 
+
+
+use pyo3::exceptions::PyException;
+use goblin::{Object, elf, pe}; 
 
 
 #[pyfunction]
-fn extract_strings_rs(max_len: usize, file_data: &[u8]) -> Vec<String> {
-    println!("Extracting strings in rust {:?}", max_len);
-    let mut strings = Vec::new(); 
-    // Extract ASCII strings
-    for mat in STRING_REGEX.find_iter(file_data) {
-        let s = String::from_utf8(mat.as_bytes().to_vec()).unwrap() ;
-        //println!("found {:?} sting", s);
-        if s.len() <= max_len {
-            strings.push(s.to_string());
+fn extract_strings(file_data: Vec<u8>, min_len: usize, max_len: Option<usize>, utf16: bool) -> PyResult<Vec<(String, u64)>> {
+    let mut string_counts: HashMap<String, u64> = HashMap::new();
+    let max_len = max_len.unwrap_or(usize::MAX);
+
+    if utf16 {
+        extract_and_count_utf16_strings(&file_data, min_len, max_len, &mut string_counts);
+    } else {
+        extract_and_count_ascii_strings(&file_data, min_len, max_len, &mut string_counts);
+    }
+
+    Ok(string_counts.into_iter().collect())
+}
+
+fn extract_and_count_ascii_strings(data: &[u8], min_len: usize, max_len: usize, counts: &mut HashMap<String, u64>) {
+    let mut current_string = String::new();
+
+    for &byte in data {
+        if (0x20..=0x7E).contains(&byte) {
+            current_string.push(byte as char);
         } else {
-            strings.push(s[..max_len].to_string());
-        }
-    }
-     
-    for mat in WIDE_STRING_REGEX.find_iter(file_data) {
-        let wide_bytes = mat.as_bytes();
-        let mut decoded = String::new();
-        for chunk in wide_bytes.chunks(2) {
-            if chunk.len() == 2 && chunk[1] == 0 && chunk[0] >= 0x1f && chunk[0] <= 0x7e {
-                decoded.push(chunk[0] as char);
+            if current_string.len() >= min_len && current_string.len() <= max_len {
+                *counts.entry(current_string.clone()).or_insert(0) += 1;
             }
+            current_string.clear();
         }
-        if decoded.len() >= 6 {
-            strings.push(format!("UTF16LE:{}", decoded));
-        }
-    }
-     
-    for mat in HEX_STRING_REGEX.find_iter(file_data) {
-        let hex_str = String::from_utf8(mat.as_bytes().to_vec()).unwrap();
-        strings.push(hex_str.clone());
-        
-        // Also add split versions
-        for part in hex_str.split("0000") {
-            if part.len() >= 10 {
-                strings.push(part.to_string());
-            }
-        } 
     }
     
-    strings
+    // Don't forget the last string
+    if current_string.len() >= min_len && current_string.len() <= max_len {
+        *counts.entry(current_string).or_insert(0) += 1;
+    }
 }
+ 
+// Alternative implementation that handles UTF-16 more robustly
+fn extract_and_count_utf16_strings(data: &[u8], min_len: usize, max_len: usize, counts: &mut HashMap<String, u64>) {
+    let mut current_string = String::new();
+    let mut i = 0;
+
+    while i + 1 < data.len() {
+        let code_unit = u16::from_le_bytes([data[i], data[i+1]]);
+        
+        // Handle different cases for UTF-16
+        match code_unit {
+            // Printable ASCII range
+            0x0020..=0x007E => {
+                if let Some(ch) = char::from_u32(code_unit as u32) {
+                    current_string.push(ch);
+                }
+            }
+            // Null character or other control characters - end of string
+            _ => {
+                if current_string.len() >= min_len && current_string.len() <= max_len {
+                    *counts.entry(current_string.clone()).or_insert(0) += 1;
+                }
+                current_string.clear();
+            }
+        }
+        
+        i += 2;
+    }
+    
+    // Final string
+    if current_string.len() >= min_len && current_string.len() <= max_len {
+        *counts.entry(current_string).or_insert(0) += 1;
+    }
+}
+
+fn extract_elf_opcodes(elf: elf::Elf, file_data: &[u8], opcodes: &mut Vec<String>) {
+    let entry_point = elf.header.e_entry;
+    
+    // Find the section containing the entry point
+    for section in elf.section_headers {
+        let va_start = section.sh_addr;
+        let va_end = va_start + section.sh_size;
+        
+        if va_start <= entry_point && entry_point < va_end {
+            println!("EP is located at {} section", elf.shdr_strtab.get_at(section.sh_name).unwrap_or("unknown"));
+            
+            // Extract section content
+            let start = section.sh_offset as usize;
+            let end = start + section.sh_size as usize;
+            
+            if end <= file_data.len() {
+                let section_data = &file_data[start..end];
+                process_section_data(section_data, opcodes);
+            }
+            break;
+        }
+    }
+}
+
+fn extract_pe_opcodes(pe: pe::PE, file_data: &[u8], opcodes: &mut Vec<String>) {
+    let entry_point = pe.entry as u64;
+    let image_base = pe.header.optional_header.unwrap().windows_fields.image_base;
+    let entry_va = entry_point + image_base;
+    
+    // Find the section containing the entry point
+    for section in pe.sections {
+        let va_start = section.virtual_address as u64 + image_base;
+        let va_end = va_start + section.virtual_size as u64;
+        
+        if va_start <= entry_va && entry_va < va_end {
+            println!("EP is located at {} section", String::from_utf8_lossy(&section.name).trim_end_matches('\0'));
+            
+            // Extract section content
+            let start = section.pointer_to_raw_data as usize;
+            let end = start + section.size_of_raw_data as usize;
+            
+            if end <= file_data.len() {
+                let section_data = &file_data[start..end];
+                process_section_data(section_data, opcodes);
+            }
+            break;
+        }
+    }
+}
+
+
+
+#[pyfunction]
+fn extract_opcodes(file_data: Vec<u8>) -> PyResult<Vec<String>> {
+    let mut opcodes = Vec::new();
+    
+    match Object::parse(&file_data).map_err(|e| PyException::new_err(format!("Failed to parse binary: {}", e)))? {
+        Object::Elf(elf) => {
+            extract_elf_opcodes(elf, &file_data, &mut opcodes);
+        }
+        Object::PE(pe) => {
+            extract_pe_opcodes(pe, &file_data, &mut opcodes);
+        }
+        Object::Mach(mach) => {
+            // Mach-O support can be added here
+            println!("Mach-O parsing not yet implemented");
+        }
+        Object::Archive(archive) => {
+            // Archive support can be added here  
+            println!("Archive parsing not yet implemented");
+        }
+        _ => {
+            println!("Unknown binary format");
+        }
+    }
+    
+    Ok(opcodes)
+}
+
+fn process_section_data(section_data: &[u8], opcodes: &mut Vec<String>) {
+    // Split on sequences of 3 or more null bytes
+    let null_pattern = Regex::new(r"\x00{3,}").unwrap();
+    let text_parts: Vec<&[u8]> = null_pattern.split(section_data).collect();
+    
+    for text_part in text_parts {
+        if text_part.is_empty() || text_part.len() < 8 {
+            continue;
+        }
+        
+        // Take first 16 bytes and convert to hex string
+        let chunk = if text_part.len() >= 16 {
+            &text_part[..16]
+        } else {
+            text_part
+        };
+        
+        let hex_string = hex::encode(chunk);
+        opcodes.push(hex_string);
+    }
+}
+
+
 
 #[pyfunction]
 fn score_strings_rs(strings: Vec<String>) -> PyResult<HashMap<String, (i32, String)>> {
@@ -208,38 +339,15 @@ fn is_base64_rs(s: &str) -> bool {
 fn is_hex_encoded_rs(s: &str) -> bool {
     StrRegex::new(r"^[A-Fa-f0-9]+$").unwrap().is_match(s) && s.len() % 2 == 0
 }
-
-#[pyfunction]
-fn extract_opcodes_rs(file_data: &[u8]) -> Vec<String> {
-    // This would integrate with LIEF or similar Rust PE parsing library
-    // For now, return empty vector - implement with goblin or similar
-    Vec::new()
-}
-
-#[pyfunction]
-fn bulk_string_extraction_rs(file_paths: Vec<String>, max_len: usize) -> PyResult<HashMap<String, Vec<String>>> {
-    let results: HashMap<String, Vec<String>> = file_paths
-        .into_iter()
-        .filter_map(|path| {
-            match std::fs::read(&path) {
-                Ok(data) => {
-                    let strings = extract_strings_rs(max_len, &data);
-                    Some((path, strings))
-                }
-                Err(_) => None,
-            }
-        })
-        .collect();
-    
-    Ok(results)
-}
+ 
 
 #[pymodule]
 fn yargen_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(extract_strings_rs, m)?)?;
     m.add_function(wrap_pyfunction!(score_strings_rs, m)?)?;
     m.add_function(wrap_pyfunction!(filter_string_set_rs, m)?)?;
-    m.add_function(wrap_pyfunction!(extract_opcodes_rs, m)?)?;
-    m.add_function(wrap_pyfunction!(bulk_string_extraction_rs, m)?)?; 
+    m.add_function(wrap_pyfunction!(extract_opcodes, m)?)?;
+    m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
+
+    
     Ok(())
 }
