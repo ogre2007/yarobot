@@ -6,10 +6,10 @@ from dataclasses import dataclass
 
 from hashlib import sha256
 from typing import Self, Tuple
-from rule_generator import generate_rules
-from scoring import sample_string_evaluation
+from app.rule_generator import generate_rules
+from app.scoring import sample_string_evaluation
 
-from utils import extract_opcodes, get_files, get_pe_info
+from app.utils import extract_opcodes, get_files, get_pe_info
 import yargen_rs
 
 

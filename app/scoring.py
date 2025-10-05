@@ -5,8 +5,8 @@ import re
 import traceback
 
 
-from regex_base import REGEX_INSENSETIVE, REGEX_SENSETIVE
-from utils import *
+from app.regex_base import REGEX_INSENSETIVE, REGEX_SENSETIVE
+from app.utils import *
 
 
 def score_with_regex(string):

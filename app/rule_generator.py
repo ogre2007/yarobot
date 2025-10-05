@@ -1,8 +1,8 @@
 from collections import Counter
 import traceback
 
-from scoring import filter_opcode_set, filter_string_set
-from utils import *
+from app.scoring import filter_opcode_set, filter_string_set
+from app.utils import *
 
 KNOWN_IMPHASHES = {
     "a04dd9f5ee88d7774203e0a0cfa1b941": "PsExec",

@@ -11,10 +11,10 @@ import time
 from collections import Counter
 import signal as signal_module
 
-from args import get_args
-from utils import load
-from parse_files import parse_good_dir, processSampleDir
-from utils import (
+from app.args import get_args
+from app.utils import load
+from app.parse_files import parse_good_dir, processSampleDir
+from app.utils import (
     emptyFolder,
     get_abs_path,
     getIdentifier,
@@ -23,12 +23,13 @@ from utils import (
     initialize_pestudio_strings,
     save,
 )
+from app.config import DB_PATH
 
 
 def load_db(file, local_counter, prefix):
     if file.startswith(prefix):
         try:
-            filePath = os.path.join("./dbs/", file)
+            filePath = os.path.join(DB_PATH, file)
             print("[+] Loading %s ..." % filePath)
             js = load(get_abs_path(filePath))
             local_counter.update(js)
@@ -266,7 +267,7 @@ if __name__ == "__main__":
         exports_num = 0
 
         # Initialize all databases
-        for file in os.listdir(get_abs_path("./dbs/")):
+        for file in os.listdir(get_abs_path(DB_PATH)):
             if not file.endswith(".db"):
                 continue  # String databases
             strings_num = load_db(file, good_strings_db, "good-strings")
