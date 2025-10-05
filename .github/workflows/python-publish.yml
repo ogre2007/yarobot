@@ -18,20 +18,27 @@ permissions:
 jobs:
   release-build:
     runs-on: ubuntu-latest
-
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13"]
     steps:
       - uses: actions/checkout@v4
+ 
 
-      - uses: actions/setup-python@v5
+      - name: Install uv and set Python version
+        uses: astral-sh/setup-uv@v6 # Use the official setup-uv action
         with:
-          python-version: "3.x"
+          python-version: ${{ matrix.python-version }} # Use the Python version from the matrix
 
-      - name: Build release distributions
+      - name: Install dependencies
         run: |
-          # NOTE: put your own distribution build steps here.
-          python -m pip install build
-          python -m build --wheel
-          python -m build --sdist
+          uv sync # Install dependencies from pyproject.toml and uv.lock 
+
+      - name: build wheel
+        run: |
+          uv build --wheel
+          uv build --sdist
 
 
       - name: Upload distributions
@@ -52,12 +59,7 @@ jobs:
     # For more information, see: https://docs.github.com/en/actions/deployment/targeting-different-environments/using-environments-for-deployment#deployment-protection-rules
     environment:
       name: pypi
-      # OPTIONAL: uncomment and update to include your PyPI project URL in the deployment status:
-      # url: https://pypi.org/p/YOURPROJECT
-      #
-      # ALTERNATIVE: if your GitHub Release name is the PyPI project version string
-      # ALTERNATIVE: exactly, uncomment the following line instead:
-      # url: https://pypi.org/project/YOURPROJECT/${{ github.event.release.name }}
+      url: https://pypi.org/p/yarobot
 
     steps:
       - name: Retrieve release distributions

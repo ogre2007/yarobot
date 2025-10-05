@@ -11,7 +11,7 @@ dependencies = [
     "lxml>=4.9.0",
     "orjson>=3.11", 
 ]
-version = "0.1"
+version = "0.1.1"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
