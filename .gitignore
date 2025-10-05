@@ -16,3 +16,4 @@ dbs/
 
 # YARA Rules
 yargen_rules.yar
+out.log

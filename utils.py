@@ -55,7 +55,12 @@ def extract_strings(maxlen, fileData) -> list[str]:
         strings_hex = extract_hex_strings(fileData)
         strings = list(set(strings_full) | set(strings_limited) | set(strings_hex))
         wide_strings = [ws for ws in re.findall(b"(?:[\x1f-\x7e][\x00]){6,}", fileData)]
-
+        strings_splitted = []
+        for string in strings:
+            if len(string) > maxlen:
+                strings_splitted.append(string[maxlen:])
+            strings_splitted.append(string[:maxlen])
+        strings =list(set(strings_splitted)) 
         # Post-process
         # WIDE
         for ws in wide_strings:

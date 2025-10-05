@@ -5,7 +5,7 @@ import re
 import traceback
 
 
-from regex_base import REGEX_BASE, REGEX_SENSETIVE
+from regex_base import REGEX_INSENSETIVE, REGEX_SENSETIVE
 from utils import *
 
 
@@ -37,28 +37,27 @@ def score_with_regex(string):
     # Repeated characters
     if re.search(r"(?!.* ([A-Fa-f0-9])\1{8,})", string):
         score -= 5
-    
-    def filter_rg(string, regex_base, ignorecase=True):
+    #print("processing string: ", string)
+    def filter_rg(string, regex_base, ignorecase):
         score_local = 0
         cats = ""
+        flags = 0 if not ignorecase else re.IGNORECASE 
         for cat, regexes in regex_base.items():
-            found = False
-            for regex in regexes:
-                # print(regex)
-                flags = 0
-                if ignorecase:
-                    flags = re.IGNORECASE
-                if re.search(regex[0], string, flags):
+            found = False 
+            for regex in regexes: 
+                if m := re.search(regex[0], string, flags):
                     score_local += regex[1]
+                    #print(cat, m)
                     found = True
             if found:
                 cats += cat + ", "
+        
         return score_local, cats
     cats = ""
-    new_score, new_cats = filter_rg(string, REGEX_BASE, ignorecase=True)
+    new_score, new_cats = filter_rg(string, REGEX_INSENSETIVE, True)
     score += new_score
     cats += new_cats
-    new_score, new_cats = filter_rg(string, REGEX_SENSETIVE, ignorecase=False)
+    new_score, new_cats = filter_rg(string, REGEX_SENSETIVE, False)
     score += new_score
     cats += new_cats
 
@@ -73,7 +72,8 @@ def filter_string_set(string_set, state):
     localStringScores = {}
 
     # Local UTF strings
-    utfstrings = []
+    if getattr(state, "utf16strings", None) is None:
+        state.utf16strings = [] 
 
     for string in string_set:
 
@@ -94,7 +94,7 @@ def filter_string_set(string_set, state):
         if string[:8] == "UTF16LE:":
             # print "removed UTF16LE from %s" % string
             string = string[8:]
-            utfstrings.append(string)
+            state.utf16strings.append(string)
             
 
         # Good string evaluation (after the UTF modification)
@@ -119,6 +119,8 @@ def filter_string_set(string_set, state):
 
         if not goodstring:
             score, cats = score_with_regex(string)
+            if state.args.trace:
+                print(f"{string} - {score} - {cats}")
             localStringScores[string] += score 
             state.string_to_comms[string] = cats
             # ENCODING DETECTIONS --------------------------------------------------
@@ -185,7 +187,7 @@ def filter_string_set(string_set, state):
         state.stringScores[original_string] = localStringScores[string]
 
         if state.args.debug:
-            if string in utfstrings:
+            if string in state.utf16strings:
                 is_utf = True
             else:
                 is_utf = False
@@ -205,7 +207,7 @@ def filter_string_set(string_set, state):
             if string[1] < int(state.args.z):
                 continue
 
-        if string[0] in utfstrings:
+        if string[0] in state.utf16strings:
             result_set.append("UTF16LE:%s" % string[0])
         else:
             result_set.append(string[0])

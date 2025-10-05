@@ -1,4 +1,4 @@
-REGEX_BASE = {
+REGEX_INSENSETIVE = {
     # "packers": [(r'(WinRAR\\SFX)', -4)],
     # "repeated_chars": [(r'(?!.* ([A-Fa-f0-9])\1{8,})', -5)],
     "drives": [(r"[A-Za-z]:\\", -4)],
@@ -16,9 +16,7 @@ REGEX_BASE = {
     ],
     "protocol_keywords": [(r"(ftp|irc|smtp|command|GET|POST|Agent|tor2web|HEAD)", 5)],
     "connection_keywords": [(r"(error|http|closed|fail|version|proxy)", 3)],
-    "ua_keywords": [
-        (r"(Mozilla|MSIE|Windows NT|Macintosh|Gecko|Opera|User\-Agent)", 5)
-    ],
+
     "temp_and_recycler": [(r"(TEMP|Temporary|Appdata|Recycler)", 4)],
     "malicious_keywords": [
         (
@@ -45,7 +43,7 @@ REGEX_BASE = {
     "alll_characters": [(r"^[A-Z][a-z]{5,}$", 2)],
     "URL": [(r"(%[a-z][:\-,;]|\\\\%s|\\\\[A-Z0-9a-z%]+\\[A-Z0-9a-z%]+)", 2.5)],
     "certificates": [
-        (r"(thawte|trustcenter|signing|class|crl|CA|certificate|assembly)", -4)
+        (r"(thawte|trustcenter|signing|class|crl|certificate|assembly)", -4)
     ],
     "parameters": [(r"( \-[a-z]{,2}[\s]?[0-9]?| /[a-z]+[\s]?[\w]*)", 4)],
     "directory": [(r"([a-zA-Z]:|^|%)\\[A-Za-z]{4,30}\\", 4)],
@@ -100,8 +98,7 @@ REGEX_BASE = {
     ],
     "malicious_intent": [
         (
-            r"(loader|cmdline|ntlmhash|lmhash|infect|encrypt|exec|elevat|dump|target|victim|override|\
-                            traverse|mutex|pawnde|exploited|shellcode|injected|spoofed|dllinjec|exeinj|reflective|payload|inject|back conn)",
+            r"(loader|cmdline|ntlmhash|lmhash|infect|encrypt|exec|elevat|dump|target|victim|override|traverse|mutex|pawnde|exploited|shellcode|injected|spoofed|dllinjec|exeinj|reflective|payload|inject|back conn)",
             5,
         )
     ],
@@ -179,7 +176,7 @@ REGEX_BASE = {
     "vb_backdoors": [(r"(kill|wscript|plugins|svr32|Select )", 3)],
     "susp_strings_combo": [(r"([a-z]{4,}[!\?]|\[[!+\-]\] )", 3)], 
     "special_chars": [(r"(-->|!!!| <<< | >>> )", 5)],
-    "swear": [(r"\b(fuck|damn|shit|penis)\b", 5)],
+    "swear": [(r"\b(fuck|damn|shit|penis|nigger)\b", 5)],
     "scripts": [
         (r"(%APPDATA%|%USERPROFILE%|Public|Roaming|& del|& rm| && |script)", 3)
     ],
@@ -196,4 +193,8 @@ REGEX_SENSETIVE = {
         3,
     )
     ],
+        "ua_keywords": [
+        (r"(Mozilla|MSIE|Windows NT|Macintosh|Gecko|Opera|User\-Agent)", 5)
+    ],
+    
 }

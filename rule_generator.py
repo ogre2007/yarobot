@@ -63,10 +63,14 @@ def get_strings(state, string_elements):
     }
 
     # Adding the strings --------------------------------------
+    if state.args.debug:
+        print(state.base64strings, state.hexEncStrings, state.reversedStrings, state.utf16strings)
     for i, string in enumerate(string_elements):
 
         if string[:8] == "UTF16LE:":
             string = string[8:]
+            strings["wide"].append(string)
+        if string in state.utf16strings:
             strings["wide"].append(string)
         elif string in state.base64strings:
             strings["base64 encoded"].append(string)
@@ -781,7 +785,10 @@ def get_rule_strings(state, string_elements, opcode_elements):
     string_rule_count = 0
 
     # Adding the strings --------------------------------------
+    
     string_elements = list(set(string_elements))
+
+    string_elements = sorted(string_elements, key=lambda x: state.stringScores[x], reverse=True)
     for i, string in enumerate(string_elements):
 
         # Collect the data
@@ -800,7 +807,9 @@ def get_rule_strings(state, string_elements, opcode_elements):
             goodware_comment = " /* Goodware String - occured %s times */" % (
                 state.good_strings_db[string]
             )
-
+        if string[:8] == "UTF16LE:":
+            string = string[8:]
+            enc = " wide"
         if string in state.stringScores:
             if state.args.score:
                 cat_comment = state.string_to_comms[string]
@@ -808,9 +817,9 @@ def get_rule_strings(state, string_elements, opcode_elements):
         else:
             print("NO SCORE: %s" % string)
 
-        if string[:8] == "UTF16LE:":
-            string = string[8:]
-            enc = " wide"
+
+        if string in state.utf16strings:
+            enc = " wide" 
         if string in state.base64strings:
             base64comment = (
                 " /* base64 encoded string '%s' */"
