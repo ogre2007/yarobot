@@ -4,14 +4,26 @@ build-backend = "maturin"
 
 [project]
 name = "yarobot"
-requires-python = ">=3.12"
+version = "0.1.1"
+
+authors = [
+  { name="ogre2007", email="oogre@vk.com" },
+]
+
+requires-python = ">=3.11"
 description = "Yara generator inspired by yarGen"
+readme = "README.md"
+license = "GPLv3.0"
+
 dependencies = [
     "lief>=0.13.0",
     "lxml>=4.9.0",
     "orjson>=3.11", 
 ]
-version = "0.1.1"
+
+[project.urls]
+Homepage = "https://github.com/ogre2007/yarobot"
+Issues = "https://github.com/ogre2007/issues"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
@@ -22,7 +34,7 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
 addopts = [
-  "-vv",				        # подробный вывод хода теста
-  "--import-mode=importlib"  	# меньше проблем с импортами
+  "-vv",				       
+  "--import-mode=importlib"
 ]
 pythonpath = ["."]
