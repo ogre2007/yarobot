@@ -101,16 +101,7 @@ def signal_handler(signal_name, frame):
 
 
 def print_welcome():
-    print("------------------------------------------------------------------------")
-    print("                   _____            ")
-    print("    __ _____ _____/ ___/__ ___      ")
-    print("   / // / _ `/ __/ (_ / -_) _ \\     ")
-    print("   \\_, /\\_,_/_/  \\___/\\__/_//_/     ")
-    print("  /___/  Yara Rule Generator        ")
-    print("         Florian Roth, August 2023, Version %s" % __version__)
-    print("   ")
-    print("  Note: Rules have to be post-processed")
-    print("  See this post for details: https://medium.com/@cyb3rops/121d29322282")
+    print("------------------------------------------------------------------------") 
     print("------------------------------------------------------------------------")
 
 
