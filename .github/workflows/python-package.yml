@@ -22,7 +22,7 @@ jobs:
     - uses: actions/checkout@v4
 
     - name: Install uv and set Python version
-      uses: astral-sh/setup-uv@v1 # Use the official setup-uv action
+      uses: astral-sh/setup-uv@v6 # Use the official setup-uv action
       with:
         python-version: ${{ matrix.python-version }} # Use the Python version from the matrix
 
