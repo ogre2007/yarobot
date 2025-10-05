@@ -5,12 +5,13 @@ build-backend = "maturin"
 [project]
 name = "yarobot"
 requires-python = ">=3.12"
+description = "Yara generator inspired by yarGen"
 dependencies = [
     "lief>=0.13.0",
     "lxml>=4.9.0",
     "orjson>=3.11", 
 ]
-version = "0.25"
+version = "0.1"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
