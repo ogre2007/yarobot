@@ -342,7 +342,7 @@ fn is_hex_encoded_rs(s: &str) -> bool {
  
 
 #[pymodule]
-fn yargen_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(score_strings_rs, m)?)?;
     m.add_function(wrap_pyfunction!(filter_string_set_rs, m)?)?;
     m.add_function(wrap_pyfunction!(extract_opcodes, m)?)?;

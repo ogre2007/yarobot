@@ -9,7 +9,7 @@ from app.rule_generator import generate_rules
 from app.scoring import sample_string_evaluation
 
 from app.utils import extract_opcodes, get_files, get_pe_info
-import yargen_rs
+import yarobot_rs
 
 
 @dataclass
@@ -34,11 +34,11 @@ class StringInfo:
 def extract_strings(fileData, min_len: int = 5, max_len: int = 128): 
     strings = {
         s[0]: StringInfo(s[1])
-        for s in yargen_rs.extract_strings(fileData, min_len, max_len, False)
+        for s in yarobot_rs.extract_strings(fileData, min_len, max_len, False)
     }
     utf16_strings = {
         s[0]: StringInfo(s[1], True)
-        for s in yargen_rs.extract_strings(fileData, min_len, max_len, True)
+        for s in yarobot_rs.extract_strings(fileData, min_len, max_len, True)
     }
     return strings, utf16_strings
 

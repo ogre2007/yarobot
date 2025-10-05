@@ -204,6 +204,11 @@ def filter_string_set(string_set, state):
     result_set = []
     for string in sorted_set:
 
+        # Skip the one with a score lower than -z X
+        if not state.args.noscorefilter:
+            if string[1] < int(state.args.z):
+                continue
+
         if string[0] in state.utf16strings:
             result_set.append("UTF16LE:%s" % string[0])
         else:

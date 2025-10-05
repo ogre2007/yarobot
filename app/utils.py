@@ -11,7 +11,7 @@ import logging
 import lief
 from lxml import etree
 
-import yargen_rs
+import yarobot_rs
 
 PE_STRINGS_FILE = "./3rdparty/strings.xml"
 
@@ -20,7 +20,7 @@ logger = logging.getLogger("yarobot")
 
 
 def extract_opcodes(fileData) -> list[str]:
-    return yargen_rs.extract_opcodes(fileData)
+    return yarobot_rs.extract_opcodes(fileData)
 
 
 def get_pe_info(fileData: bytes) -> tuple[str, list[str]]:
