@@ -38,6 +38,10 @@ jobs:
       - name: build wheel
         run: |
           uv build --wheel
+          uv pip install auditwheel
+          auditwheel repair dist/*.whl
+          rm dist/*
+          mv wheelhouse/*.whl dist
           uv build --sdist
 
 
