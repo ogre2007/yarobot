@@ -573,6 +573,7 @@ def generate_rules(
                     string_rule_count,
                     high_scoring_strings,
                 ) = get_rule_strings(
+                    state,
                     super_rule["strings"],
                     tmp_file_opcodes,
                 )

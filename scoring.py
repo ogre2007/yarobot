@@ -232,11 +232,10 @@ def filter_opcode_set(state, opcode_set: list[str], good_opcodes_db) -> list[str
     useful_set = []
     pref_set = []
 
-    for opcode in opcode_set:
-        opcode: str
+    for opcode in opcode_set: 
         # Exclude all opcodes found in goodware
         if opcode in good_opcodes_db:
-            if state.args.debug:
+            if state.args.trace:
                 print("skipping %s" % opcode)
             continue
 

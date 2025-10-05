@@ -1,7 +1,7 @@
 import binascii
 import datetime
 import gzip
-import json
+import orjson as json
 import os
 import re
 import sys
@@ -10,7 +10,24 @@ import lief
 from lxml import etree
 
 PE_STRINGS_FILE = "./3rdparty/strings.xml"
+try:
 
+    import yargen_rs  # Import the Rust module
+except ModuleNotFoundError:
+    print("Rust module not found. falling back to Python implementation")
+
+def extract_strings(maxlen, fileData) -> list[str]:
+    """Use Rust implementation for better performance"""
+    try:
+        # Use Rust implementation for bulk processing
+        strings =  yargen_rs.extract_strings_rs(maxlen, fileData)
+        # print(strings)
+        return strings
+    except Exception as e:
+        # Fallback to Python implementation
+        print(f"Rust extraction failed, falling back to Python: {e}")
+        return _extract_strings_python(maxlen, fileData)
+ 
 
 # TODO: Still buggy after port to Python3
 def extract_hex_strings(s):
@@ -44,7 +61,7 @@ def extract_hex_strings(s):
     return strings
 
 
-def extract_strings(maxlen, fileData) -> list[str]:
+def _extract_strings_python(maxlen, fileData) -> list[str]:
     # String list
     cleaned_strings = []
     # Read file data
@@ -149,12 +166,11 @@ def get_pe_info(fileData: bytes) -> tuple[str, list[str]]:
     try:
 
         print("Extracting PE information")
-        binary: lief.PE.Binary = lief.parse(fileData)
+        binary = lief.parse(fileData)
         # Imphash
         imphash = lief.PE.get_imphash(binary, lief.PE.IMPHASH_MODE.PEFILE)
         # Exports (names)
-        for exp in binary.get_export().entries:
-            exp: lief.PE.ExportEntry
+        for exp in binary.get_export().entries: 
             exports.append(str(exp.name))
     except Exception as e:
         traceback.print_exc()

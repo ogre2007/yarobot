@@ -1,0 +1,22 @@
+[package]
+name = "yargen-rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "yargen_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.25", features = ["extension-module"] }
+regex = "1.0"
+lazy_static = "1.4" 
+memchr = "2.5"
+ahash = "0.8"
+flate2 = "1.1.3"
+serde = "1.0.228"
+serde_json = "1.0.145"
+pythonize = "0.25.0"
+
+[build-dependencies]
+pyo3-build-config = "0.25"
