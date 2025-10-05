@@ -20,14 +20,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Install uv and set Python version
       uses: astral-sh/setup-uv@v1 # Use the official setup-uv action
       with:
         python-version: ${{ matrix.python-version }} # Use the Python version from the matrix
 
     - name: Install dependencies
-      run: uv sync # Install dependencies from pyproject.toml and uv.lock
+      run: |
+        uv sync # Install dependencies from pyproject.toml and uv.lock
+        uv pip install pytest
 
     - name: Run tests with pytest
       run: uv run pytest # Execute pytest within the uv-managed environment
