@@ -29,7 +29,10 @@ jobs:
       - name: Build release distributions
         run: |
           # NOTE: put your own distribution build steps here.
-          maturin build --release
+          python -m pip install build
+          python -m build --wheel
+          python -m build --sdist
+
 
       - name: Upload distributions
         uses: actions/upload-artifact@v4
