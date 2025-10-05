@@ -1,10 +1,10 @@
 [package]
-name = "yargen-rs"
+name = "yarobot-rs"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "yargen_rs"
+name = "yarobot"
 crate-type = ["cdylib"]
 
 [dependencies]

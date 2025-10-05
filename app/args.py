@@ -7,7 +7,7 @@ import dbs
 
 def get_args():
     # Parse Arguments
-    parser = argparse.ArgumentParser(description="yarGen")
+    parser = argparse.ArgumentParser(description="yarobot")
 
     group_creation = parser.add_argument_group("Rule Creation")
     group_creation.add_argument("-m", help="Path to scan for malware")
@@ -61,7 +61,7 @@ def get_args():
         "-o",
         help="Output rule file",
         metavar="output_rule_file",
-        default="yargen_rules.yar",
+        default="yarobot_rules.yar",
     )
     group_output.add_argument(
         "-e",
@@ -70,13 +70,13 @@ def get_args():
         default="",
     )
     group_output.add_argument(
-        "-a", help="Author Name", metavar="author", default="yarGen Rule Generator"
+        "-a", help="Author Name", metavar="author", default="yarobot Rule Generator"
     )
     group_output.add_argument(
         "-r",
         help="Reference (can be string or text file)",
         metavar="ref",
-        default="https://github.com/Neo23x0/yarGen",
+        default="https://github.com/oogre2007/yarobot",
     )
     group_output.add_argument("-l", help="License", metavar="lic", default="")
     group_output.add_argument(
@@ -243,7 +243,7 @@ creation of goodware string collections
 (see https://github.com/Neo23x0/yarGen#examples for more details)
 
 Recommended command line:
-    python yarGen.py -a 'Your Name' --opcodes --dropzone -m ./dropzone"""
+    python app.main -a 'Your Name' --opcodes --dropzone -m ./dropzone"""
         )
         sys.exit(1)
 
