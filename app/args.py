@@ -229,17 +229,6 @@ def get_args():
         default=3,
     )
 
-    group_inverse = parser.add_argument_group("Inverse Mode (unstable)")
-    group_inverse.add_argument(
-        "--inverse", help=argparse.SUPPRESS, action="store_true", default=False
-    )
-    group_inverse.add_argument(
-        "--nodirname", help=argparse.SUPPRESS, action="store_true", default=False
-    )
-    group_inverse.add_argument(
-        "--noscorefilter", help=argparse.SUPPRESS, action="store_true", default=False
-    )
-
     args = parser.parse_args()
 
     # Print Welcome

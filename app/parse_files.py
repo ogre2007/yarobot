@@ -5,7 +5,6 @@ import traceback
 from dataclasses import dataclass
 
 from hashlib import sha256
-from typing import Self, Tuple
 from app.rule_generator import generate_rules
 from app.scoring import sample_string_evaluation
 
@@ -32,8 +31,7 @@ class StringInfo:
             return "%s" % self.count
 
 
-def extract_strings(fileData):
-    """Use Rust implementation for better performance"""
+def extract_strings(fileData): 
     strings = {
         s[0]: StringInfo(s[1])
         for s in yargen_rs.extract_strings(fileData, 5, 128, False)
@@ -172,18 +170,6 @@ def parse_sample_dir(
             # File Size
             file_info[filePath]["size"] = os.stat(filePath).st_size
 
-            # Add stats for basename (needed for inverse rule generation)
-            fileName = os.path.basename(filePath)
-            folderName = os.path.basename(os.path.dirname(filePath))
-            if fileName not in file_info:
-                file_info[fileName] = {}
-                file_info[fileName]["count"] = 0
-                file_info[fileName]["hashes"] = []
-                file_info[fileName]["folder_names"] = []
-            file_info[fileName]["count"] += 1
-            file_info[fileName]["hashes"].append(sha256sum)
-            if folderName not in file_info[fileName]["folder_names"]:
-                file_info[fileName]["folder_names"].append(folderName)
 
             def merge_stats(new_stats, old_stats):
                 for string, info in new_stats.items():
@@ -207,14 +193,9 @@ def parse_sample_dir(
                 if opcode not in opcode_stats:
                     opcode_stats[opcode] = {}
                     opcode_stats[opcode]["count"] = 0
-                    opcode_stats[opcode]["files"] = []
-                    opcode_stats[opcode]["files_basename"] = {}
+                    opcode_stats[opcode]["files"] = [] 
                 # Opcode count
-                opcode_stats[opcode]["count"] += 1
-                # Add file information
-                if fileName not in opcode_stats[opcode]["files_basename"]:
-                    opcode_stats[opcode]["files_basename"][fileName] = 0
-                opcode_stats[opcode]["files_basename"][fileName] += 1
+                opcode_stats[opcode]["count"] += 1 
                 if filePath not in opcode_stats[opcode]["files"]:
                     opcode_stats[opcode]["files"].append(filePath)
 
@@ -316,7 +297,7 @@ def processSampleDir(targetDir, state):
     )
 
     # Evaluate Strings
-    (file_strings, file_opcodes, combinations, super_rules, inverse_stats) = (
+    (file_strings, file_opcodes, combinations, super_rules) = (
         sample_string_evaluation(
             sample_string_stats,
             sample_opcode_stats,
@@ -327,19 +308,15 @@ def processSampleDir(targetDir, state):
     )
 
     # Create Rule Files
-    (rule_count, inverse_rule_count, super_rule_count) = generate_rules(
+    (rule_count, super_rule_count) = generate_rules(
         state,
         file_strings,
         file_opcodes,
         super_rules,
         file_info,
-        inverse_stats,
     )
-
-    if state.args.inverse:
-        print("[=] Generated %s INVERSE rules." % str(inverse_rule_count))
-    else:
-        print("[=] Generated %s SIMPLE rules." % str(rule_count))
-        if not state.args.nosuper:
-            print("[=] Generated %s SUPER rules." % str(super_rule_count))
-        print("[=] All rules written to %s" % state.args.o)
+ 
+    print("[=] Generated %s SIMPLE rules." % str(rule_count))
+    if not state.args.nosuper:
+        print("[=] Generated %s SUPER rules." % str(super_rule_count))
+    print("[=] All rules written to %s" % state.args.o)

@@ -8,13 +8,7 @@ KNOWN_IMPHASHES = {
     "a04dd9f5ee88d7774203e0a0cfa1b941": "PsExec",
     "2b8c9d9ab6fefc247adaf927e83dcea6": "RAR SFX variant",
 }
-
-
-AI_COMMENT = """
-The provided rule is a YARA rule, encompassing a wide range of suspicious strings. Kindly review the list and pinpoint the twenty strings that are most distinctive or appear most suited for a YARA rule focused on malware detection. Arrange them in descending order based on their level of suspicion. Then, swap out the current list of strings in the YARA rule with your chosen set and supply the revised rule.
----
-"""
-
+ 
 
 def get_file_range(size, fm_size):
     size_string = ""
@@ -146,8 +140,7 @@ def generate_general_condition(state, file_info):
     imphashes = []
 
     try:
-        for filePath in file_info:
-            # Short file name info used for inverse generation has no magic/size fields
+        for filePath in file_info: 
             if "magic" not in file_info[filePath]:
                 continue
             magic = file_info[filePath]["magic"]
@@ -198,8 +191,7 @@ def generate_rules(
     file_strings,
     file_opcodes,
     super_rules,
-    file_info,
-    inverse_stats,
+    file_info, 
 ):
     # Write to file ---------------------------------------------------
     if state.args.o:
@@ -243,252 +235,250 @@ def generate_rules(
     rules = ""
     printed_rules = {}
     opcodes_to_add = []
-    rule_count = 0
-    inverse_rule_count = 0
+    rule_count = 0 
     super_rule_count = 0
     pe_module_necessary = False
+ 
+    # PROCESS SIMPLE RULES ----------------------------------------------------
+    print("[+] Generating Simple Rules ...")
+    # Apply intelligent filters
+    print("[-] Applying intelligent filters to string findings ...")
+    for filePath in file_strings:
 
-    if not state.args.inverse:
-        # PROCESS SIMPLE RULES ----------------------------------------------------
-        print("[+] Generating Simple Rules ...")
-        # Apply intelligent filters
-        print("[-] Applying intelligent filters to string findings ...")
-        for filePath in file_strings:
+        print("[-] Filtering string set for %s ..." % filePath)
 
-            print("[-] Filtering string set for %s ..." % filePath)
+        # Replace the original string set with the filtered one
+        file_strings[filePath] = filter_string_set(file_strings[filePath], state)
 
-            # Replace the original string set with the filtered one
-            file_strings[filePath] = filter_string_set(file_strings[filePath], state)
+        print("[-] Filtering opcode set for %s ..." % filePath)
 
-            print("[-] Filtering opcode set for %s ..." % filePath)
-
-            # Replace the original opcode set with the filtered one
-            file_opcodes[filePath] = (
-                filter_opcode_set(state, file_opcodes[filePath], state.good_opcodes_db)
-                if filePath in file_opcodes
-                else []
-            )
-
-        # GENERATE SIMPLE RULES -------------------------------------------
-        fh.write(
-            "/* Rule Set ----------------------------------------------------------------- */\n\n"
+        # Replace the original opcode set with the filtered one
+        file_opcodes[filePath] = (
+            filter_opcode_set(state, file_opcodes[filePath], state.good_opcodes_db)
+            if filePath in file_opcodes
+            else []
         )
 
-        for filePath in file_strings:
+    # GENERATE SIMPLE RULES -------------------------------------------
+    fh.write(
+        "/* Rule Set ----------------------------------------------------------------- */\n\n"
+    )
 
-            # Skip if there is nothing to do
-            if len(file_strings[filePath]) == 0:
-                print(
-                    "[W] Not enough high scoring strings to create a rule. "
-                    "(Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s"
-                    % filePath
-                )
-                continue
-            elif len(file_strings[filePath]) == 0 and len(file_opcodes[filePath]) == 0:
-                print(
-                    "[W] Not enough high scoring strings and opcodes to create a rule. "
-                    "(Try -z 0 to reduce the min score) FILE: %s" % filePath
-                )
-                continue
+    for filePath in file_strings:
 
-            # Create Rule
-            try:
-                rule = ""
-                (path, file) = os.path.split(filePath)
-                # Prepare name
-                fileBase = os.path.splitext(file)[0]
-                # Create a clean new name
-                cleanedName = fileBase
-                # Adapt length of rule name
-                if len(fileBase) < 8:  # if name is too short add part from path
-                    cleanedName = path.split("\\")[-1:][0] + "_" + cleanedName
-                # File name starts with a number
-                if re.search(r"^[0-9]", cleanedName):
-                    cleanedName = "sig_" + cleanedName
-                # clean name from all characters that would cause errors
-                cleanedName = re.sub(r"[^\w]", "_", cleanedName)
-                # Check if already printed
-                if cleanedName in printed_rules:
-                    printed_rules[cleanedName] += 1
-                    cleanedName = cleanedName + "_" + str(printed_rules[cleanedName])
-                else:
-                    printed_rules[cleanedName] = 1
+        # Skip if there is nothing to do
+        if len(file_strings[filePath]) == 0:
+            print(
+                "[W] Not enough high scoring strings to create a rule. "
+                "(Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s"
+                % filePath
+            )
+            continue
+        elif len(file_strings[filePath]) == 0 and len(file_opcodes[filePath]) == 0:
+            print(
+                "[W] Not enough high scoring strings and opcodes to create a rule. "
+                "(Try -z 0 to reduce the min score) FILE: %s" % filePath
+            )
+            continue
 
-                # Print rule title ----------------------------------------
-                rule += "rule %s {\n" % cleanedName
+        # Create Rule
+        try:
+            rule = ""
+            (path, file) = os.path.split(filePath)
+            # Prepare name
+            fileBase = os.path.splitext(file)[0]
+            # Create a clean new name
+            cleanedName = fileBase
+            # Adapt length of rule name
+            if len(fileBase) < 8:  # if name is too short add part from path
+                cleanedName = path.split("\\")[-1:][0] + "_" + cleanedName
+            # File name starts with a number
+            if re.search(r"^[0-9]", cleanedName):
+                cleanedName = "sig_" + cleanedName
+            # clean name from all characters that would cause errors
+            cleanedName = re.sub(r"[^\w]", "_", cleanedName)
+            # Check if already printed
+            if cleanedName in printed_rules:
+                printed_rules[cleanedName] += 1
+                cleanedName = cleanedName + "_" + str(printed_rules[cleanedName])
+            else:
+                printed_rules[cleanedName] = 1
 
-                # Meta data -----------------------------------------------
-                rule += "   meta:\n"
-                rule += '      description = "%s - file %s"\n' % (
-                    state.args.prefix,
-                    file,
-                )
-                rule += '      author = "%s"\n' % state.args.a
-                rule += '      reference = "%s"\n' % state.args.reference
-                rule += '      date = "%s"\n' % get_timestamp_basic()
-                rule += '      hash1 = "%s"\n' % file_info[filePath]["hash"]
-                rule += "   strings:\n"
+            # Print rule title ----------------------------------------
+            rule += "rule %s {\n" % cleanedName
 
-                # Get the strings -----------------------------------------
-                # Rule String generation
-                (
-                    rule_strings,
-                    opcodes_included,
-                    string_rule_count,
-                    high_scoring_strings,
-                ) = get_rule_strings(
+            # Meta data -----------------------------------------------
+            rule += "   meta:\n"
+            rule += '      description = "%s - file %s"\n' % (
+                state.args.prefix,
+                file,
+            )
+            rule += '      author = "%s"\n' % state.args.a
+            rule += '      reference = "%s"\n' % state.args.reference
+            rule += '      date = "%s"\n' % get_timestamp_basic()
+            rule += '      hash1 = "%s"\n' % file_info[filePath]["hash"]
+            rule += "   strings:\n"
+
+            # Get the strings -----------------------------------------
+            # Rule String generation
+            (
+                rule_strings,
+                opcodes_included,
+                string_rule_count,
+                high_scoring_strings,
+            ) = get_rule_strings(
+                state,
+                file_strings[filePath],
+                file_opcodes[filePath],
+            )
+
+            rule += rule_strings
+
+            # Extract rul strings
+            if state.args.strings:
+                strings = get_strings(
                     state,
                     file_strings[filePath],
-                    file_opcodes[filePath],
+                )
+                write_strings(
+                    filePath,
+                    strings,
+                    state.args.e,
+                    state.args.score,
+                    state.stringScores,
                 )
 
-                rule += rule_strings
+            # Condition -----------------------------------------------
+            # Conditions list (will later be joined with 'or')
+            conditions = []  # AND connected
+            subconditions = []  # OR connected
 
-                # Extract rul strings
-                if state.args.strings:
-                    strings = get_strings(
-                        state,
-                        file_strings[filePath],
+            # Condition PE
+            # Imphash and Exports - applicable to PE files only
+            condition_pe = []
+            condition_pe_part1 = []
+            condition_pe_part2 = []
+            if not state.args.noextras and file_info[filePath]["magic"] == "MZ":
+                # Add imphash - if certain conditions are met
+                if (
+                    file_info[filePath]["imphash"] not in state.good_imphashes_db
+                    and file_info[filePath]["imphash"] != ""
+                ):
+                    # Comment to imphash
+                    imphash = file_info[filePath]["imphash"]
+                    comment = ""
+                    if imphash in KNOWN_IMPHASHES:
+                        comment = " /* {0} */".format(KNOWN_IMPHASHES[imphash])
+                    # Add imphash to condition
+                    condition_pe_part1.append(
+                        'pe.imphash() == "{0}"{1}'.format(imphash, comment)
                     )
-                    write_strings(
-                        filePath,
-                        strings,
-                        state.args.e,
-                        state.args.score,
-                        state.stringScores,
-                    )
+                    pe_module_necessary = True
+                if file_info[filePath]["exports"]:
+                    e_count = 0
+                    for export in file_info[filePath]["exports"]:
+                        if export not in state.good_exports_db:
+                            condition_pe_part2.append(
+                                'pe.exports("{0}")'.format(export)
+                            )
+                            e_count += 1
+                            pe_module_necessary = True
+                        if e_count > 5:
+                            break
 
-                # Condition -----------------------------------------------
-                # Conditions list (will later be joined with 'or')
-                conditions = []  # AND connected
-                subconditions = []  # OR connected
+            # 1st Part of Condition 1
+            basic_conditions = []
+            # Filesize
+            if not state.args.nofilesize:
+                basic_conditions.insert(
+                    0, get_file_range(file_info[filePath]["size"], state.args.fm)
+                )
+            # Magic
+            if file_info[filePath]["magic"] != "":
+                uint_string = get_uint_string(file_info[filePath]["magic"])
+                basic_conditions.insert(0, uint_string)
+            # Basic Condition
+            if len(basic_conditions):
+                conditions.append(" and ".join(basic_conditions))
 
-                # Condition PE
-                # Imphash and Exports - applicable to PE files only
-                condition_pe = []
-                condition_pe_part1 = []
-                condition_pe_part2 = []
-                if not state.args.noextras and file_info[filePath]["magic"] == "MZ":
-                    # Add imphash - if certain conditions are met
-                    if (
-                        file_info[filePath]["imphash"] not in state.good_imphashes_db
-                        and file_info[filePath]["imphash"] != ""
-                    ):
-                        # Comment to imphash
-                        imphash = file_info[filePath]["imphash"]
-                        comment = ""
-                        if imphash in KNOWN_IMPHASHES:
-                            comment = " /* {0} */".format(KNOWN_IMPHASHES[imphash])
-                        # Add imphash to condition
-                        condition_pe_part1.append(
-                            'pe.imphash() == "{0}"{1}'.format(imphash, comment)
-                        )
-                        pe_module_necessary = True
-                    if file_info[filePath]["exports"]:
-                        e_count = 0
-                        for export in file_info[filePath]["exports"]:
-                            if export not in state.good_exports_db:
-                                condition_pe_part2.append(
-                                    'pe.exports("{0}")'.format(export)
-                                )
-                                e_count += 1
-                                pe_module_necessary = True
-                            if e_count > 5:
-                                break
+            # Add extra PE conditions to condition 1
+            pe_conditions_add = False
+            if condition_pe_part1 or condition_pe_part2:
+                if len(condition_pe_part1) == 1:
+                    condition_pe.append(condition_pe_part1[0])
+                elif len(condition_pe_part1) > 1:
+                    condition_pe.append("( %s )" % " or ".join(condition_pe_part1))
+                if len(condition_pe_part2) == 1:
+                    condition_pe.append(condition_pe_part2[0])
+                elif len(condition_pe_part2) > 1:
+                    condition_pe.append("( %s )" % " and ".join(condition_pe_part2))
+                # Marker that PE conditions have been added
+                pe_conditions_add = True
+                # Add to sub condition
+                subconditions.append(" and ".join(condition_pe))
 
-                # 1st Part of Condition 1
-                basic_conditions = []
-                # Filesize
-                if not state.args.nofilesize:
-                    basic_conditions.insert(
-                        0, get_file_range(file_info[filePath]["size"], state.args.fm)
-                    )
-                # Magic
-                if file_info[filePath]["magic"] != "":
-                    uint_string = get_uint_string(file_info[filePath]["magic"])
-                    basic_conditions.insert(0, uint_string)
-                # Basic Condition
-                if len(basic_conditions):
-                    conditions.append(" and ".join(basic_conditions))
+            # String combinations
+            cond_op = ""  # opcodes condition
+            cond_hs = ""  # high scoring strings condition
+            cond_ls = ""  # low scoring strings condition
 
-                # Add extra PE conditions to condition 1
-                pe_conditions_add = False
-                if condition_pe_part1 or condition_pe_part2:
-                    if len(condition_pe_part1) == 1:
-                        condition_pe.append(condition_pe_part1[0])
-                    elif len(condition_pe_part1) > 1:
-                        condition_pe.append("( %s )" % " or ".join(condition_pe_part1))
-                    if len(condition_pe_part2) == 1:
-                        condition_pe.append(condition_pe_part2[0])
-                    elif len(condition_pe_part2) > 1:
-                        condition_pe.append("( %s )" % " and ".join(condition_pe_part2))
-                    # Marker that PE conditions have been added
-                    pe_conditions_add = True
-                    # Add to sub condition
-                    subconditions.append(" and ".join(condition_pe))
-
-                # String combinations
-                cond_op = ""  # opcodes condition
-                cond_hs = ""  # high scoring strings condition
-                cond_ls = ""  # low scoring strings condition
-
-                low_scoring_strings = string_rule_count - high_scoring_strings
-                if high_scoring_strings > 0:
-                    cond_hs = "1 of ($x*)"
-                if low_scoring_strings > 0:
-                    if low_scoring_strings > 10:
-                        if high_scoring_strings > 0:
-                            cond_ls = "4 of them"
-                        else:
-                            cond_ls = "8 of them"
+            low_scoring_strings = string_rule_count - high_scoring_strings
+            if high_scoring_strings > 0:
+                cond_hs = "1 of ($x*)"
+            if low_scoring_strings > 0:
+                if low_scoring_strings > 10:
+                    if high_scoring_strings > 0:
+                        cond_ls = "4 of them"
                     else:
-                        cond_ls = "all of them"
-
-                # If low scoring and high scoring
-                cond_combined = "all of them"
-                needs_brackets = False
-                if low_scoring_strings > 0 and high_scoring_strings > 0:
-                    # If PE conditions have been added, don't be so strict with the strings
-                    if pe_conditions_add:
-                        cond_combined = "{0} or {1}".format(cond_hs, cond_ls)
-                        needs_brackets = True
-                    else:
-                        cond_combined = "{0} and {1}".format(cond_hs, cond_ls)
-                elif low_scoring_strings > 0 and not high_scoring_strings > 0:
-                    cond_combined = "{0}".format(cond_ls)
-                elif not low_scoring_strings > 0 and high_scoring_strings > 0:
-                    cond_combined = "{0}".format(cond_hs)
-                if opcodes_included:
-                    cond_op = " and all of ($op*)"
-
-                # Opcodes (if needed)
-                if cond_op or needs_brackets:
-                    subconditions.append("( {0}{1} )".format(cond_combined, cond_op))
+                        cond_ls = "8 of them"
                 else:
-                    subconditions.append(cond_combined)
+                    cond_ls = "all of them"
 
-                # Now add string condition to the conditions
-                if len(subconditions) == 1:
-                    conditions.append(subconditions[0])
-                elif len(subconditions) > 1:
-                    conditions.append("( %s )" % " or ".join(subconditions))
+            # If low scoring and high scoring
+            cond_combined = "all of them"
+            needs_brackets = False
+            if low_scoring_strings > 0 and high_scoring_strings > 0:
+                # If PE conditions have been added, don't be so strict with the strings
+                if pe_conditions_add:
+                    cond_combined = "{0} or {1}".format(cond_hs, cond_ls)
+                    needs_brackets = True
+                else:
+                    cond_combined = "{0} and {1}".format(cond_hs, cond_ls)
+            elif low_scoring_strings > 0 and not high_scoring_strings > 0:
+                cond_combined = "{0}".format(cond_ls)
+            elif not low_scoring_strings > 0 and high_scoring_strings > 0:
+                cond_combined = "{0}".format(cond_hs)
+            if opcodes_included:
+                cond_op = " and all of ($op*)"
 
-                # Create condition string
-                condition_string = " and\n      ".join(conditions)
+            # Opcodes (if needed)
+            if cond_op or needs_brackets:
+                subconditions.append("( {0}{1} )".format(cond_combined, cond_op))
+            else:
+                subconditions.append(cond_combined)
 
-                rule += "   condition:\n"
-                rule += "      %s\n" % condition_string
-                rule += "}\n\n"
+            # Now add string condition to the conditions
+            if len(subconditions) == 1:
+                conditions.append(subconditions[0])
+            elif len(subconditions) > 1:
+                conditions.append("( %s )" % " or ".join(subconditions))
 
-                # Add to rules string
-                rules += rule
+            # Create condition string
+            condition_string = " and\n      ".join(conditions)
 
-                rule_count += 1
-            except Exception as e:
-                traceback.print_exc()
+            rule += "   condition:\n"
+            rule += "      %s\n" % condition_string
+            rule += "}\n\n"
+
+            # Add to rules string
+            rules += rule
+
+            rule_count += 1
+        except Exception as e:
+            traceback.print_exc()
 
     # GENERATE SUPER RULES --------------------------------------------
-    if not state.args.nosuper and not state.args.inverse:
+    if not state.args.nosuper:
 
         rules += "/* Super Rules ------------------------------------------------------------- */\n\n"
         super_rule_names = []
@@ -660,114 +650,6 @@ def generate_rules(
     except Exception as e:
         traceback.print_exc()
 
-    # PROCESS INVERSE RULES ---------------------------------------------------
-    # print inverse_stats.keys()
-    if state.args.inverse:
-        print("[+] Generating inverse rules ...")
-        inverse_rules = ""
-        # Apply intelligent filters -------------------------------------------
-        print("[+] Applying intelligent filters to string findings ...")
-        for fileName in inverse_stats:
-
-            print("[-] Filtering string set for %s ..." % fileName)
-
-            # Replace the original string set with the filtered one
-            string_set = inverse_stats[fileName]
-            inverse_stats[fileName] = []
-            inverse_stats[fileName] = filter_string_set(string_set, state)
-
-            # Preset if empty
-            if fileName not in file_opcodes:
-                file_opcodes[fileName] = {}
-
-        # GENERATE INVERSE RULES -------------------------------------------
-        fh.write(
-            "/* Inverse Rules ------------------------------------------------------------- */\n\n"
-        )
-
-        for fileName in inverse_stats:
-            try:
-                rule = ""
-                # Create a clean new name
-                cleanedName = fileName.replace(".", "_")
-                # Add ANOMALY
-                cleanedName += "_ANOMALY"
-                # File name starts with a number
-                if re.search(r"^[0-9]", cleanedName):
-                    cleanedName = "sig_" + cleanedName
-                # clean name from all characters that would cause errors
-                cleanedName = re.sub(r"[^\w]", "_", cleanedName)
-                # Check if already printed
-                if cleanedName in printed_rules:
-                    printed_rules[cleanedName] += 1
-                    cleanedName = cleanedName + "_" + str(printed_rules[cleanedName])
-                else:
-                    printed_rules[cleanedName] = 1
-
-                # Print rule title ----------------------------------------
-                rule += "rule %s {\n" % cleanedName
-
-                # Meta data -----------------------------------------------
-                rule += "   meta:\n"
-                rule += '      description = "%s for anomaly detection - file %s"\n' % (
-                    state.args.prefix,
-                    fileName,
-                )
-                rule += '      author = "%s"\n' % state.args.a
-                rule += '      reference = "%s"\n' % state.args.reference
-                rule += '      date = "%s"\n' % get_timestamp_basic()
-                for i, hash in enumerate(file_info[fileName]["hashes"]):
-                    rule += '      hash%s = "%s"\n' % (str(i + 1), hash)
-
-                rule += "   strings:\n"
-
-                # Get the strings -----------------------------------------
-                # Rule String generation
-                (
-                    rule_strings,
-                    opcodes_included,
-                    string_rule_count,
-                    high_scoring_strings,
-                ) = get_rule_strings(
-                    state,
-                    inverse_stats[fileName],
-                    file_opcodes[fileName],
-                )
-
-                rule += rule_strings
-
-                # Condition -----------------------------------------------
-                folderNames = ""
-                if not state.args.nodirname:
-                    folderNames += "and ( filepath matches /"
-                    folderNames += "$/ or filepath matches /".join(
-                        file_info[fileName]["folder_names"]
-                    )
-                    folderNames += "$/ )"
-                condition = 'filename == "%s" %s and not ( all of them )' % (
-                    fileName,
-                    folderNames,
-                )
-
-                rule += "   condition:\n"
-                rule += "      %s\n" % condition
-                rule += "}\n\n"
-
-                # print rule
-                # Add to rules string
-                inverse_rules += rule
-
-            except Exception as e:
-                traceback.print_exc()
-
-        try:
-            # Try to write rule to file
-            if state.args.o:
-                fh.write(inverse_rules)
-            inverse_rule_count += 1
-        except Exception as e:
-            traceback.print_exc()
-
     # Close the rules file --------------------------------------------
     if state.args.o:
         try:
@@ -779,7 +661,7 @@ def generate_rules(
     if state.args.debug:
         print(rules)
 
-    return (rule_count, inverse_rule_count, super_rule_count)
+    return (rule_count, super_rule_count)
 
 
 def get_rule_strings(state, string_elements, opcode_elements):

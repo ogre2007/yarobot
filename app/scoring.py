@@ -204,7 +204,7 @@ def filter_string_set(string_set, state):
     for string in sorted_set:
 
         # Skip the one with a score lower than -z X
-        if not state.args.noscorefilter and not state.args.inverse:
+        if not state.args.noscorefilter:
             if string[1] < int(state.args.z):
                 continue
 
@@ -270,8 +270,7 @@ def sample_string_evaluation(
     file_strings = {}
     file_utf16strings = {}
     file_opcodes = {}
-    combinations = {}
-    inverse_stats = {}
+    combinations = {} 
     max_combi_count = 0
     super_rules = []
 
@@ -376,4 +375,4 @@ def sample_string_evaluation(
                     super_rules.append(combinations[combi])
 
     # Return all data
-    return (file_strings, file_opcodes, combinations, super_rules, inverse_stats)
+    return (file_strings, file_opcodes, combinations, super_rules)
