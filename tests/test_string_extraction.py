@@ -1,5 +1,10 @@
 
-from app.parse_files import extract_strings 
+import os
+import tempfile
+from types import SimpleNamespace
+
+from app.parse_files import extract_strings, parse_good_dir
+from app.utils import get_pe_info
 
 def test_string_extraction():  
     strings, utf16strs = extract_strings(b"string1\0string2\nmultilinestring\n1\0string1") 
@@ -7,3 +12,48 @@ def test_string_extraction():
     assert strings["string1"].count == 2
     assert strings["string2"].count == 1
     assert strings["multilinestring"].count == 1
+
+
+def test_string_extraction_min_max():
+    data = b"short\0eight888\0A"
+    # Min len 8, max 10 should include 'eight888' but not 'short'
+    strings, _ = extract_strings(data, min_len=8, max_len=10)
+    assert "eight888" in strings
+    assert "short" not in strings
+
+
+def test_get_pe_info_fast_rejects():
+    # Not a PE
+    imph, exps = get_pe_info(b"\x7FELF......")
+    assert imph == ""
+    assert exps == []
+
+    # MZ but no PE signature
+    fake_mz = bytearray(b"MZ" + b"\x00" * 0x3A + b"\x00\x00\x00\x00" + b"\x00" * 64)
+    imph, exps = get_pe_info(bytes(fake_mz))
+    assert imph == ""
+    assert exps == []
+
+
+def test_parse_good_dir_aggregates_counts(tmp_path):
+    # Create temp files with overlapping strings
+    f1 = tmp_path / "a.exe"
+    f2 = tmp_path / "b.dll"
+    f1.write_bytes(b"alpha\0beta\0alpha\0gamma")
+    f2.write_bytes(b"alpha\0delta\0beta")
+
+    # Minimal state.args needed by parse_good_dir
+    args = SimpleNamespace(fs=1, debug=False, s=128, y=4, opcodes=False)
+    state = SimpleNamespace(args=args)
+
+    all_strings, all_opcodes, all_imphashes, all_exports = parse_good_dir(
+        state, str(tmp_path), notRecursive=False, onlyRelevantExtensions=False
+    )
+    print(all_strings)
+    # alpha appears 3 times across files
+    assert all_strings["alpha"] == 3
+    # beta appears 2 times
+    assert all_strings["beta"] == 2
+    # gamma and delta once each
+    assert all_strings["gamma"] == 1
+    assert all_strings["delta"] == 1

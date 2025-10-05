@@ -7,12 +7,16 @@ import os
 import re
 import sys
 import traceback
+import logging
 import lief
 from lxml import etree
 
 import yargen_rs
 
 PE_STRINGS_FILE = "./3rdparty/strings.xml"
+
+
+logger = logging.getLogger("yarobot")
 
 
 def extract_opcodes(fileData) -> list[str]:
@@ -27,21 +31,39 @@ def get_pe_info(fileData: bytes) -> tuple[str, list[str]]:
     """
     imphash = ""
     exports = []
-    # Check for MZ header (speed improvement)
+    # Quick reject: not PE
     if fileData[:2] != b"MZ":
         return imphash, exports
     try:
+        # Cheap PE signature validation to avoid heavy parsing on false MZ files
+        if len(fileData) < 0x40:
+            return imphash, exports
+        e_lfanew = int.from_bytes(fileData[0x3C:0x40], "little", signed=False)
+        if e_lfanew + 4 > len(fileData):
+            return imphash, exports
+        if fileData[e_lfanew : e_lfanew + 4] != b"PE\x00\x00":
+            return imphash, exports
 
-        print("Extracting PE information")
+        # Avoid noisy prints on every file; keep exceptions logged below
         binary = lief.parse(fileData)
         # Imphash
-        imphash = lief.PE.get_imphash(binary, lief.PE.IMPHASH_MODE.PEFILE)
+        try:
+            imphash = lief.PE.get_imphash(binary, lief.PE.IMPHASH_MODE.PEFILE)
+        except Exception:
+            imphash = ""
         # Exports (names)
-        for exp in binary.get_export().entries:
-            exports.append(str(exp.name))
+        try:
+            exp_tbl = binary.get_export()
+            if exp_tbl is not None and getattr(exp_tbl, "entries", None):
+                for exp in exp_tbl.entries:
+                    name = getattr(exp, "name", None)
+                    if name:
+                        exports.append(str(name))
+        except Exception:
+            pass
     except Exception as e:
-        traceback.print_exc()
-        pass
+        # Keep debug trace in debug builds, but don't spam stdout otherwise
+        logger.debug("lief parse failed: %s", e, exc_info=True)
 
     return imphash, exports
 
@@ -114,16 +136,14 @@ def save(object, filename):
     file.close()
 
 
-def removeNonAsciiDrop(string):
-    nonascii = "error"
+def removeNonAsciiDrop(data: bytes) -> bytes:
     try:
-        byte_list = [i.to_bytes(1, sys.byteorder) for i in string]
-        # Generate a new string without disturbing characters
-        nonascii = b"".join(i for i in byte_list if ord(i) < 127 and ord(i) > 31)
-    except Exception as e:
-        traceback.print_exc()
-        pass
-    return nonascii
+        # Keep printable ASCII 0x20..0x7E and allow NUL padding
+        return bytes(b for b in data if (31 < b < 127))
+    except Exception:
+        if __debug__:
+            traceback.print_exc()
+        return b""
 
 
 def load(filename):
@@ -195,23 +215,19 @@ def get_timestamp_basic(date_obj=None):
     return date_str
 
 
-def is_ascii_char(b, padding_allowed=False):
+def is_ascii_char(b: int, padding_allowed: bool = False) -> int:
     if padding_allowed:
-        if (ord(b) < 127 and ord(b) > 31) or ord(b) == 0:
-            return 1
-    else:
-        if ord(b) < 127 and ord(b) > 31:
-            return 1
-    return 0
+        return 1 if (31 < b < 127) or b == 0 else 0
+    return 1 if (31 < b < 127) else 0
 
 
-def is_ascii_string(string, padding_allowed=False):
-    for b in [i.to_bytes(1, sys.byteorder) for i in string]:
+def is_ascii_string(data: bytes, padding_allowed: bool = False) -> int:
+    for b in data:
         if padding_allowed:
-            if not ((ord(b) < 127 and ord(b) > 31) or ord(b) == 0):
+            if not ((31 < b < 127) or b == 0):
                 return 0
         else:
-            if not (ord(b) < 127 and ord(b) > 31):
+            if not (31 < b < 127):
                 return 0
     return 1
 
@@ -258,3 +274,22 @@ def get_uint_string(magic):
             magic[0], magic[1], magic[2], magic[3]
         )
     return ""
+
+
+def sanitize_rule_name(path: str, file: str) -> str:
+    """Generate a valid YARA rule name from path and filename.
+
+    - Prefix with folder name if too short
+    - Ensure it doesn't start with a number
+    - Replace invalid chars with underscore
+    - De-duplicate underscores
+    """
+    file_base = os.path.splitext(file)[0]
+    cleaned = file_base
+    if len(file_base) < 8:
+        cleaned = path.split("\\")[-1:][0] + "_" + cleaned
+    if re.search(r"^[0-9]", cleaned):
+        cleaned = "sig_" + cleaned
+    cleaned = re.sub(r"[^\w]", "_", cleaned)
+    cleaned = re.sub(r"_+", "_", cleaned)
+    return cleaned

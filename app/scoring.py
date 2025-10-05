@@ -2,11 +2,12 @@ import base64
 import binascii
 import operator
 import re
+import logging
 import traceback
 
 
 from app.regex_base import REGEX_INSENSETIVE, REGEX_SENSETIVE
-from app.utils import *
+import app.utils as utils
 
 
 def score_with_regex(string):
@@ -107,7 +108,7 @@ def filter_string_set(string_set, state):
 
         # PEStudio String Blacklist Evaluation
         if state.pestudio_available:
-            (pescore, type) = get_pestudio_score(string, state.pestudio_strings)
+            (pescore, type) = utils.get_pestudio_score(string, state.pestudio_strings)
             # print("PE Match: %s" % string)
             # Reset score of goodware files to 5 if blacklisted in PEStudio
             if type != "":
@@ -139,14 +140,14 @@ def filter_string_set(string_set, state):
                         string + "=",
                         string + "==",
                     ):
-                        if is_base_64(m_string):
+                        if utils.is_base_64(m_string):
                             try:
                                 decoded_string = base64.b64decode(
                                     m_string, validate=False
                                 )
                             except binascii.Error as e:
                                 continue
-                            if is_ascii_string(decoded_string, padding_allowed=True):
+                            if utils.is_ascii_string(decoded_string, padding_allowed=True):
                                 # print "match"
                                 localStringScores[string] += 10
                                 state.base64strings[string] = decoded_string
@@ -155,11 +156,11 @@ def filter_string_set(string_set, state):
                         print("Starting Hex encoded string analysis ...")
                     for m_string in [string, re.sub("[^a-zA-Z0-9]", "", string)]:
                         # print m_string
-                        if is_hex_encoded(m_string):
+                        if utils.is_hex_encoded(m_string):
                             # print("^ is HEX")
                             decoded_string = bytes.fromhex(m_string)
                             # print removeNonAsciiDrop(decoded_string)
-                            if is_ascii_string(decoded_string, padding_allowed=True):
+                            if utils.is_ascii_string(decoded_string, padding_allowed=True):
                                 # not too many 00s
                                 if "00" in m_string:
                                     if (
@@ -241,7 +242,7 @@ def filter_opcode_set(state, opcode_set: list[str], good_opcodes_db) -> list[str
             continue
 
         # Format the opcode
-        formatted_opcode = get_opcode_string(opcode)
+        formatted_opcode = utils.get_opcode_string(opcode)
 
         # Preferred opcodes
         set_in_pref = False
@@ -253,7 +254,7 @@ def filter_opcode_set(state, opcode_set: list[str], good_opcodes_db) -> list[str
             continue
 
         # Else add to useful set
-        useful_set.append(get_opcode_string(opcode))
+        useful_set.append(utils.get_opcode_string(opcode))
 
     # Preferred opcodes first
     useful_set = pref_set + useful_set
@@ -266,7 +267,7 @@ def sample_string_evaluation(
     string_stats, opcode_stats, file_info, state, utf16string_stats
 ):
     # Generate Stats -----------------------------------------------------------
-    print("[+] Generating statistical data ...")
+    logging.getLogger("yarobot").info("[+] Generating statistical data ...")
     file_strings = {}
     file_utf16strings = {}
     file_opcodes = {}
@@ -309,19 +310,17 @@ def sample_string_evaluation(
             # print sample_string_stats[string].count
             if len(string_stats[string].files) > 1:
                 if state.args.debug:
-                    print(
-                        'OVERLAP Count: %s\nString: "%s"%s'
-                        % (
-                            string_stats[string].count,
-                            string,
-                            "\nFILE: ".join(string_stats[string].files),
-                        )
+                    logging.getLogger("yarobot").debug(
+                        'OVERLAP Count: %s\nString: "%s"%s',
+                        string_stats[string].count,
+                        string,
+                        "\nFILE: ".join(string_stats[string].files),
                     )
                 # Create a combination string from the file set that matches to that string
                 combi = ":".join(sorted(string_stats[string].files))
                 # print "STRING: " + string
                 if state.args.debug:
-                    print("COMBI: " + combi)
+                    logging.getLogger("yarobot").debug("COMBI: %s", combi)
                 # If combination not yet known
                 if combi not in combinations:
                     combinations[combi] = {}
@@ -340,7 +339,7 @@ def sample_string_evaluation(
                 )
                 # print "Max Combi Count set to: %s" % max_combi_count
 
-    print("[+] Generating Super Rules ... (a lot of magic)")
+    logging.getLogger("yarobot").info("[+] Generating Super Rules ... (a lot of magic)")
     for combi_count in range(max_combi_count, 1, -1):
         for combi in combinations:
             if combi_count == combinations[combi]["count"]:
@@ -366,9 +365,9 @@ def sample_string_evaluation(
                             if file in file_strings:
                                 del file_strings[file]
                     # Add it as a super rule
-                    print(
-                        "[-] Adding Super Rule with %s strings."
-                        % str(len(combinations[combi]["strings"]))
+                    logging.getLogger("yarobot").info(
+                        "[-] Adding Super Rule with %s strings.",
+                        str(len(combinations[combi]["strings"]))
                     )
                     # if state.args.debug:
                     # print "Rule Combi: %s" % combi

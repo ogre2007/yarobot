@@ -2,7 +2,7 @@ import binascii
 from collections import Counter
 import os
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from hashlib import sha256
 from app.rule_generator import generate_rules
@@ -18,11 +18,11 @@ class StringInfo:
         self,
         count: int,
         is_utf16: bool = False,
-        files: list[str] = [],
+        files: list[str] | None = None,
     ):
         self.count = count
         self.is_utf16 = is_utf16
-        self.files = files
+        self.files = [] if files is None else files
 
     def __str__(self):
         if self.is_utf16:
@@ -31,14 +31,14 @@ class StringInfo:
             return "%s" % self.count
 
 
-def extract_strings(fileData): 
+def extract_strings(fileData, min_len: int = 5, max_len: int = 128): 
     strings = {
         s[0]: StringInfo(s[1])
-        for s in yargen_rs.extract_strings(fileData, 5, 128, False)
+        for s in yargen_rs.extract_strings(fileData, min_len, max_len, False)
     }
     utf16_strings = {
         s[0]: StringInfo(s[1], True)
-        for s in yargen_rs.extract_strings(fileData, 5, 128, True)
+        for s in yargen_rs.extract_strings(fileData, min_len, max_len, True)
     }
     return strings, utf16_strings
 
@@ -127,7 +127,10 @@ def parse_sample_dir(
                 print("[-] Cannot read file - skipping %s" % filePath)
 
             # Extract strings from file
-            strings, utf16strings = extract_strings(fileData)
+            # Respect CLI min/max lengths
+            min_len = int(getattr(state.args, "y", 8))
+            max_len = int(getattr(state.args, "s", 128))
+            strings, utf16strings = extract_strings(fileData, min_len, max_len)
             for s in strings:
                 strings[s].files = set(set(strings[s].files) | {filePath})
             for s in utf16strings:
@@ -251,9 +254,13 @@ def parse_good_dir(state, dir, notRecursive=False, onlyRelevantExtensions=True):
             print("[-] Cannot read file - skipping %s" % filePath)
 
         # Extract strings from file
-        strings = extract_strings(state.args.s, fileData)
-        # Append to all strings
-        all_strings.update(strings)
+        min_len = int(getattr(state.args, "y", 8))
+        max_len = int(getattr(state.args, "s", 128))
+        strings_map, utf16_map = extract_strings(fileData, min_len, max_len)
+        # Merge ASCII
+        all_strings.update({s: info.count for s, info in strings_map.items()})
+        # Merge UTF16 (store as plain for goodware DB usage)
+        all_strings.update({s: info.count for s, info in utf16_map.items()})
 
         # Extract Opcodes from file
         opcodes = []
@@ -271,7 +278,7 @@ def parse_good_dir(state, dir, notRecursive=False, onlyRelevantExtensions=True):
         if state.args.debug:
             print(
                 "[+] Processed %s - %d strings %d opcodes %d exports and imphash %s"
-                % (filePath, len(strings), len(opcodes), len(exports), imphash)
+                % (filePath, len(all_strings), len(opcodes), len(exports), imphash)
             )
 
     # return it as a set (unique strings)

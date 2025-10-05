@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import os
 import sys
+import logging
 
 import traceback
 import time
@@ -57,12 +58,11 @@ def load_db(file, local_counter, prefix):
         try:
             filePath = os.path.join(DB_PATH, file)
             print("[+] Loading %s ..." % filePath)
+            before = len(local_counter)
             js = load(get_abs_path(filePath))
             local_counter.update(js)
-            print(
-                "[+] Total: %s / Added %d entries"
-                % (len(local_counter), len(local_counter) - strings_num)
-            )
+            added = len(local_counter) - before
+            print("[+] Total: %s / Added %d entries" % (len(local_counter), added))
         except Exception as e:
             traceback.print_exc()
     return len(local_counter)
@@ -84,7 +84,7 @@ class State:
         self.hexEncStrings = {}
         self.pestudioMarker = {}
         self.stringScores = {}
-        self.good_strings_db = (good_strings_db,)
+        self.good_strings_db = good_strings_db
         self.good_opcodes_db = good_opcodes_db
         self.good_imphashes_db = good_imphashes_db
         self.good_exports_db = good_exports_db
@@ -107,6 +107,7 @@ def print_welcome():
 
 # MAIN ################################################################
 if __name__ == "__main__":
+    logging.basicConfig(level=os.environ.get("YAROBOT_LOG_LEVEL", "INFO"))
     print_welcome()
 
     # Signal handler for CTRL+C

@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 
-import dbs
+from app import dbs
 
 
 def get_args():
@@ -15,24 +15,28 @@ def get_args():
         "-y",
         help="Minimum string length to consider (default=8)",
         metavar="min-size",
+        type=int,
         default=8,
     )
     group_creation.add_argument(
         "-z",
         help="Minimum score to consider (default=0)",
         metavar="min-score",
+        type=int,
         default=5,
     )
     group_creation.add_argument(
         "-x",
         help="Score required to set string as 'highly specific string' (default: 30)",
         metavar="high-scoring",
+        type=int,
         default=30,
     )
     group_creation.add_argument(
         "-w",
         help="Minimum number of strings that overlap to create a super rule (default: 5)",
         metavar="superrule-overlap",
+        type=int,
         default=5,
     )
     group_creation.add_argument(
@@ -47,6 +51,7 @@ def get_args():
         help="Maximum number of strings per rule (default=20, intelligent filtering "
         "will be applied)",
         metavar="strings-per-rule",
+        type=int,
         default=20,
     )
     group_creation.add_argument(
@@ -125,6 +130,7 @@ def get_args():
     group_output.add_argument(
         "-fm",
         help="Multiplier for the maximum 'filesize' condition value (default: 3)",
+        type=int,
         default=3,
     )
     group_output.add_argument(
@@ -197,6 +203,7 @@ def get_args():
         "-fs",
         help="Max file size in MB to analyze (default=10)",
         metavar="size-in-MB",
+        type=int,
         default=10,
     )
     group_general.add_argument(
@@ -226,6 +233,7 @@ def get_args():
         help="Number of opcodes to add if not enough high scoring string could be found "
         "(default=3)",
         metavar="opcode-num",
+        type=int,
         default=3,
     )
 
@@ -249,7 +257,7 @@ Recommended command line:
 
     # Update
     if args.update:
-        dbs.update_databases()
+        dbs.update_databases(args)
         print("[+] Updated databases - you can now start creating YARA rules")
         sys.exit(0)
 

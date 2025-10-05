@@ -2,7 +2,7 @@ import os
 import shutil
 import sys
 import traceback
-import urllib
+import urllib.request
 
 
 REPO_URLS = {

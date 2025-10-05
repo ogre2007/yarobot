@@ -2,7 +2,10 @@ from collections import Counter
 import traceback
 
 from app.scoring import filter_opcode_set, filter_string_set
-from app.utils import *
+import app.utils as utils
+import os
+import re
+import logging
 
 KNOWN_IMPHASHES = {
     "a04dd9f5ee88d7774203e0a0cfa1b941": "PsExec",
@@ -31,10 +34,9 @@ def get_file_range(size, fm_size):
         elif len(str(max_size)) >= 5:
             max_size = int(round(max_size, -3))
         size_string = "filesize < {0}KB".format(max_size)
-        print(
-            "File Size Eval: SampleSize (b): {0} SizeWithMultiplier (b/Kb): {1} / {2} RoundedSize: {3}".format(
-                str(size), str(max_size_b), str(max_size_kb), str(max_size)
-            )
+        logging.getLogger("yarobot").debug(
+            "File Size Eval: SampleSize (b): %s SizeWithMultiplier (b/Kb): %s / %s RoundedSize: %s",
+            str(size), str(max_size_b), str(max_size_kb), str(max_size)
         )
     except Exception:
         traceback.print_exc()
@@ -157,7 +159,7 @@ def generate_general_condition(state, file_info):
 
         # If different magic headers are less than 5
         if len(magic_headers) <= 5:
-            magic_string = " or ".join(get_uint_string(h) for h in magic_headers)
+            magic_string = " or ".join(utils.get_uint_string(h) for h in magic_headers)
             if " or " in magic_string:
                 conditions.append("( {0} )".format(magic_string))
             else:
@@ -204,7 +206,7 @@ def generate_rules(
     general_info = "/*\n"
     general_info += "   YARA Rule Set\n"
     general_info += "   Author: {0}\n".format(state.args.a)
-    general_info += "   Date: {0}\n".format(get_timestamp_basic())
+    general_info += "   Date: {0}\n".format(utils.get_timestamp_basic())
     general_info += "   Identifier: {0}\n".format(state.args.identifier)
     general_info += "   Reference: {0}\n".format(state.args.reference)
     if state.args.l != "":
@@ -240,9 +242,9 @@ def generate_rules(
     pe_module_necessary = False
  
     # PROCESS SIMPLE RULES ----------------------------------------------------
-    print("[+] Generating Simple Rules ...")
+    logging.getLogger("yarobot").info("[+] Generating Simple Rules ...")
     # Apply intelligent filters
-    print("[-] Applying intelligent filters to string findings ...")
+    logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
     for filePath in file_strings:
 
         print("[-] Filtering string set for %s ..." % filePath)
@@ -250,7 +252,7 @@ def generate_rules(
         # Replace the original string set with the filtered one
         file_strings[filePath] = filter_string_set(file_strings[filePath], state)
 
-        print("[-] Filtering opcode set for %s ..." % filePath)
+        logging.getLogger("yarobot").info("[-] Filtering opcode set for %s ...", filePath)
 
         # Replace the original opcode set with the filtered one
         file_opcodes[filePath] = (
@@ -268,16 +270,15 @@ def generate_rules(
 
         # Skip if there is nothing to do
         if len(file_strings[filePath]) == 0:
-            print(
-                "[W] Not enough high scoring strings to create a rule. "
-                "(Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s"
-                % filePath
+            logging.getLogger("yarobot").warning(
+                "[W] Not enough high scoring strings to create a rule. (Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s",
+                filePath,
             )
             continue
         elif len(file_strings[filePath]) == 0 and len(file_opcodes[filePath]) == 0:
-            print(
-                "[W] Not enough high scoring strings and opcodes to create a rule. "
-                "(Try -z 0 to reduce the min score) FILE: %s" % filePath
+            logging.getLogger("yarobot").warning(
+                "[W] Not enough high scoring strings and opcodes to create a rule. (Try -z 0 to reduce the min score) FILE: %s",
+                filePath,
             )
             continue
 
@@ -285,18 +286,8 @@ def generate_rules(
         try:
             rule = ""
             (path, file) = os.path.split(filePath)
-            # Prepare name
-            fileBase = os.path.splitext(file)[0]
-            # Create a clean new name
-            cleanedName = fileBase
-            # Adapt length of rule name
-            if len(fileBase) < 8:  # if name is too short add part from path
-                cleanedName = path.split("\\")[-1:][0] + "_" + cleanedName
-            # File name starts with a number
-            if re.search(r"^[0-9]", cleanedName):
-                cleanedName = "sig_" + cleanedName
-            # clean name from all characters that would cause errors
-            cleanedName = re.sub(r"[^\w]", "_", cleanedName)
+            # Prepare name via helper
+            cleanedName = utils.sanitize_rule_name(path, file)
             # Check if already printed
             if cleanedName in printed_rules:
                 printed_rules[cleanedName] += 1
@@ -315,7 +306,7 @@ def generate_rules(
             )
             rule += '      author = "%s"\n' % state.args.a
             rule += '      reference = "%s"\n' % state.args.reference
-            rule += '      date = "%s"\n' % get_timestamp_basic()
+            rule += '      date = "%s"\n' % utils.get_timestamp_basic()
             rule += '      hash1 = "%s"\n' % file_info[filePath]["hash"]
             rule += "   strings:\n"
 
@@ -395,7 +386,7 @@ def generate_rules(
                 )
             # Magic
             if file_info[filePath]["magic"] != "":
-                uint_string = get_uint_string(file_info[filePath]["magic"])
+                uint_string = utils.get_uint_string(file_info[filePath]["magic"])
                 basic_conditions.insert(0, uint_string)
             # Basic Condition
             if len(basic_conditions):
@@ -497,10 +488,8 @@ def generate_rules(
                 for filePath in super_rule["files"]:
                     (path, file) = os.path.split(filePath)
                     file_list.append(file)
-                    # Prepare name
-                    fileBase = os.path.splitext(file)[0]
-                    # Create a clean new name
-                    cleanedName = fileBase
+                    # Prepare name via helper
+                    cleanedName = utils.sanitize_rule_name(path, file)
                     # Append it to the full name
                     rule_name += "_" + cleanedName
                     # Check if imphash of all files is equal
@@ -545,7 +534,7 @@ def generate_rules(
                 )
                 rule += '      author = "%s"\n' % state.args.a
                 rule += '      reference = "%s"\n' % state.args.reference
-                rule += '      date = "%s"\n' % get_timestamp_basic()
+                rule += '      date = "%s"\n' % utils.get_timestamp_basic()
                 for i, filePath in enumerate(super_rule["files"]):
                     rule += '      hash%s = "%s"\n' % (
                         str(i + 1),
@@ -716,7 +705,7 @@ def get_rule_strings(state, string_elements, opcode_elements):
         if string in state.hexEncStrings:
             hexEncComment = (
                 " /* hex encoded string '%s' */"
-                % removeNonAsciiDrop(state.hexEncStrings[string]).decode()
+                % utils.removeNonAsciiDrop(state.hexEncStrings[string]).decode()
             )
         if string in state.pestudioMarker and state.args.score:
             pestudio_comment = (
@@ -728,7 +717,7 @@ def get_rule_strings(state, string_elements, opcode_elements):
             )
 
         # Extra checks
-        if is_hex_encoded(string, check_length=False):
+        if utils.is_hex_encoded(string, check_length=False):
             is_fullword = False
 
         # Checking string length
@@ -786,6 +775,6 @@ def get_rule_strings(state, string_elements, opcode_elements):
             opcodes_included = True
     else:
         if state.args.opcodes:
-            print("[-] Not enough unique opcodes found to include them")
+            logging.getLogger("yarobot").info("[-] Not enough unique opcodes found to include them")
 
     return rule_strings, opcodes_included, string_rule_count, high_scoring_strings
