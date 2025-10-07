@@ -7,7 +7,7 @@ import traceback
 
 
 from app.regex_base import REGEX_INSENSETIVE, REGEX_SENSETIVE
-import yarobot_rs as utils
+import yarobot_rs 
 
 
 def get_pestudio_score(string, pestudio_strings):
@@ -153,14 +153,14 @@ def filter_string_set(string_set, state):
                         string + "=",
                         string + "==",
                     ):
-                        if utils.is_base_64(m_string):
+                        if yarobot_rs.is_base_64(m_string):
                             try:
                                 decoded_string = base64.b64decode(
                                     m_string, validate=False
                                 )
                             except binascii.Error as e:
                                 continue
-                            if utils.is_ascii_string(decoded_string, padding_allowed=True):
+                            if yarobot_rs.is_ascii_string(decoded_string, padding_allowed=True):
                                 # print "match"
                                 localStringScores[string] += 10
                                 state.base64strings[string] = decoded_string
@@ -169,10 +169,10 @@ def filter_string_set(string_set, state):
                         print("Starting Hex encoded string analysis ...")
                     for m_string in [string, re.sub("[^a-zA-Z0-9]", "", string)]:
                         # print m_string
-                        if utils.is_hex_encoded(m_string):
+                        if yarobot_rs.is_hex_encoded(m_string):
                             # print("^ is HEX")
                             decoded_string = bytes.fromhex(m_string) 
-                            if utils.is_ascii_string(decoded_string, padding_allowed=True):
+                            if yarobot_rs.is_ascii_string(decoded_string, padding_allowed=True):
                                 # not too many 00s
                                 if "00" in m_string:
                                     if (
@@ -287,7 +287,8 @@ def sample_string_evaluation(
 
     def extract_stats_by_file(stats, outer_dict, flt=lambda x: x):
         for token, value in stats.items():
-            # print(value)
+            #if len(token) < 5:
+            #    print(token, value)
             count = 0
             files = []
             if type(value) == dict:
@@ -307,10 +308,14 @@ def sample_string_evaluation(
     extract_stats_by_file(opcode_stats, file_opcodes, lambda x: x < 10)
 
     # STRING EVALUATION -------------------------------------------------------
+    #for k, v in string_stats.items(): 
+    #    print(k, v)
+    #    #exit()
+    #    if "enthropy-rs.exe" in v.files and len(k) < 5:
+    #        print(k, v)
+    # Iterate through strings found in malware files 
+    extract_stats_by_file(string_stats, file_strings) 
 
-    # Iterate through strings found in malware files
-
-    extract_stats_by_file(string_stats, file_strings)
     extract_stats_by_file(utf16string_stats, file_utf16strings)
     if not state.args.nosuper:
         for string in string_stats:

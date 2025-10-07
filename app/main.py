@@ -44,7 +44,7 @@ from lxml import etree
 from app.args import get_args 
 from app.parse_files import parse_good_dir, processSampleDir 
 from app.config import DB_PATH, PE_STRINGS_FILE
-
+from yarobot_rs import get_file_content
 
 def getPrefix(prefix, identifier):
     """
@@ -72,7 +72,7 @@ def getIdentifier(id, path):
         return os.path.basename(path.rstrip("/"))
     else:
         # Read identifier from file
-        identifier = getFileContent(id)
+        identifier = get_file_content(id)
         print("[+] Read identifier from file %s > %s" % (id, identifier))
         return identifier
 
@@ -100,7 +100,7 @@ def getReference(ref):
     :return:
     """
     if os.path.exists(ref):
-        reference = getFileContent(ref)
+        reference = get_file_content(ref)
         print("[+] Read reference from file %s > %s" % (ref, reference))
         return reference
     else:

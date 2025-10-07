@@ -1,10 +1,13 @@
 
 import os
+from pathlib import Path
 import tempfile
 from types import SimpleNamespace
+from pytest_datadir.plugin import LazyDataDir
 
 from app.parse_files import extract_strings, parse_good_dir
 import yarobot_rs
+ 
 
 def test_string_extraction():  
     strings, utf16strs = extract_strings(b"string1\0string2\nmultilinestring\n1\0string1") 
@@ -12,6 +15,22 @@ def test_string_extraction():
     assert strings["string1"].count == 2
     assert strings["string2"].count == 1
     assert strings["multilinestring"].count == 1
+
+def test_string_extraction_file(shared_datadir):
+    current_dir = Path(__file__).parent
+    data = shared_datadir.joinpath("binary").read_bytes()[:1024*1024]
+    #print(pstr) 
+    #assert len(data) > 100
+    assert data[0:2] == b"MZ"
+    strings, utf16strs = extract_strings(data, 5, 128)
+
+    for string in strings.keys():
+        #print(string)
+        assert len(string) >= 5
+        assert len(string) <= 128
+
+
+
 
 
 def test_string_extraction_min_max():

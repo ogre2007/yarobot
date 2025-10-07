@@ -3,7 +3,7 @@ import datetime
 import traceback
 
 from app.scoring import filter_opcode_set, filter_string_set
-import yarobot_rs as utils
+import yarobot_rs
 import os
 import re
 import logging
@@ -279,6 +279,7 @@ def generate_rules(
     logging.getLogger("yarobot").info("[+] Generating Simple Rules ...")
     # Apply intelligent filters
     logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
+    #logging.getLogger("yarobot").info(file_strings)
     for filePath in file_strings:
 
         print("[-] Filtering string set for %s ..." % filePath)
@@ -739,7 +740,7 @@ def get_rule_strings(state, string_elements, opcode_elements):
         if string in state.hexEncStrings:
             hexEncComment = (
                 " /* hex encoded string '%s' */"
-                % utils.removeNonAsciiDrop(state.hexEncStrings[string]).decode()
+                % yarobot_rs.remove_non_ascii_drop(state.hexEncStrings[string]).decode()
             )
         if string in state.pestudioMarker and state.args.score:
             pestudio_comment = (
@@ -751,7 +752,7 @@ def get_rule_strings(state, string_elements, opcode_elements):
             )
 
         # Extra checks
-        if utils.is_hex_encoded(string, check_length=False):
+        if yarobot_rs.is_hex_encoded(string, check_length=False):
             is_fullword = False
 
         # Checking string length

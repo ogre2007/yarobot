@@ -4,7 +4,7 @@ import os
 import traceback
 from dataclasses import dataclass, field
 
-from hashlib import sha256
+from hashlib import sha256 
 from app.rule_generator import generate_rules
 from app.scoring import sample_string_evaluation
 
@@ -17,17 +17,21 @@ class StringInfo:
         self,
         count: int,
         is_utf16: bool = False,
-        files: list[str] | None = None,
+        files: set[str] | None = None,
     ):
         self.count = count
         self.is_utf16 = is_utf16
-        self.files = [] if files is None else files
+        self.files = set()
+        if files:
+            self.files = files
 
     def __str__(self):
+
         if self.is_utf16:
-            return "UTF16: %s" % self.count
+            return "UTF16: %s [%s]" % (self.count, self.files)
+
         else:
-            return "%s" % self.count
+            return "%s [%s]" % (self.count, self.files)
 
 
 def extract_strings(fileData, min_len: int = 5, max_len: int = 128): 
@@ -90,7 +94,10 @@ def parse_sample_dir(
     for filePath in yarobot_rs.get_files(dir, notRecursive):
         try:
             print("[+] Processing %s ..." % filePath)
-
+            #if len(filePath) < 5:
+            #    print( "bad file path!")
+            #    print(filePath)
+            #    exit()
             # Get Extension
             extension = os.path.splitext(filePath)[1].lower()
             if not extension in RELEVANT_EXTENSIONS and onlyRelevantExtensions:
@@ -130,11 +137,14 @@ def parse_sample_dir(
             min_len = int(getattr(state.args, "y", 8))
             max_len = int(getattr(state.args, "s", 128))
             strings, utf16strings = extract_strings(fileData, min_len, max_len)
-            for s in strings:
-                strings[s].files = set(set(strings[s].files) | {filePath})
-            for s in utf16strings:
-                utf16strings[s].files = set(set(utf16strings[s].files) | {filePath})
-            # print(strings, utf16strings)
+            for s in strings.keys():
+
+                strings[s].files.add(filePath)
+                # strings[s].files = set(strings[s].files).add(filePath) fuck
+ 
+            for s in utf16strings.keys():
+                utf16strings[s].add(filePath) 
+            #print(strings, utf16strings)
             # Extract opcodes from file
             opcodes = []
             if state.args.opcodes:
@@ -173,22 +183,26 @@ def parse_sample_dir(
             file_info[filePath]["size"] = os.stat(filePath).st_size
 
 
-            def merge_stats(new_stats, old_stats):
+            def merge_stats(new_stats, old_stats): 
                 for string, info in new_stats.items():
+                    assert info 
                     if string not in old_stats:
                         old_stats[string] = info
-
+                        for f in old_stats[string].files:
+                            if len(f) <5:
+                                print(string, f)
+                                exit()
                     elif info.is_utf16 == old_stats[string].is_utf16:
                         old_stats[string].count += new_stats[string].count
                         for f in new_stats[string].files:
                             if f not in old_stats[string].files:
-                                old_stats[string].files.update(f)
+                                old_stats[string].files.add(f)
+
                     else:
                         raise ValueError("String %s has different encoding" % string)
-
             merge_stats(strings, string_stats)
             merge_stats(utf16strings, utf16string_stats)
-
+            
             # Add opcodes to statistics
             for opcode in opcodes:
                 # Opcode is not already known
@@ -216,8 +230,7 @@ def parse_sample_dir(
 
         except Exception as e:
             traceback.print_exc()
-            print("[E] ERROR reading file: %s" % filePath)
-
+            print("[E] ERROR reading file: %s" % filePath) 
     return string_stats, opcode_stats, file_info, utf16string_stats
 
 
@@ -301,7 +314,16 @@ def processSampleDir(targetDir, state):
             onlyRelevantExtensions=state.args.oe,
         )
     )
+    '''
+    for k, v in sample_string_stats.items():
+        #print(v.files)
+        for f in v.files:
+            print(f)
+            if len(f) < 5:
+                print(k, v)
 
+    exit()
+    '''
     # Evaluate Strings
     (file_strings, file_opcodes, combinations, super_rules) = (
         sample_string_evaluation(
