@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """ 
 
 
+import gzip
 import os
 import sys
 import logging
@@ -37,21 +38,115 @@ import traceback
 import time
 from collections import Counter
 import signal as signal_module
+import orjson as json
+from lxml import etree
 
-from app.args import get_args
-from app.utils import load
-from app.parse_files import parse_good_dir, processSampleDir
-from app.utils import (
-    emptyFolder,
-    get_abs_path,
-    getIdentifier,
-    getPrefix,
-    getReference,
-    initialize_pestudio_strings,
-    save,
-)
-from app.config import DB_PATH
+from app.args import get_args 
+from app.parse_files import parse_good_dir, processSampleDir 
+from app.config import DB_PATH, PE_STRINGS_FILE
 
+
+def getPrefix(prefix, identifier):
+    """
+    Get a prefix string for the rule description based on the identifier
+    :param prefix:
+    :param identifier:
+    :return:
+    """
+    if prefix == "Auto-generated rule":
+        return identifier
+    else:
+        return prefix
+
+
+def getIdentifier(id, path):
+    """
+    Get a identifier string - if the provided string is the path to a text file, then read the contents and return it as
+    reference, otherwise use the last element of the full path
+    :param ref:
+    :return:
+    """
+    # Identifier
+    if id == "not set" or not os.path.exists(id):
+        # Identifier is the highest folder name
+        return os.path.basename(path.rstrip("/"))
+    else:
+        # Read identifier from file
+        identifier = getFileContent(id)
+        print("[+] Read identifier from file %s > %s" % (id, identifier))
+        return identifier
+
+
+def load(filename):
+    file = gzip.GzipFile(filename, "rb")
+    object = json.loads(file.read())
+    file.close()
+    return object
+
+def get_abs_path(filename):
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+
+def save(object, filename):
+    file = gzip.GzipFile(filename, "wb")
+    file.write(bytes(json.dumps(object), "utf-8"))
+    file.close()
+
+
+def getReference(ref):
+    """
+    Get a reference string - if the provided string is the path to a text file, then read the contents and return it as
+    reference
+    :param ref:
+    :return:
+    """
+    if os.path.exists(ref):
+        reference = getFileContent(ref)
+        print("[+] Read reference from file %s > %s" % (ref, reference))
+        return reference
+    else:
+        return ref
+
+
+def emptyFolder(dir):
+    """
+    Removes all files from a given folder
+    :return:
+    """
+    for file in os.listdir(dir):
+        filePath = os.path.join(dir, file)
+        try:
+            if os.path.isfile(filePath):
+                print("[!] Removing %s ..." % filePath)
+                os.unlink(filePath)
+        except Exception as e:
+            print(e)
+
+def initialize_pestudio_strings():
+    if not os.path.isfile(get_abs_path(PE_STRINGS_FILE)):
+        return None
+    print("[+] Processing PEStudio strings ...")
+
+    pestudio_strings = {}
+
+    tree = etree.parse(get_abs_path(PE_STRINGS_FILE))
+
+    pestudio_strings["strings"] = tree.findall(".//string")
+    pestudio_strings["av"] = tree.findall(".//av")
+    pestudio_strings["folder"] = tree.findall(".//folder")
+    pestudio_strings["os"] = tree.findall(".//os")
+    pestudio_strings["reg"] = tree.findall(".//reg")
+    pestudio_strings["guid"] = tree.findall(".//guid")
+    pestudio_strings["ssdl"] = tree.findall(".//ssdl")
+    pestudio_strings["ext"] = tree.findall(".//ext")
+    pestudio_strings["agent"] = tree.findall(".//agent")
+    pestudio_strings["oid"] = tree.findall(".//oid")
+    pestudio_strings["priv"] = tree.findall(".//priv")
+
+    # Obsolete
+    # for elem in string_elems:
+    #    strings.append(elem.text)
+
+    return pestudio_strings
 
 def load_db(file, local_counter, prefix):
     if file.startswith(prefix):

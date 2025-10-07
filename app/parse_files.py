@@ -8,7 +8,6 @@ from hashlib import sha256
 from app.rule_generator import generate_rules
 from app.scoring import sample_string_evaluation
 
-from app.utils import extract_opcodes, get_files, get_pe_info
 import yarobot_rs
 
 
@@ -88,7 +87,7 @@ def parse_sample_dir(
     file_info = {}
     known_sha1sums = []
 
-    for filePath in get_files(dir, notRecursive):
+    for filePath in yarobot_rs.get_files(dir, notRecursive):
         try:
             print("[+] Processing %s ..." % filePath)
 
@@ -140,7 +139,7 @@ def parse_sample_dir(
             opcodes = []
             if state.args.opcodes:
                 print("[-] Extracting OpCodes: %s" % filePath)
-                opcodes = extract_opcodes(fileData)
+                opcodes = yarobot_rs.extract_opcodes(fileData)
 
             # Add sha256 value
             if generateInfo:
@@ -148,7 +147,7 @@ def parse_sample_dir(
                 file_info[filePath] = {}
                 file_info[filePath]["hash"] = sha256sum
                 file_info[filePath]["imphash"], file_info[filePath]["exports"] = (
-                    get_pe_info(fileData)
+                    yarobot_rs.get_pe_info(fileData)
                 )
 
             # Skip if hash already known - avoid duplicate files
@@ -183,7 +182,7 @@ def parse_sample_dir(
                         old_stats[string].count += new_stats[string].count
                         for f in new_stats[string].files:
                             if f not in old_stats[string].files:
-                                old_stats[string].files.append(f)
+                                old_stats[string].files.update(f)
                     else:
                         raise ValueError("String %s has different encoding" % string)
 
@@ -229,7 +228,7 @@ def parse_good_dir(state, dir, notRecursive=False, onlyRelevantExtensions=True):
     all_imphashes = Counter()
     all_exports = Counter()
 
-    for filePath in get_files(dir, notRecursive):
+    for filePath in yarobot_rs.get_files(dir, notRecursive):
         # Get Extension
         extension = os.path.splitext(filePath)[1].lower()
         if extension not in RELEVANT_EXTENSIONS and onlyRelevantExtensions:
@@ -266,12 +265,12 @@ def parse_good_dir(state, dir, notRecursive=False, onlyRelevantExtensions=True):
         opcodes = []
         if state.args.opcodes:
             print("[-] Extracting OpCodes: %s" % filePath)
-            opcodes = extract_opcodes(fileData)
+            opcodes = yarobot_rs.extract_opcodes(fileData)
             # Append to all opcodes
             all_opcodes.update(opcodes)
 
         # Imphash and Exports
-        (imphash, exports) = get_pe_info(fileData)
+        (imphash, exports) = yarobot_rs.get_pe_info(fileData)
         if imphash != "":
             all_imphashes.update([imphash])
         all_exports.update(exports)

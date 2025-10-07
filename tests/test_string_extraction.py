@@ -4,7 +4,7 @@ import tempfile
 from types import SimpleNamespace
 
 from app.parse_files import extract_strings, parse_good_dir
-from app.utils import get_pe_info
+import yarobot_rs
 
 def test_string_extraction():  
     strings, utf16strs = extract_strings(b"string1\0string2\nmultilinestring\n1\0string1") 
@@ -24,13 +24,13 @@ def test_string_extraction_min_max():
 
 def test_get_pe_info_fast_rejects():
     # Not a PE
-    imph, exps = get_pe_info(b"\x7FELF......")
+    imph, exps = yarobot_rs.get_pe_info(b"\x7FELF......")
     assert imph == ""
     assert exps == []
 
     # MZ but no PE signature
     fake_mz = bytearray(b"MZ" + b"\x00" * 0x3A + b"\x00\x00\x00\x00" + b"\x00" * 64)
-    imph, exps = get_pe_info(bytes(fake_mz))
+    imph, exps = yarobot_rs.get_pe_info(bytes(fake_mz))
     assert imph == ""
     assert exps == []
 

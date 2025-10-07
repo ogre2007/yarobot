@@ -7,8 +7,21 @@ import traceback
 
 
 from app.regex_base import REGEX_INSENSETIVE, REGEX_SENSETIVE
-import app.utils as utils
+import yarobot_rs as utils
 
+
+def get_pestudio_score(string, pestudio_strings):
+    for type in pestudio_strings:
+        for elem in pestudio_strings[type]:
+            # Full match
+            if elem.text.lower() == string.lower():
+                # Exclude the "extension" black list for now
+                if type != "ext":
+                    return 5, type
+    return 0, ""
+
+def get_opcode_string(opcode):
+    return " ".join(opcode[i : i + 2] for i in range(0, len(opcode), 2))
 
 def score_with_regex(string):
 
@@ -108,7 +121,7 @@ def filter_string_set(string_set, state):
 
         # PEStudio String Blacklist Evaluation
         if state.pestudio_available:
-            (pescore, type) = utils.get_pestudio_score(string, state.pestudio_strings)
+            (pescore, type) = get_pestudio_score(string, state.pestudio_strings)
             # print("PE Match: %s" % string)
             # Reset score of goodware files to 5 if blacklisted in PEStudio
             if type != "":
@@ -158,8 +171,7 @@ def filter_string_set(string_set, state):
                         # print m_string
                         if utils.is_hex_encoded(m_string):
                             # print("^ is HEX")
-                            decoded_string = bytes.fromhex(m_string)
-                            # print removeNonAsciiDrop(decoded_string)
+                            decoded_string = bytes.fromhex(m_string) 
                             if utils.is_ascii_string(decoded_string, padding_allowed=True):
                                 # not too many 00s
                                 if "00" in m_string:
@@ -203,11 +215,9 @@ def filter_string_set(string_set, state):
     c = 0
     result_set = []
     for string in sorted_set:
-
-        # Skip the one with a score lower than -z X
-        if not state.args.noscorefilter:
-            if string[1] < int(state.args.z):
-                continue
+ 
+        if string[1] < int(state.args.z):
+            continue
 
         if string[0] in state.utf16strings:
             result_set.append("UTF16LE:%s" % string[0])
@@ -242,7 +252,7 @@ def filter_opcode_set(state, opcode_set: list[str], good_opcodes_db) -> list[str
             continue
 
         # Format the opcode
-        formatted_opcode = utils.get_opcode_string(opcode)
+        formatted_opcode = get_opcode_string(opcode)
 
         # Preferred opcodes
         set_in_pref = False
@@ -254,7 +264,7 @@ def filter_opcode_set(state, opcode_set: list[str], good_opcodes_db) -> list[str
             continue
 
         # Else add to useful set
-        useful_set.append(utils.get_opcode_string(opcode))
+        useful_set.append(get_opcode_string(opcode))
 
     # Preferred opcodes first
     useful_set = pref_set + useful_set

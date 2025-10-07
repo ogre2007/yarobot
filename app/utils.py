@@ -1,27 +1,14 @@
-import binascii
-import datetime
-import gzip
+ 
 from typing import Tuple
-import orjson as json
 import os
-import re
-import sys
+import re 
 import traceback
 import logging
-import lief
-from lxml import etree
-
-import yarobot_rs
-
-PE_STRINGS_FILE = "./3rdparty/strings.xml"
+import lief 
 
 
 logger = logging.getLogger("yarobot")
-
-
-def extract_opcodes(fileData) -> list[str]:
-    return yarobot_rs.extract_opcodes(fileData)
-
+ 
 
 def get_pe_info(fileData: bytes) -> tuple[str, list[str]]:
     """
@@ -66,76 +53,7 @@ def get_pe_info(fileData: bytes) -> tuple[str, list[str]]:
         logger.debug("lief parse failed: %s", e, exc_info=True)
 
     return imphash, exports
-
-
-def get_abs_path(filename):
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
-
-
-def initialize_pestudio_strings():
-    if not os.path.isfile(get_abs_path(PE_STRINGS_FILE)):
-        return None
-    print("[+] Processing PEStudio strings ...")
-
-    pestudio_strings = {}
-
-    tree = etree.parse(get_abs_path(PE_STRINGS_FILE))
-
-    pestudio_strings["strings"] = tree.findall(".//string")
-    pestudio_strings["av"] = tree.findall(".//av")
-    pestudio_strings["folder"] = tree.findall(".//folder")
-    pestudio_strings["os"] = tree.findall(".//os")
-    pestudio_strings["reg"] = tree.findall(".//reg")
-    pestudio_strings["guid"] = tree.findall(".//guid")
-    pestudio_strings["ssdl"] = tree.findall(".//ssdl")
-    pestudio_strings["ext"] = tree.findall(".//ext")
-    pestudio_strings["agent"] = tree.findall(".//agent")
-    pestudio_strings["oid"] = tree.findall(".//oid")
-    pestudio_strings["priv"] = tree.findall(".//priv")
-
-    # Obsolete
-    # for elem in string_elems:
-    #    strings.append(elem.text)
-
-    return pestudio_strings
-
-
-def emptyFolder(dir):
-    """
-    Removes all files from a given folder
-    :return:
-    """
-    for file in os.listdir(dir):
-        filePath = os.path.join(dir, file)
-        try:
-            if os.path.isfile(filePath):
-                print("[!] Removing %s ..." % filePath)
-                os.unlink(filePath)
-        except Exception as e:
-            print(e)
-
-
-def getReference(ref):
-    """
-    Get a reference string - if the provided string is the path to a text file, then read the contents and return it as
-    reference
-    :param ref:
-    :return:
-    """
-    if os.path.exists(ref):
-        reference = getFileContent(ref)
-        print("[+] Read reference from file %s > %s" % (ref, reference))
-        return reference
-    else:
-        return ref
-
-
-def save(object, filename):
-    file = gzip.GzipFile(filename, "wb")
-    file.write(bytes(json.dumps(object), "utf-8"))
-    file.close()
-
-
+ 
 def removeNonAsciiDrop(data: bytes) -> bytes:
     try:
         # Keep printable ASCII 0x20..0x7E and allow NUL padding
@@ -144,56 +62,6 @@ def removeNonAsciiDrop(data: bytes) -> bytes:
         if __debug__:
             traceback.print_exc()
         return b""
-
-
-def load(filename):
-    file = gzip.GzipFile(filename, "rb")
-    object = json.loads(file.read())
-    file.close()
-    return object
-
-
-def getIdentifier(id, path):
-    """
-    Get a identifier string - if the provided string is the path to a text file, then read the contents and return it as
-    reference, otherwise use the last element of the full path
-    :param ref:
-    :return:
-    """
-    # Identifier
-    if id == "not set" or not os.path.exists(id):
-        # Identifier is the highest folder name
-        return os.path.basename(path.rstrip("/"))
-    else:
-        # Read identifier from file
-        identifier = getFileContent(id)
-        print("[+] Read identifier from file %s > %s" % (id, identifier))
-        return identifier
-
-
-def get_pestudio_score(string, pestudio_strings):
-    for type in pestudio_strings:
-        for elem in pestudio_strings[type]:
-            # Full match
-            if elem.text.lower() == string.lower():
-                # Exclude the "extension" black list for now
-                if type != "ext":
-                    return 5, type
-    return 0, ""
-
-
-def getPrefix(prefix, identifier):
-    """
-    Get a prefix string for the rule description based on the identifier
-    :param prefix:
-    :param identifier:
-    :return:
-    """
-    if prefix == "Auto-generated rule":
-        return identifier
-    else:
-        return prefix
-
 
 def getFileContent(file):
     """
@@ -208,17 +76,6 @@ def getFileContent(file):
         return "not found"
 
 
-def get_timestamp_basic(date_obj=None):
-    if not date_obj:
-        date_obj = datetime.datetime.now()
-    date_str = date_obj.strftime("%Y-%m-%d")
-    return date_str
-
-
-def is_ascii_char(b: int, padding_allowed: bool = False) -> int:
-    if padding_allowed:
-        return 1 if (31 < b < 127) or b == 0 else 0
-    return 1 if (31 < b < 127) else 0
 
 
 def is_ascii_string(data: bytes, padding_allowed: bool = False) -> int:
@@ -260,36 +117,3 @@ def is_hex_encoded(s, check_length=True):
         else:
             return True
     return False
-
-
-def get_opcode_string(opcode):
-    return " ".join(opcode[i : i + 2] for i in range(0, len(opcode), 2))
-
-
-def get_uint_string(magic):
-    if len(magic) == 2:
-        return "uint8(0) == 0x{0}{1}".format(magic[0], magic[1])
-    if len(magic) == 4:
-        return "uint16(0) == 0x{2}{3}{0}{1}".format(
-            magic[0], magic[1], magic[2], magic[3]
-        )
-    return ""
-
-
-def sanitize_rule_name(path: str, file: str) -> str:
-    """Generate a valid YARA rule name from path and filename.
-
-    - Prefix with folder name if too short
-    - Ensure it doesn't start with a number
-    - Replace invalid chars with underscore
-    - De-duplicate underscores
-    """
-    file_base = os.path.splitext(file)[0]
-    cleaned = file_base
-    if len(file_base) < 8:
-        cleaned = path.split("\\")[-1:][0] + "_" + cleaned
-    if re.search(r"^[0-9]", cleaned):
-        cleaned = "sig_" + cleaned
-    cleaned = re.sub(r"[^\w]", "_", cleaned)
-    cleaned = re.sub(r"_+", "_", cleaned)
-    return cleaned

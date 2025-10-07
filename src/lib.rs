@@ -1,21 +1,20 @@
 
 
-use pyo3::{prelude::*, types::PyDict};
+
+
+use pyo3::{prelude::*};
 use regex::bytes::Regex;
 use regex::Regex as StrRegex;
-use std::{collections::HashMap, io::Read};
-use std::io::Cursor;
-use std::sync::Mutex; 
-use memchr::memmem;
+use std::{collections::HashMap, }; 
 use ahash::AHashMap;  
 lazy_static::lazy_static! {
     static ref STRING_REGEX: Regex = Regex::new(r"[\x1f-\x7e]{6,}").unwrap();
     static ref WIDE_STRING_REGEX: Regex = Regex::new(r"(?:[\x1f-\x7e][\x00]){6,}").unwrap();
     static ref HEX_STRING_REGEX: Regex = Regex::new(r"([a-fA-F0-9]{10,})").unwrap();
 }
- 
- 
-use pythonize::pythonize;
+
+pub mod utils;
+pub use utils::*;
 
 
 use pyo3::exceptions::PyException;
@@ -160,11 +159,11 @@ fn extract_opcodes(file_data: Vec<u8>) -> PyResult<Vec<String>> {
         Object::PE(pe) => {
             extract_pe_opcodes(pe, &file_data, &mut opcodes);
         }
-        Object::Mach(mach) => {
+        Object::Mach(_) => {
             // Mach-O support can be added here
             println!("Mach-O parsing not yet implemented");
         }
-        Object::Archive(archive) => {
+        Object::Archive(_) => {
             // Archive support can be added here  
             println!("Archive parsing not yet implemented");
         }
@@ -349,7 +348,13 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(filter_string_set_rs, m)?)?;
     m.add_function(wrap_pyfunction!(extract_opcodes, m)?)?;
     m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
-
-    
+ 
+    m.add_function(wrap_pyfunction!(get_pe_info, m)?)?;
+    m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?;
+    m.add_function(wrap_pyfunction!(get_file_content, m)?)?;
+    m.add_function(wrap_pyfunction!(is_ascii_string, m)?)?;
+    m.add_function(wrap_pyfunction!(is_base_64, m)?)?;
+    m.add_function(wrap_pyfunction!(get_files, m)?)?;
+    m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?; 
     Ok(())
 }

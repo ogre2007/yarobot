@@ -1,8 +1,9 @@
 from collections import Counter
+import datetime
 import traceback
 
 from app.scoring import filter_opcode_set, filter_string_set
-import app.utils as utils
+import yarobot_rs as utils
 import os
 import re
 import logging
@@ -11,6 +12,39 @@ KNOWN_IMPHASHES = {
     "a04dd9f5ee88d7774203e0a0cfa1b941": "PsExec",
     "2b8c9d9ab6fefc247adaf927e83dcea6": "RAR SFX variant",
 }
+
+def get_uint_string(magic):
+    if len(magic) == 2:
+        return "uint8(0) == 0x{0}{1}".format(magic[0], magic[1])
+    if len(magic) == 4:
+        return "uint16(0) == 0x{2}{3}{0}{1}".format(
+            magic[0], magic[1], magic[2], magic[3]
+        )
+    return ""
+
+def sanitize_rule_name(path: str, file: str) -> str:
+    """Generate a valid YARA rule name from path and filename.
+
+    - Prefix with folder name if too short
+    - Ensure it doesn't start with a number
+    - Replace invalid chars with underscore
+    - De-duplicate underscores
+    """
+    file_base = os.path.splitext(file)[0]
+    cleaned = file_base
+    if len(file_base) < 8:
+        cleaned = path.split("\\")[-1:][0] + "_" + cleaned
+    if re.search(r"^[0-9]", cleaned):
+        cleaned = "sig_" + cleaned
+    cleaned = re.sub(r"[^\w]", "_", cleaned)
+    cleaned = re.sub(r"_+", "_", cleaned)
+    return cleaned
+
+def get_timestamp_basic(date_obj=None):
+    if not date_obj:
+        date_obj = datetime.datetime.now()
+    date_str = date_obj.strftime("%Y-%m-%d")
+    return date_str
  
 
 def get_file_range(size, fm_size):
@@ -159,7 +193,7 @@ def generate_general_condition(state, file_info):
 
         # If different magic headers are less than 5
         if len(magic_headers) <= 5:
-            magic_string = " or ".join(utils.get_uint_string(h) for h in magic_headers)
+            magic_string = " or ".join(get_uint_string(h) for h in magic_headers)
             if " or " in magic_string:
                 conditions.append("( {0} )".format(magic_string))
             else:
@@ -206,7 +240,7 @@ def generate_rules(
     general_info = "/*\n"
     general_info += "   YARA Rule Set\n"
     general_info += "   Author: {0}\n".format(state.args.a)
-    general_info += "   Date: {0}\n".format(utils.get_timestamp_basic())
+    general_info += "   Date: {0}\n".format(get_timestamp_basic())
     general_info += "   Identifier: {0}\n".format(state.args.identifier)
     general_info += "   Reference: {0}\n".format(state.args.reference)
     if state.args.l != "":
@@ -287,7 +321,7 @@ def generate_rules(
             rule = ""
             (path, file) = os.path.split(filePath)
             # Prepare name via helper
-            cleanedName = utils.sanitize_rule_name(path, file)
+            cleanedName = sanitize_rule_name(path, file)
             # Check if already printed
             if cleanedName in printed_rules:
                 printed_rules[cleanedName] += 1
@@ -306,7 +340,7 @@ def generate_rules(
             )
             rule += '      author = "%s"\n' % state.args.a
             rule += '      reference = "%s"\n' % state.args.reference
-            rule += '      date = "%s"\n' % utils.get_timestamp_basic()
+            rule += '      date = "%s"\n' % get_timestamp_basic()
             rule += '      hash1 = "%s"\n' % file_info[filePath]["hash"]
             rule += "   strings:\n"
 
@@ -386,7 +420,7 @@ def generate_rules(
                 )
             # Magic
             if file_info[filePath]["magic"] != "":
-                uint_string = utils.get_uint_string(file_info[filePath]["magic"])
+                uint_string = get_uint_string(file_info[filePath]["magic"])
                 basic_conditions.insert(0, uint_string)
             # Basic Condition
             if len(basic_conditions):
@@ -489,7 +523,7 @@ def generate_rules(
                     (path, file) = os.path.split(filePath)
                     file_list.append(file)
                     # Prepare name via helper
-                    cleanedName = utils.sanitize_rule_name(path, file)
+                    cleanedName = sanitize_rule_name(path, file)
                     # Append it to the full name
                     rule_name += "_" + cleanedName
                     # Check if imphash of all files is equal
@@ -534,7 +568,7 @@ def generate_rules(
                 )
                 rule += '      author = "%s"\n' % state.args.a
                 rule += '      reference = "%s"\n' % state.args.reference
-                rule += '      date = "%s"\n' % utils.get_timestamp_basic()
+                rule += '      date = "%s"\n' % get_timestamp_basic()
                 for i, filePath in enumerate(super_rule["files"]):
                     rule += '      hash%s = "%s"\n' % (
                         str(i + 1),
