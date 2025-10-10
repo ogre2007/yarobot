@@ -202,7 +202,7 @@ def print_welcome():
 
 # MAIN ################################################################
 if __name__ == "__main__":
-    logging.basicConfig(level=os.environ.get("YAROBOT_LOG_LEVEL", "INFO"))
+    logging.basicConfig(level=os.environ.get("YAROBOT_LOG_LEVEL", "WARNING"))
     print_welcome()
 
     # Signal handler for CTRL+C
@@ -212,6 +212,8 @@ if __name__ == "__main__":
     pestudio_strings = {}
     pestudio_available = False
 
+    if args.debug:
+        logging.getLogger().setLevel(logging.INFO)
     # Identifier
     sourcepath = args.m
     if args.g:

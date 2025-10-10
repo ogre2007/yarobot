@@ -179,9 +179,9 @@ def generate_general_condition(state, file_info):
         for filePath in file_info: 
             if "magic" not in file_info[filePath]:
                 continue
-            magic = file_info[filePath]["magic"]
-            size = file_info[filePath]["size"]
-            imphash = file_info[filePath]["imphash"]
+            magic = file_info[filePath].magic
+            size = file_info[filePath].size
+            imphash = file_info[filePath].imphash
 
             # Add them to the lists
             if magic not in magic_headers and magic != "":
@@ -342,7 +342,7 @@ def generate_rules(
             rule += '      author = "%s"\n' % state.args.a
             rule += '      reference = "%s"\n' % state.args.reference
             rule += '      date = "%s"\n' % get_timestamp_basic()
-            rule += '      hash1 = "%s"\n' % file_info[filePath]["hash"]
+            rule += '      hash1 = "%s"\n' % file_info[filePath].sha256
             rule += "   strings:\n"
 
             # Get the strings -----------------------------------------
@@ -384,14 +384,14 @@ def generate_rules(
             condition_pe = []
             condition_pe_part1 = []
             condition_pe_part2 = []
-            if not state.args.noextras and file_info[filePath]["magic"] == "MZ":
+            if not state.args.noextras and file_info[filePath].magic.startswith(b"MZ"):
                 # Add imphash - if certain conditions are met
                 if (
-                    file_info[filePath]["imphash"] not in state.good_imphashes_db
-                    and file_info[filePath]["imphash"] != ""
+                    file_info[filePath].imphash not in state.good_imphashes_db
+                    and file_info[filePath].imphash != ""
                 ):
                     # Comment to imphash
-                    imphash = file_info[filePath]["imphash"]
+                    imphash = file_info[filePath].imphash
                     comment = ""
                     if imphash in KNOWN_IMPHASHES:
                         comment = " /* {0} */".format(KNOWN_IMPHASHES[imphash])
@@ -400,9 +400,9 @@ def generate_rules(
                         'pe.imphash() == "{0}"{1}'.format(imphash, comment)
                     )
                     pe_module_necessary = True
-                if file_info[filePath]["exports"]:
+                if file_info[filePath].exports:
                     e_count = 0
-                    for export in file_info[filePath]["exports"]:
+                    for export in file_info[filePath].exports:
                         if export not in state.good_exports_db:
                             condition_pe_part2.append(
                                 'pe.exports("{0}")'.format(export)
@@ -417,11 +417,11 @@ def generate_rules(
             # Filesize
             if not state.args.nofilesize:
                 basic_conditions.insert(
-                    0, get_file_range(file_info[filePath]["size"], state.args.fm)
+                    0, get_file_range(file_info[filePath].size, state.args.fm)
                 )
             # Magic
-            if file_info[filePath]["magic"] != "":
-                uint_string = get_uint_string(file_info[filePath]["magic"])
+            if file_info[filePath].magic != b"":
+                uint_string = get_uint_string(file_info[filePath].magic)
                 basic_conditions.insert(0, uint_string)
             # Basic Condition
             if len(basic_conditions):
@@ -528,7 +528,7 @@ def generate_rules(
                     # Append it to the full name
                     rule_name += "_" + cleanedName
                     # Check if imphash of all files is equal
-                    imphash = file_info[filePath]["imphash"]
+                    imphash = file_info[filePath].imphash
                     if imphash != "-" and imphash != "":
                         imphashes.update([imphash])
 
@@ -573,7 +573,7 @@ def generate_rules(
                 for i, filePath in enumerate(super_rule["files"]):
                     rule += '      hash%s = "%s"\n' % (
                         str(i + 1),
-                        file_info[filePath]["hash"],
+                        file_info[filePath].sha256,
                     )
 
                 rule += "   strings:\n"

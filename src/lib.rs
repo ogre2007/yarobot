@@ -1,360 +1,248 @@
-
-
-
-
-use pyo3::{prelude::*};
-use regex::bytes::Regex;
-use regex::Regex as StrRegex;
-use std::{collections::HashMap, }; 
-use ahash::AHashMap;  
-lazy_static::lazy_static! {
-    static ref STRING_REGEX: Regex = Regex::new(r"[\x1f-\x7e]{6,}").unwrap();
-    static ref WIDE_STRING_REGEX: Regex = Regex::new(r"(?:[\x1f-\x7e][\x00]){6,}").unwrap();
-    static ref HEX_STRING_REGEX: Regex = Regex::new(r"([a-fA-F0-9]{10,})").unwrap();
-}
+use pyo3::prelude::*;
 
 pub mod utils;
 pub use utils::*;
+pub mod parse_files;
+pub use parse_files::*;
 
+#[cfg(test)]
+mod tests {
+    use crate::{get_pe_info, FileInfo};
 
-use pyo3::exceptions::PyException;
-use goblin::{Object, elf, pe}; 
+    use super::*;
+    use std::fs::{self, File};
+    use std::io::Write;
+    use tempfile::TempDir;
 
+    #[test]
+    fn test_get_pe_info() {
+        // Test with non-PE data
+        let non_pe_data = b"Not a PE file";
+        let mut fi: FileInfo = Default::default();
 
-#[pyfunction]
-fn extract_strings(file_data: Vec<u8>, min_len: usize, max_len: Option<usize>, utf16: bool) -> PyResult<Vec<(String, u64)>> {
-    let mut string_counts: HashMap<String, u64> = HashMap::new();
-    let max_len = max_len.unwrap_or(usize::MAX);
+        get_pe_info(non_pe_data, &mut fi);
+        assert!(fi.imphash.is_empty());
+        assert!(fi.exports.is_empty());
 
-    if utf16 {
-        extract_and_count_utf16_strings(&file_data, min_len, max_len, &mut string_counts);
-    } else {
-        extract_and_count_ascii_strings(&file_data, min_len, max_len, &mut string_counts);
+        // Test with small data (less than 0x40 bytes)
+        let small_data = vec![0x4D, 0x5A]; // MZ header only
+        let mut fi: FileInfo = Default::default();
+
+        get_pe_info(&small_data, &mut fi);
+
+        assert!(fi.imphash.is_empty());
+        assert!(fi.exports.is_empty());
+
+        // Note: Testing with actual PE files would require real PE binaries
+        // For unit tests, we mainly verify the error handling paths
     }
 
-    Ok(string_counts.into_iter().collect())
+    #[test]
+    fn test_remove_non_ascii_drop() {
+        // Test with only ASCII characters
+        let ascii_data = b"Hello World!";
+        let result = remove_non_ascii_drop(ascii_data).unwrap();
+        assert_eq!(result, ascii_data);
+
+        // Test with non-ASCII characters
+        let mixed_data = b"Hello\x00World\xFF\x7F\xFE";
+        let result = remove_non_ascii_drop(mixed_data).unwrap();
+        assert_eq!(result, b"HelloWorld");
+
+        // Test with empty data
+        let empty_data = b"";
+        let result = remove_non_ascii_drop(empty_data).unwrap();
+        assert_eq!(result, b"");
+
+        // Test with only non-ASCII characters
+        let non_ascii_data = &[0x00, 0xFF, 0xFE, 0x01];
+        let result = remove_non_ascii_drop(non_ascii_data).unwrap();
+        assert_eq!(result, b"");
+    }
+
+    #[test]
+    fn test_get_file_content() {
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.txt");
+
+        // Test with existing file
+        let content = "Hello World! This is a test file content.";
+        let mut file = File::create(&file_path).unwrap();
+        file.write_all(content.as_bytes()).unwrap();
+        drop(file);
+
+        let result = get_file_content(file_path.to_str().unwrap().to_string()).unwrap();
+        assert_eq!(result, content);
+
+        // Test with file that doesn't exist
+        let result = get_file_content("non_existent_file.txt".to_string()).unwrap();
+        assert_eq!(result, "not found");
+
+        // Test with file content longer than 1024 characters
+        let long_content = "A".repeat(1500);
+        let file_path2 = temp_dir.path().join("long.txt");
+        let mut file = File::create(&file_path2).unwrap();
+        file.write_all(long_content.as_bytes()).unwrap();
+        drop(file);
+
+        let result = get_file_content(file_path2.to_str().unwrap().to_string()).unwrap();
+        assert_eq!(result.len(), 1024);
+        assert!(result.starts_with('A'));
+    }
+
+    #[test]
+    fn test_is_ascii_string() {
+        // Test with valid ASCII (no padding)
+        let ascii_data = b"Hello World!";
+        let result = is_ascii_string(ascii_data, false).unwrap();
+        assert!(result);
+
+        // Test with valid ASCII (with padding allowed)
+        let ascii_with_null = b"Hello\x00World";
+        let result = is_ascii_string(ascii_with_null, true).unwrap();
+        assert!(result);
+
+        // Test with non-ASCII (no padding)
+        let non_ascii_data = b"Hello\xFFWorld";
+        let result = is_ascii_string(non_ascii_data, false).unwrap();
+        assert!(!result);
+
+        // Test with non-ASCII (with padding)
+        let non_ascii_with_null = b"Hello\xFF\x00World";
+        let result = is_ascii_string(non_ascii_with_null, true).unwrap();
+        assert!(!result);
+
+        // Test with empty data
+        let empty_data = b"";
+        let result = is_ascii_string(empty_data, false).unwrap();
+        assert!(result);
+
+        // Test with only null bytes (padding allowed)
+        let null_data = &[0x00, 0x00, 0x00];
+        let result = is_ascii_string(null_data, true).unwrap();
+        assert!(result);
+
+        // Test with only null bytes (padding not allowed)
+        let result = is_ascii_string(null_data, false).unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_is_base_64() {
+        // Valid base64 strings
+        assert!(is_base_64("SGVsbG8=".to_string()).unwrap());
+        assert!(!is_base_64("SGVsbG8".to_string()).unwrap());
+        assert!(is_base_64("SGVsbG8h".to_string()).unwrap());
+        assert!(is_base_64("U29tZSB0ZXh0".to_string()).unwrap());
+        assert!(!is_base_64("".to_string()).unwrap()); // empty string is valid
+
+        // Invalid base64 strings
+        assert!(!is_base_64("SGVsbG8!".to_string()).unwrap()); // invalid character
+        assert!(!is_base_64("SGVsbG8===".to_string()).unwrap()); // too many padding
+        assert!(!is_base_64("SGVsbG".to_string()).unwrap()); // wrong length
+        assert!(!is_base_64("SGVsbG===".to_string()).unwrap()); // wrong padding
+        assert!(!is_base_64("ABC=DEF".to_string()).unwrap()); // padding in middle
+    }
+
+    #[test]
+    fn test_get_files() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create test directory structure
+        let dir1 = temp_dir.path().join("dir1");
+        let dir2 = temp_dir.path().join("dir2");
+        fs::create_dir_all(&dir1).unwrap();
+        fs::create_dir_all(&dir2).unwrap();
+
+        // Create test files
+        let file1 = temp_dir.path().join("file1.txt");
+        let file2 = dir1.join("file2.txt");
+        let file3 = dir2.join("file3.txt");
+
+        File::create(&file1).unwrap();
+        File::create(&file2).unwrap();
+        File::create(&file3).unwrap();
+
+        // Test non-recursive
+        let files = get_files(temp_dir.path().to_str().unwrap().to_string(), true).unwrap();
+        assert_eq!(files.len(), 1); // Only file1.txt in root
+        assert!(files[0].contains("file1.txt"));
+
+        // Test recursive
+        let files = get_files(temp_dir.path().to_str().unwrap().to_string(), false).unwrap();
+        assert_eq!(files.len(), 3); // All three files
+        assert!(files.iter().any(|f| f.contains("file1.txt")));
+        assert!(files.iter().any(|f| f.contains("file2.txt")));
+        assert!(files.iter().any(|f| f.contains("file3.txt")));
+
+        // Test with non-existent directory
+        let files = get_files("/non/existent/directory".to_string(), true).unwrap();
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn test_is_hex_encoded() {
+        // Valid hex strings with length check
+        assert!(is_hex_encoded("48656C6C6F".to_string(), true).unwrap());
+        assert!(is_hex_encoded("0123456789ABCDEF".to_string(), true).unwrap());
+        assert!(is_hex_encoded("abcdef".to_string(), true).unwrap());
+        assert!(!is_hex_encoded("".to_string(), true).unwrap()); // empty string
+
+        // Invalid hex strings
+        assert!(!is_hex_encoded("48656C6C6G".to_string(), true).unwrap()); // invalid character
+        assert!(!is_hex_encoded("Hello".to_string(), true).unwrap()); // non-hex characters
+        assert!(!is_hex_encoded("48 65 6C 6C 6F".to_string(), true).unwrap()); // spaces
+
+        // Test with length check disabled
+        assert!(is_hex_encoded("48656C6C6".to_string(), false).unwrap()); // odd length allowed
+        assert!(is_hex_encoded("ABC".to_string(), false).unwrap()); // odd length allowed
+
+        // Test with length check enabled for odd length
+        assert!(!is_hex_encoded("48656C6C6".to_string(), true).unwrap()); // odd length not allowed
+        assert!(!is_hex_encoded("ABC".to_string(), true).unwrap()); // odd length not allowed
+    }
+
+    #[test]
+    fn test_calculate_imphash() {
+        //todo!();
+        // This is an internal function, but we can test it if we make it public
+        // or use it indirectly through get_pe_info
+        // For now, we'll test that get_pe_info doesn't panic on various inputs
+
+        // Test with empty data
+        let mut fi = &mut Default::default();
+        get_pe_info(&[], &mut fi);
+        assert!(fi.imphash.is_empty());
+        assert!(fi.exports.is_empty());
+
+        // Test with MZ header but invalid PE
+        let mut mz_header = vec![0x4D, 0x5A]; // MZ
+        mz_header.extend(vec![0u8; 60]); // padding to reach 0x3C
+        mz_header.extend(vec![0x00, 0x00, 0x00, 0x00]); // e_lfanew = 0
+        let mut fi = &mut Default::default();
+        get_pe_info(&mz_header, &mut fi);
+        assert!(fi.imphash.is_empty());
+        assert!(fi.exports.is_empty());
+    }
 }
-
-fn extract_and_count_ascii_strings(data: &[u8], min_len: usize, max_len: usize, counts: &mut HashMap<String, u64>) {
-    let mut current_string = String::new();
-
-    for &byte in data {
-        if (0x20..=0x7E).contains(&byte) && current_string.len() <= max_len {
-            current_string.push(byte as char);
-        } else {
-            if current_string.len() >= min_len  {
-                *counts.entry(current_string.clone()).or_insert(0) += 1;
-            }
-            current_string.clear();
-        }
-    }
-    
-    // Don't forget the last string
-    if current_string.len() >= min_len && current_string.len() <= max_len {
-        *counts.entry(current_string).or_insert(0) += 1;
-    }
-}
- 
-// Alternative implementation that handles UTF-16 more robustly
-fn extract_and_count_utf16_strings(data: &[u8], min_len: usize, max_len: usize, counts: &mut HashMap<String, u64>) {
-    let mut current_string = String::new();
-    let mut i = 0;
-
-    while i + 1 < data.len() {
-        let code_unit = u16::from_le_bytes([data[i], data[i+1]]);
-        
-        // Handle different cases for UTF-16
-        match code_unit {
-            // Printable ASCII range
-            0x0020..=0x007E => {
-                if let Some(ch) = char::from_u32(code_unit as u32) {
-                    current_string.push(ch);
-                }
-                if current_string.len() == max_len {
-                    *counts.entry(current_string.clone()).or_insert(0) += 1;
-                }
-                current_string.clear();
-            }
-            // Null character or other control characters - end of string
-            _ => {
-                if current_string.len() >= min_len {
-                    *counts.entry(current_string.clone()).or_insert(0) += 1;
-                }
-                current_string.clear();
-            }
-        }
-        
-        i += 2;
-    }
-    
-    // Final string
-    if current_string.len() >= min_len {
-        *counts.entry(current_string[0..max_len].to_owned()).or_insert(0) += 1;
-        if current_string.len() - max_len >= min_len {
-            *counts.entry(current_string[max_len..].to_owned()).or_insert(0) += 1;
-        }
-    }
-}
-
-fn extract_elf_opcodes(elf: elf::Elf, file_data: &[u8], opcodes: &mut Vec<String>) {
-    let entry_point = elf.header.e_entry;
-    
-    // Find the section containing the entry point
-    for section in elf.section_headers {
-        let va_start = section.sh_addr;
-        let va_end = va_start + section.sh_size;
-        
-        if va_start <= entry_point && entry_point < va_end {
-            println!("EP is located at {} section", elf.shdr_strtab.get_at(section.sh_name).unwrap_or("unknown"));
-            
-            // Extract section content
-            let start = section.sh_offset as usize;
-            let end = start + section.sh_size as usize;
-            
-            if end <= file_data.len() {
-                let section_data = &file_data[start..end];
-                process_section_data(section_data, opcodes);
-            }
-            break;
-        }
-    }
-}
-
-fn extract_pe_opcodes(pe: pe::PE, file_data: &[u8], opcodes: &mut Vec<String>) {
-    let entry_point = pe.entry as u64;
-    let image_base = pe.header.optional_header.unwrap().windows_fields.image_base;
-    let entry_va = entry_point + image_base;
-    
-    // Find the section containing the entry point
-    for section in pe.sections {
-        let va_start = section.virtual_address as u64 + image_base;
-        let va_end = va_start + section.virtual_size as u64;
-        
-        if va_start <= entry_va && entry_va < va_end {
-            println!("EP is located at {} section", String::from_utf8_lossy(&section.name).trim_end_matches('\0'));
-            
-            // Extract section content
-            let start = section.pointer_to_raw_data as usize;
-            let end = start + section.size_of_raw_data as usize;
-            
-            if end <= file_data.len() {
-                let section_data = &file_data[start..end];
-                process_section_data(section_data, opcodes);
-            }
-            break;
-        }
-    }
-}
-
-
-
-#[pyfunction]
-fn extract_opcodes(file_data: Vec<u8>) -> PyResult<Vec<String>> {
-    let mut opcodes = Vec::new();
-    
-    match Object::parse(&file_data).map_err(|e| PyException::new_err(format!("Failed to parse binary: {}", e)))? {
-        Object::Elf(elf) => {
-            extract_elf_opcodes(elf, &file_data, &mut opcodes);
-        }
-        Object::PE(pe) => {
-            extract_pe_opcodes(pe, &file_data, &mut opcodes);
-        }
-        Object::Mach(_) => {
-            // Mach-O support can be added here
-            println!("Mach-O parsing not yet implemented");
-        }
-        Object::Archive(_) => {
-            // Archive support can be added here  
-            println!("Archive parsing not yet implemented");
-        }
-        _ => {
-            println!("Unknown binary format");
-        }
-    }
-    
-    Ok(opcodes)
-}
-
-fn process_section_data(section_data: &[u8], opcodes: &mut Vec<String>) {
-    // Split on sequences of 3 or more null bytes
-    let null_pattern = Regex::new(r"\x00{3,}").unwrap();
-    let text_parts: Vec<&[u8]> = null_pattern.split(section_data).collect();
-    
-    for text_part in text_parts {
-        if text_part.is_empty() || text_part.len() < 8 {
-            continue;
-        }
-        
-        // Take first 16 bytes and convert to hex string
-        let chunk = if text_part.len() >= 16 {
-            &text_part[..16]
-        } else {
-            text_part
-        };
-        
-        let hex_string = hex::encode(chunk);
-        opcodes.push(hex_string);
-    }
-}
-
-
-
-#[pyfunction]
-fn score_strings_rs(strings: Vec<String>) -> PyResult<HashMap<String, (i32, String)>> {
-    let results: AHashMap<String, (i32, String)> = strings
-        .into_iter()
-        .map(|s| {
-            let (score, categories) = score_single_string_rs(&s);
-            (s, (score, categories))
-        })
-        .collect();
-    
-    Ok(results.into_iter().collect())
-}
-
-fn score_single_string_rs(string: &str) -> (i32, String) {
-    let mut score = 0;
-    let mut categories = String::new();
-    
-    // Length-based scoring
-    let len = string.len();
-    if len > 8 && len < 128 {
-        score += (len / 8) as i32;
-    } else if len >= 128 {
-        score += 1;
-    }
-    
-    // Penalties
-    if string.contains("..") {
-        score -= 5;
-    }
-    if string.contains("   ") {
-        score -= 5;
-    }
-    
-    // Regex-based scoring
-    score += apply_regex_rules_rs(string, &mut categories);
-    
-    (score, categories)
-}
-
-fn apply_regex_rules_rs(string: &str, categories: &mut String) -> i32 {
-    let mut total_score = 0;
-    
-    // Case insensitive patterns
-    let insensitive_patterns = [
-        (r"[A-Za-z]:\\", -4, "drives"),
-        (r"\.(exe|pdb|scr|log|cfg|txt|dat|msi|com|bat|dll|vbs|tmp|sys|ps1|vbp|hta|lnk)", 4, "exe_extensions"),
-        (r"(cmd\.exe|system32|users|Documents and|SystemRoot|Grant|hello|password|process|log)", 5, "system_keywords"),
-        (r"(ftp|irc|smtp|command|GET|POST|Agent|tor2web|HEAD)", 5, "protocol_keywords"),
-        (r"(error|http|closed|fail|version|proxy)", 3, "connection_keywords"),
-        (r"(TEMP|Temporary|Appdata|Recycler)", 4, "temp_and_recycler"),
-        (r"(scan|sniff|poison|intercept|fake|spoof|sweep|dump|flood|inject|forward|scan|vulnerable|credentials|creds|coded|p0c|Content|host)", 5, "malicious_keywords"),
-    ];
-    
-    for (pattern, points, category) in &insensitive_patterns {
-        if let Ok(re) = StrRegex::new(&format!("(?i){}", pattern)) {
-            if re.is_match(string) {
-                total_score += points;
-                categories.push_str(category);
-                categories.push_str(", ");
-            }
-        }
-    }
-    
-    // Case sensitive patterns
-    let sensitive_patterns = [
-        (r"^[A-Z]{6,}$", 3, "all_caps"),
-        (r"^[a-z]{6,}$", 3, "all_lower"),
-        (r"^[a-z\s]{6,}$", 2, "all_lower_with_space"),
-    ];
-    
-    for (pattern, points, category) in &sensitive_patterns {
-        if let Ok(re) = StrRegex::new(pattern) {
-            if re.is_match(string) {
-                total_score += points;
-                categories.push_str(category);
-                categories.push_str(", ");
-            }
-        }
-    }
-    
-    // IP address detection
-    if let Ok(ip_re) = StrRegex::new(r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b") {
-        if ip_re.is_match(string) {
-            total_score += 5;
-            categories.push_str("IP, ");
-        }
-    }
-    
-    total_score
-}
-
-#[pyfunction]
-fn filter_string_set_rs(
-    string_set: Vec<String>,
-    good_strings_db: HashMap<String, u32>,
-    excludegood: bool,
-) -> Vec<(String, i32)> {
-    string_set
-        .into_iter()
-        .filter_map(|s| {
-            let mut score = 0;
-            
-            // Check goodware database
-            if let Some(&count) = good_strings_db.get(&s) {
-                if excludegood {
-                    return None;
-                }
-                score = (count as i32) * -1 + 5;
-            } else {
-                let (string_score, _) = score_single_string_rs(&s);
-                score += string_score;
-                
-                // Check for base64 encoding
-                if is_base64_rs(&s) {
-                    score += 10;
-                }
-                
-                // Check for hex encoding
-                if is_hex_encoded_rs(&s) {
-                    score += 8;
-                }
-                
-                // Check for reversed goodware strings
-                let reversed: String = s.chars().rev().collect();
-                if good_strings_db.contains_key(&reversed) {
-                    score += 10;
-                }
-            }
-            
-            Some((s, score))
-        })
-        .collect()
-}
-
-fn is_base64_rs(s: &str) -> bool {
-    s.len() % 4 == 0 && StrRegex::new(r"^[A-Za-z0-9+/]+={0,2}$").unwrap().is_match(s)
-}
-
-fn is_hex_encoded_rs(s: &str) -> bool {
-    StrRegex::new(r"^[A-Fa-f0-9]+$").unwrap().is_match(s) && s.len() % 2 == 0
-}
- 
 
 #[pymodule]
 fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(score_strings_rs, m)?)?;
-    m.add_function(wrap_pyfunction!(filter_string_set_rs, m)?)?;
+    m.add_function(wrap_pyfunction!(process_single_file, m)?)?;
     m.add_function(wrap_pyfunction!(extract_opcodes, m)?)?;
     m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
- 
+    m.add_function(wrap_pyfunction!(get_file_info, m)?)?;
+
     m.add_function(wrap_pyfunction!(get_pe_info, m)?)?;
     m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?;
     m.add_function(wrap_pyfunction!(get_file_content, m)?)?;
     m.add_function(wrap_pyfunction!(is_ascii_string, m)?)?;
     m.add_function(wrap_pyfunction!(is_base_64, m)?)?;
     m.add_function(wrap_pyfunction!(get_files, m)?)?;
-    m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?; 
+    m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?;
+
+    m.add_class::<parse_files::TokenInfo>()?;
+    m.add_class::<parse_files::TokenType>()?;
+
     Ok(())
 }

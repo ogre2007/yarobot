@@ -272,12 +272,32 @@ def filter_opcode_set(state, opcode_set: list[str], good_opcodes_db) -> list[str
     # Only return the number of opcodes defined with the "-n" parameter
     return useful_set[: int(state.args.n)]
 
+def extract_stats_by_file(stats, outer_dict, flt=lambda x: x):
+    for token, value in stats.items():
+        #if len(token) < 5:
+        #    print(token, value)
+        count = 0
+        files = []
+        if type(value) == dict:
+            raise TypeError
+        else:
+            count = value.count
+            files = value.files
+        if flt(count):
+            logging.getLogger("yarobot").info(f" [-] Adding {token} ({value}) to {len(files)} files.")
+            for filePath in files:
+                if filePath in outer_dict:
+                    outer_dict[filePath].append(token)
+                else:
+                    outer_dict[filePath] = [token]
 
 def sample_string_evaluation(
-    string_stats, opcode_stats, file_info, state, utf16string_stats
+    string_stats, opcode_stats, state, utf16string_stats
 ):
+    
     # Generate Stats -----------------------------------------------------------
     logging.getLogger("yarobot").info("[+] Generating statistical data ...")
+    logging.getLogger("yarobot").info(f"\t[INPUT] Strings: {len(string_stats)}")
     file_strings = {}
     file_utf16strings = {}
     file_opcodes = {}
@@ -285,35 +305,12 @@ def sample_string_evaluation(
     max_combi_count = 0
     super_rules = []
 
-    def extract_stats_by_file(stats, outer_dict, flt=lambda x: x):
-        for token, value in stats.items():
-            #if len(token) < 5:
-            #    print(token, value)
-            count = 0
-            files = []
-            if type(value) == dict:
-                count = value["count"]
-                files = value["files"]
-            else:
-                count = value.count
-                files = value.files
-            if flt(count):
-                for filePath in files:
-                    if filePath in outer_dict:
-                        outer_dict[filePath].append(token)
-                    else:
-                        outer_dict[filePath] = [token]
+
 
     # OPCODE EVALUATION -----------------------------------------------
     extract_stats_by_file(opcode_stats, file_opcodes, lambda x: x < 10)
 
-    # STRING EVALUATION -------------------------------------------------------
-    #for k, v in string_stats.items(): 
-    #    print(k, v)
-    #    #exit()
-    #    if "enthropy-rs.exe" in v.files and len(k) < 5:
-    #        print(k, v)
-    # Iterate through strings found in malware files 
+    # STRING EVALUATION ------------------------------------------------------- 
     extract_stats_by_file(string_stats, file_strings) 
 
     extract_stats_by_file(utf16string_stats, file_utf16strings)
@@ -387,6 +384,6 @@ def sample_string_evaluation(
                     # if state.args.debug:
                     # print "Rule Combi: %s" % combi
                     super_rules.append(combinations[combi])
-
+    logging.getLogger("yarobot").info(f"OUTPUT: {len(file_strings)}  ")
     # Return all data
     return (file_strings, file_opcodes, combinations, super_rules)
