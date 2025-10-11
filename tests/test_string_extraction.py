@@ -4,8 +4,7 @@ from pathlib import Path
 import tempfile
 from types import SimpleNamespace
 from pytest_datadir.plugin import LazyDataDir
-
-from app.parse_files import  parse_good_dir
+from app.main import parse_good_dir
 import yarobot_rs 
 
 def test_string_extraction():  
@@ -27,10 +26,6 @@ def test_string_extraction_file(shared_datadir):
         #print(string)
         assert len(string) >= 5
         assert len(string) <= 128
-
-
-
-
 
 def test_string_extraction_min_max():
     data = b"short\0eight888\0A"
@@ -61,11 +56,11 @@ def test_parse_good_dir_aggregates_counts(tmp_path):
     f2.write_bytes(b"alpha\0delta\0beta")
 
     # Minimal state.args needed by parse_good_dir
-    args = SimpleNamespace(fs=1, debug=False, s=128, y=4, opcodes=False, b="", r="")
+    args = SimpleNamespace(fs=1, debug=False, s=128, y=4, opcodes=False, b="", r="", nr=False, oe=False)
     state = SimpleNamespace(args=args)
 
     all_strings, all_opcodes, all_imphashes, all_exports = parse_good_dir(
-        state, str(tmp_path), notRecursive=False, onlyRelevantExtensions=False
+        state, str(tmp_path)
     )
     print(all_strings)
     # alpha appears 3 times across files

@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
-use std::fs;
+use std::ffi::OsStr;
+use std::{fs, path};
 
 use goblin::pe::PE;
 use goblin::Object;
@@ -12,6 +13,8 @@ use sha2::{Digest, Sha256};
  
 
 use regex::bytes::Regex;
+
+use crate::get_files;
 lazy_static::lazy_static! {
     static ref STRING_REGEX: Regex = Regex::new(r"[\x1f-\x7e]{6,}").unwrap();
     static ref WIDE_STRING_REGEX: Regex = Regex::new(r"(?:[\x1f-\x7e][\x00]){6,}").unwrap();
@@ -43,6 +46,102 @@ impl FileInfo {
     }
 }
 
+ 
+ 
+pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, TokenInfo>) {
+    for (tok, info) in new.into_iter() {
+        if stats.len() > 0 {
+            assert_eq!(stats.iter().nth(0).unwrap().1.typ, info.typ);
+        }
+        let inf = stats.entry(tok).or_insert(Default::default()); 
+        inf.count += info.count;
+        inf.files.extend(info.files);
+    }
+}
+
+#[pyfunction]
+pub fn parse_sample_dir(dir: String, 
+                                only_relevant_extensions: bool,
+                                re: Vec<String>,
+                                sz: usize,
+                                debug: bool,
+                                minssize: usize,
+                                maxssize: usize,
+                                get_opcodes: bool,
+                                not_recursive: bool, 
+                                ) -> PyResult<(HashMap<String, TokenInfo>, HashMap<String, TokenInfo>, HashMap<String, TokenInfo>, HashMap<String, FileInfo>)> {
+    let mut string_stats = HashMap::new();
+    let mut utf16string_stats = HashMap::new();
+    let mut opcode_stats = HashMap::new();
+    let mut file_infos = HashMap::new();
+
+    for file_path in get_files(&dir, not_recursive).unwrap().into_iter() {
+ 
+            process_file_with_checks(
+                &file_path,
+                only_relevant_extensions,
+                &re,
+                sz,
+                debug, 
+                minssize,
+                maxssize,
+                get_opcodes,
+                &mut string_stats,
+                &mut utf16string_stats,
+                &mut opcode_stats,
+                &mut file_infos
+                ); 
+    }
+    Ok((string_stats, opcode_stats, utf16string_stats, file_infos))
+ 
+}
+
+pub fn process_file_with_checks(file_path: &String, 
+                                only_relevant_extensions: bool, 
+                                re: &Vec<String>,
+                                _fs: usize,
+                                debug: bool,  
+                                minssize: usize,
+                                maxssize: usize,
+                                get_opcodes: bool,
+                                string_stats: &mut HashMap<String, TokenInfo>, 
+                                utf16string_stats: &mut HashMap<String, TokenInfo>, 
+                                opcode_stats: &mut HashMap<String, TokenInfo>, 
+                                file_infos: &mut HashMap<String, FileInfo>) -> bool {
+    let os_path =  path::Path::new(file_path);
+    let extension = os_path.extension().and_then(OsStr::to_str).unwrap().to_owned().to_lowercase();
+    if only_relevant_extensions && re.iter().find(|&x| x.eq(&extension) ) == None {
+        if debug {
+            println!("[-] EXTENSION {}- Skipping file {}", extension, file_path);
+        }
+        return false;
+    }
+    let meta = fs::metadata(os_path).unwrap();
+    if meta.len() < 15 {
+        if debug {
+            println!("[-] File is empty - Skipping file {}",  file_path);
+        }
+        return false;
+    }
+    //let bytes = fs::read(os_path).unwrap().into_iter().take(fs*1024*1024).collect(); 
+    let (fi, strings, utf16strings, opcodes) = process_single_file(file_path.to_string(), minssize, maxssize, get_opcodes).unwrap();
+
+    if file_infos.iter().any(|x| x.1.sha256 == fi.sha256) {
+        if debug {
+            println!("[-] Skipping strings/opcodes from {} due to MD5 duplicate detection", file_path);
+        }
+        return false;
+    }
+    file_infos.insert(file_path.to_string(), fi);
+    merge_stats(strings, string_stats);
+    merge_stats(utf16strings, utf16string_stats);
+    merge_stats(opcodes, opcode_stats);
+    if debug {
+        println!("[+] Processed {} Size: {} Strings: {} Utf16Strings: {}  OpCodes: {}", file_path, meta.len(), string_stats.len(),  utf16string_stats.len(), opcode_stats.len())
+    }
+    true
+
+} 
 
 #[pyfunction]
 pub fn get_file_info(file_data: &[u8]) -> PyResult<FileInfo> {
@@ -52,7 +151,7 @@ pub fn get_file_info(file_data: &[u8]) -> PyResult<FileInfo> {
         sha256: hex::encode(hasher.finalize()),
         imphash: Default::default(),
         exports: Default::default(),
-        size: Default::default(),
+        size: file_data.len(),
         magic: file_data[0..4].try_into().unwrap(),
     };
     if fi.magic[0..2] == *b"MZ" {
@@ -60,6 +159,8 @@ pub fn get_file_info(file_data: &[u8]) -> PyResult<FileInfo> {
     }
     Ok(fi)
 }
+
+
 
 
 /// Get different PE attributes and hashes using goblin
@@ -116,9 +217,9 @@ fn calculate_imphash(pe: &PE) -> Option<String> {
 
 
 #[pyclass]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TokenType {
-    ASCII,
+    #[default] ASCII,
     UTF16LE,
     BINARY,
 }
@@ -131,10 +232,10 @@ impl TokenType {
 }
 
 #[pyclass]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TokenInfo {
     #[pyo3(get, set)]
-    pub count: u32,
+    pub count: usize,
     #[pyo3(get, set)]
     pub typ: TokenType,
     #[pyo3(get, set)]
@@ -144,7 +245,7 @@ pub struct TokenInfo {
 #[pymethods]
 impl TokenInfo {
     #[new]
-    pub fn new(count: u32, typ: TokenType, files: HashSet<String>) -> Self {
+    pub fn new(count: usize, typ: TokenType, files: HashSet<String>) -> Self {
         TokenInfo { count, typ, files }
     }
 

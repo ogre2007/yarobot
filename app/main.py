@@ -41,10 +41,86 @@ import signal as signal_module
 import orjson as json
 from lxml import etree
 
-from app.args import get_args 
-from app.parse_files import parse_good_dir, processSampleDir 
+from app.args import get_args  
 from app.config import DB_PATH, PE_STRINGS_FILE
 from yarobot_rs import get_file_content
+
+
+
+ 
+from app.rule_generator import generate_rules
+from app.scoring import sample_string_evaluation
+from app.config import RELEVANT_EXTENSIONS
+
+import yarobot_rs
+ 
+
+def parse_good_dir(state, dir):
+    print(":: Parsing good samples ...")
+    return yarobot_rs.parse_sample_dir(dir, 
+            state.args.oe,
+            RELEVANT_EXTENSIONS,
+            state.args.fs,
+            state.args.debug,
+            state.args.y,
+            state.args.s,
+            state.args.opcodes,
+            state.args.nr ) 
+ 
+def processSampleDir(targetDir, state):
+    """
+    Processes samples in a given directory and creates a yara rule file
+    :param directory:
+    :return:
+    """
+
+    # Extract all information
+    (sample_string_stats, sample_opcode_stats, sample_utf16string_stats, file_info) = (
+        yarobot_rs.parse_sample_dir(
+            targetDir,
+            RELEVANT_EXTENSIONS,
+            state.args.fs,
+            state.args.debug,
+            state.args.y,
+            state.args.s,
+            state.args.opcodes,
+            state.args.nr 
+        )
+    ) 
+    '''
+    for k, v in sample_string_stats.items():
+        #print(v.files)
+        for f in v.files:
+            print(f)
+            if len(f) < 5:
+                print(k, v)
+
+    exit()
+    '''
+    # Evaluate Strings
+    (file_strings, file_opcodes, combinations, super_rules) = (
+        sample_string_evaluation(
+            sample_string_stats,
+            sample_opcode_stats,
+            state,
+            sample_utf16string_stats,
+        )
+    )
+
+    # Create Rule Files
+    (rule_count, super_rule_count) = generate_rules(
+        state,
+        file_strings,
+        file_opcodes,
+        super_rules,
+        file_info,
+    )
+ 
+    print("[=] Generated %s SIMPLE rules." % str(rule_count))
+    if not state.args.nosuper:
+        print("[=] Generated %s SUPER rules." % str(super_rule_count))
+    print("[=] All rules written to %s" % state.args.o)
+
 
 def getPrefix(prefix, identifier):
     """

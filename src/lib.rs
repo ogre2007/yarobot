@@ -164,19 +164,19 @@ mod tests {
         File::create(&file3).unwrap();
 
         // Test non-recursive
-        let files = get_files(temp_dir.path().to_str().unwrap().to_string(), true).unwrap();
+        let files = get_files(&temp_dir.path().to_str().unwrap().to_string(), true).unwrap();
         assert_eq!(files.len(), 1); // Only file1.txt in root
         assert!(files[0].contains("file1.txt"));
 
         // Test recursive
-        let files = get_files(temp_dir.path().to_str().unwrap().to_string(), false).unwrap();
+        let files = get_files(&temp_dir.path().to_str().unwrap().to_string(), false).unwrap();
         assert_eq!(files.len(), 3); // All three files
         assert!(files.iter().any(|f| f.contains("file1.txt")));
         assert!(files.iter().any(|f| f.contains("file2.txt")));
         assert!(files.iter().any(|f| f.contains("file3.txt")));
 
         // Test with non-existent directory
-        let files = get_files("/non/existent/directory".to_string(), true).unwrap();
+        let files = get_files(&"/non/existent/directory".to_string(), true).unwrap();
         assert!(files.is_empty());
     }
 
@@ -232,13 +232,13 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_opcodes, m)?)?;
     m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
     m.add_function(wrap_pyfunction!(get_file_info, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_sample_dir, m)?)?;
 
     m.add_function(wrap_pyfunction!(get_pe_info, m)?)?;
     m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?;
     m.add_function(wrap_pyfunction!(get_file_content, m)?)?;
     m.add_function(wrap_pyfunction!(is_ascii_string, m)?)?;
     m.add_function(wrap_pyfunction!(is_base_64, m)?)?;
-    m.add_function(wrap_pyfunction!(get_files, m)?)?;
     m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?;
 
     m.add_class::<parse_files::TokenInfo>()?;

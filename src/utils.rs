@@ -63,14 +63,12 @@ pub fn is_base_64(s: String) -> PyResult<bool> {
     let re = Regex::new(r"^[A-Za-z0-9+/]+={0,2}$").unwrap();
     Ok(re.is_match(&s))
 }
-
-/// Get files from folder, optionally recursively
-#[pyfunction]
-pub fn get_files(folder: String, not_recursive: bool) -> PyResult<Vec<String>> {
+ 
+pub fn get_files(folder: &String, not_recursive: bool) -> PyResult<Vec<String>> {
     let mut files = Vec::new();
 
     if not_recursive {
-        if let Ok(entries) = fs::read_dir(&folder) {
+        if let Ok(entries) = fs::read_dir(folder) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() {
