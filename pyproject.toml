@@ -16,7 +16,6 @@ readme = "README.md"
 license = "GPLv3.0"
 
 dependencies = [
-    "lief>=0.13.0",
     "lxml>=4.9.0",
     "orjson>=3.11",
     "pytest-datadir>=1.8.0"

@@ -26,7 +26,7 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-""" 
+"""
 
 
 import gzip
@@ -41,32 +41,33 @@ import signal as signal_module
 import orjson as json
 from lxml import etree
 
-from app.args import get_args  
+from app.args import get_args
 from app.config import DB_PATH, PE_STRINGS_FILE
 from yarobot_rs import get_file_content
 
 
-
- 
 from app.rule_generator import generate_rules
 from app.scoring import sample_string_evaluation
 from app.config import RELEVANT_EXTENSIONS
 
 import yarobot_rs
- 
+
 
 def parse_good_dir(state, dir):
     print(":: Parsing good samples ...")
-    return yarobot_rs.parse_sample_dir(dir, 
-            state.args.oe,
-            RELEVANT_EXTENSIONS,
-            state.args.fs,
-            state.args.debug,
-            state.args.y,
-            state.args.s,
-            state.args.opcodes,
-            state.args.nr ) 
- 
+    return yarobot_rs.parse_sample_dir(
+        dir,
+        state.args.oe,
+        RELEVANT_EXTENSIONS,
+        state.args.fs,
+        state.args.debug,
+        state.args.y,
+        state.args.s,
+        state.args.opcodes,
+        state.args.nr,
+    )
+
+
 def processSampleDir(targetDir, state):
     """
     Processes samples in a given directory and creates a yara rule file
@@ -78,16 +79,17 @@ def processSampleDir(targetDir, state):
     (sample_string_stats, sample_opcode_stats, sample_utf16string_stats, file_info) = (
         yarobot_rs.parse_sample_dir(
             targetDir,
+            state.args.oe,
             RELEVANT_EXTENSIONS,
             state.args.fs,
             state.args.debug,
             state.args.y,
             state.args.s,
             state.args.opcodes,
-            state.args.nr 
+            state.args.nr,
         )
-    ) 
-    '''
+    )
+    """
     for k, v in sample_string_stats.items():
         #print(v.files)
         for f in v.files:
@@ -96,15 +98,13 @@ def processSampleDir(targetDir, state):
                 print(k, v)
 
     exit()
-    '''
+    """
     # Evaluate Strings
-    (file_strings, file_opcodes, combinations, super_rules) = (
-        sample_string_evaluation(
-            sample_string_stats,
-            sample_opcode_stats,
-            state,
-            sample_utf16string_stats,
-        )
+    (file_strings, file_opcodes, combinations, super_rules) = sample_string_evaluation(
+        sample_string_stats,
+        sample_opcode_stats,
+        state,
+        sample_utf16string_stats,
     )
 
     # Create Rule Files
@@ -115,7 +115,7 @@ def processSampleDir(targetDir, state):
         super_rules,
         file_info,
     )
- 
+
     print("[=] Generated %s SIMPLE rules." % str(rule_count))
     if not state.args.nosuper:
         print("[=] Generated %s SUPER rules." % str(super_rule_count))
@@ -159,8 +159,10 @@ def load(filename):
     file.close()
     return object
 
+
 def get_abs_path(filename):
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+
 
 def save(object, filename):
     file = gzip.GzipFile(filename, "wb")
@@ -197,6 +199,7 @@ def emptyFolder(dir):
         except Exception as e:
             print(e)
 
+
 def initialize_pestudio_strings():
     if not os.path.isfile(get_abs_path(PE_STRINGS_FILE)):
         return None
@@ -223,6 +226,7 @@ def initialize_pestudio_strings():
     #    strings.append(elem.text)
 
     return pestudio_strings
+
 
 def load_db(file, local_counter, prefix):
     if file.startswith(prefix):
@@ -267,20 +271,13 @@ class State:
 
 # CTRL+C Handler --------------------------------------------------------------
 def signal_handler(signal_name, frame):
-    print("> yarGen's work has been interrupted")
+    print("> yarobot's work has been interrupted")
     sys.exit(0)
-
-
-def print_welcome():
-    print("------------------------------------------------------------------------") 
-    print("------------------------------------------------------------------------")
 
 
 # MAIN ################################################################
 if __name__ == "__main__":
     logging.basicConfig(level=os.environ.get("YAROBOT_LOG_LEVEL", "WARNING"))
-    print_welcome()
-
     # Signal handler for CTRL+C
     signal_module.signal(signal_module.SIGINT, signal_handler)
     args = get_args()
@@ -533,4 +530,3 @@ if __name__ == "__main__":
             processSampleDir(args.m, state)
 
         print("[+] yarGen run finished")
-

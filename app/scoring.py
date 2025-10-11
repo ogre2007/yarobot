@@ -6,78 +6,13 @@ import logging
 import traceback
 
 
-from app.regex_base import REGEX_INSENSETIVE, REGEX_SENSETIVE
-import yarobot_rs 
+import yarobot_rs
 
+from app.heuristics.heuristics import get_pestudio_score, score_with_regex
 
-def get_pestudio_score(string, pestudio_strings):
-    for type in pestudio_strings:
-        for elem in pestudio_strings[type]:
-            # Full match
-            if elem.text.lower() == string.lower():
-                # Exclude the "extension" black list for now
-                if type != "ext":
-                    return 5, type
-    return 0, ""
 
 def get_opcode_string(opcode):
     return " ".join(opcode[i : i + 2] for i in range(0, len(opcode), 2))
-
-def score_with_regex(string):
-
-    # Length Score
-    # length = len(string)
-    # if length > int(state.args.y) and length < int(state.args.s):
-    #    localStringScores[string] += round(len(string) / 8, 2)
-    # if length >= int(state.args.s):
-    #    localStringScores[string] += 1
-
-    # Reduction
-
-    score = 0
-    if ".." in string:
-        score -= 5
-    if "   " in string:
-        score -= 5
-    # Packer Strings
-    if re.search(r"(WinRAR\\SFX)", string):
-        score -= 4
-    # US ASCII char
-    if "\x1f" in string:
-        score -= 4
-    # Chains of 00s
-    if string.count("0000000000") > 2:
-        score -= 5
-    # Repeated characters
-    if re.search(r"(?!.* ([A-Fa-f0-9])\1{8,})", string):
-        score -= 5
-
-    # print("processing string: ", string)
-    def filter_rg(string, regex_base, ignorecase):
-        score_local = 0
-        cats = ""
-        flags = 0 if not ignorecase else re.IGNORECASE
-        for cat, regexes in regex_base.items():
-            found = False
-            for regex in regexes:
-                if m := re.search(regex[0], string, flags):
-                    score_local += regex[1]
-                    # print(cat, m)
-                    found = True
-            if found:
-                cats += cat + ", "
-
-        return score_local, cats
-
-    cats = ""
-    new_score, new_cats = filter_rg(string, REGEX_INSENSETIVE, True)
-    score += new_score
-    cats += new_cats
-    new_score, new_cats = filter_rg(string, REGEX_SENSETIVE, False)
-    score += new_score
-    cats += new_cats
-
-    return score, cats
 
 
 def filter_string_set(string_set, state):
@@ -160,7 +95,9 @@ def filter_string_set(string_set, state):
                                 )
                             except binascii.Error as e:
                                 continue
-                            if yarobot_rs.is_ascii_string(decoded_string, padding_allowed=True):
+                            if yarobot_rs.is_ascii_string(
+                                decoded_string, padding_allowed=True
+                            ):
                                 # print "match"
                                 localStringScores[string] += 10
                                 state.base64strings[string] = decoded_string
@@ -169,10 +106,12 @@ def filter_string_set(string_set, state):
                         print("Starting Hex encoded string analysis ...")
                     for m_string in [string, re.sub("[^a-zA-Z0-9]", "", string)]:
                         # print m_string
-                        if yarobot_rs.is_hex_encoded(m_string):
+                        if yarobot_rs.is_hex_encoded(m_string, True):
                             # print("^ is HEX")
-                            decoded_string = bytes.fromhex(m_string) 
-                            if yarobot_rs.is_ascii_string(decoded_string, padding_allowed=True):
+                            decoded_string = bytes.fromhex(m_string)
+                            if yarobot_rs.is_ascii_string(
+                                decoded_string, padding_allowed=True
+                            ):
                                 # not too many 00s
                                 if "00" in m_string:
                                     if (
@@ -215,7 +154,7 @@ def filter_string_set(string_set, state):
     c = 0
     result_set = []
     for string in sorted_set:
- 
+
         if string[1] < int(state.args.z):
             continue
 
@@ -272,9 +211,10 @@ def filter_opcode_set(state, opcode_set: list[str], good_opcodes_db) -> list[str
     # Only return the number of opcodes defined with the "-n" parameter
     return useful_set[: int(state.args.n)]
 
+
 def extract_stats_by_file(stats, outer_dict, flt=lambda x: x):
     for token, value in stats.items():
-        #if len(token) < 5:
+        # if len(token) < 5:
         #    print(token, value)
         count = 0
         files = []
@@ -284,34 +224,33 @@ def extract_stats_by_file(stats, outer_dict, flt=lambda x: x):
             count = value.count
             files = value.files
         if flt(count):
-            logging.getLogger("yarobot").info(f" [-] Adding {token} ({value}) to {len(files)} files.")
+            logging.getLogger("yarobot").info(
+                f" [-] Adding {token} ({value}) to {len(files)} files."
+            )
             for filePath in files:
                 if filePath in outer_dict:
                     outer_dict[filePath].append(token)
                 else:
                     outer_dict[filePath] = [token]
 
-def sample_string_evaluation(
-    string_stats, opcode_stats, state, utf16string_stats
-):
-    
+
+def sample_string_evaluation(string_stats, opcode_stats, state, utf16string_stats):
+
     # Generate Stats -----------------------------------------------------------
     logging.getLogger("yarobot").info("[+] Generating statistical data ...")
-    logging.getLogger("yarobot").info(f"\t[INPUT] Strings: {len(string_stats)}")
+    logging.getLogger("yarobot").info(f"\t[INPUT] Strings %s:", len(string_stats))
     file_strings = {}
     file_utf16strings = {}
     file_opcodes = {}
-    combinations = {} 
+    combinations = {}
     max_combi_count = 0
     super_rules = []
-
-
 
     # OPCODE EVALUATION -----------------------------------------------
     extract_stats_by_file(opcode_stats, file_opcodes, lambda x: x < 10)
 
-    # STRING EVALUATION ------------------------------------------------------- 
-    extract_stats_by_file(string_stats, file_strings) 
+    # STRING EVALUATION -------------------------------------------------------
+    extract_stats_by_file(string_stats, file_strings)
 
     extract_stats_by_file(utf16string_stats, file_utf16strings)
     if not state.args.nosuper:
@@ -379,11 +318,11 @@ def sample_string_evaluation(
                     # Add it as a super rule
                     logging.getLogger("yarobot").info(
                         "[-] Adding Super Rule with %s strings.",
-                        str(len(combinations[combi]["strings"]))
+                        str(len(combinations[combi]["strings"])),
                     )
                     # if state.args.debug:
                     # print "Rule Combi: %s" % combi
                     super_rules.append(combinations[combi])
-    logging.getLogger("yarobot").info(f"OUTPUT: {len(file_strings)}  ")
+    logging.getLogger("yarobot").info("OUTPUT:%", len(file_strings))
     # Return all data
     return (file_strings, file_opcodes, combinations, super_rules)

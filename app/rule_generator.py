@@ -13,14 +13,11 @@ KNOWN_IMPHASHES = {
     "2b8c9d9ab6fefc247adaf927e83dcea6": "RAR SFX variant",
 }
 
+
 def get_uint_string(magic):
-    if len(magic) == 2:
-        return "uint8(0) == 0x{0}{1}".format(magic[0], magic[1])
-    if len(magic) == 4:
-        return "uint16(0) == 0x{2}{3}{0}{1}".format(
-            magic[0], magic[1], magic[2], magic[3]
-        )
-    return ""
+    print(magic)
+    return f"uint16(0) == 0x{hex(magic[1])[2:]}{hex(magic[0])[2:]}"
+
 
 def sanitize_rule_name(path: str, file: str) -> str:
     """Generate a valid YARA rule name from path and filename.
@@ -40,12 +37,13 @@ def sanitize_rule_name(path: str, file: str) -> str:
     cleaned = re.sub(r"_+", "_", cleaned)
     return cleaned
 
+
 def get_timestamp_basic(date_obj=None):
     if not date_obj:
         date_obj = datetime.datetime.now()
     date_str = date_obj.strftime("%Y-%m-%d")
     return date_str
- 
+
 
 def get_file_range(size, fm_size):
     size_string = ""
@@ -70,7 +68,10 @@ def get_file_range(size, fm_size):
         size_string = "filesize < {0}KB".format(max_size)
         logging.getLogger("yarobot").debug(
             "File Size Eval: SampleSize (b): %s SizeWithMultiplier (b/Kb): %s / %s RoundedSize: %s",
-            str(size), str(max_size_b), str(max_size_kb), str(max_size)
+            str(size),
+            str(max_size_b),
+            str(max_size_kb),
+            str(max_size),
         )
     except Exception:
         traceback.print_exc()
@@ -176,7 +177,7 @@ def generate_general_condition(state, file_info):
     imphashes = []
 
     try:
-        for filePath in file_info: 
+        for filePath in file_info:
             if "magic" not in file_info[filePath]:
                 continue
             magic = file_info[filePath].magic
@@ -227,7 +228,7 @@ def generate_rules(
     file_strings,
     file_opcodes,
     super_rules,
-    file_info, 
+    file_info,
 ):
     # Write to file ---------------------------------------------------
     if state.args.o:
@@ -271,15 +272,17 @@ def generate_rules(
     rules = ""
     printed_rules = {}
     opcodes_to_add = []
-    rule_count = 0 
+    rule_count = 0
     super_rule_count = 0
     pe_module_necessary = False
- 
+
     # PROCESS SIMPLE RULES ----------------------------------------------------
     logging.getLogger("yarobot").info("[+] Generating Simple Rules ...")
     # Apply intelligent filters
-    logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
-    #logging.getLogger("yarobot").info(file_strings)
+    logging.getLogger("yarobot").info(
+        "[-] Applying intelligent filters to string findings ..."
+    )
+    # logging.getLogger("yarobot").info(file_strings)
     for filePath in file_strings:
 
         print("[-] Filtering string set for %s ..." % filePath)
@@ -287,7 +290,9 @@ def generate_rules(
         # Replace the original string set with the filtered one
         file_strings[filePath] = filter_string_set(file_strings[filePath], state)
 
-        logging.getLogger("yarobot").info("[-] Filtering opcode set for %s ...", filePath)
+        logging.getLogger("yarobot").info(
+            "[-] Filtering opcode set for %s ...", filePath
+        )
 
         # Replace the original opcode set with the filtered one
         file_opcodes[filePath] = (
@@ -810,6 +815,8 @@ def get_rule_strings(state, string_elements, opcode_elements):
             opcodes_included = True
     else:
         if state.args.opcodes:
-            logging.getLogger("yarobot").info("[-] Not enough unique opcodes found to include them")
+            logging.getLogger("yarobot").info(
+                "[-] Not enough unique opcodes found to include them"
+            )
 
     return rule_strings, opcodes_included, string_rule_count, high_scoring_strings

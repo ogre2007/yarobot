@@ -1,5 +1,4 @@
 
-import os
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace

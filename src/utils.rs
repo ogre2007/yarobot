@@ -2,9 +2,7 @@ use pyo3::prelude::*;
 use regex::Regex;
 use std::fs;
 use std::io::Read;
-use walkdir::WalkDir; 
-
-
+use walkdir::WalkDir;
 
 /// Remove non-ASCII characters from bytes, keeping printable ASCII 0x20..0x7E
 #[pyfunction]
@@ -63,7 +61,7 @@ pub fn is_base_64(s: String) -> PyResult<bool> {
     let re = Regex::new(r"^[A-Za-z0-9+/]+={0,2}$").unwrap();
     Ok(re.is_match(&s))
 }
- 
+
 pub fn get_files(folder: &String, not_recursive: bool) -> PyResult<Vec<String>> {
     let mut files = Vec::new();
 

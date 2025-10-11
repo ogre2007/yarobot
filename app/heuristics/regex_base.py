@@ -178,6 +178,8 @@ REGEX_INSENSETIVE = {
         (r"(%APPDATA%|%USERPROFILE%|Public|Roaming|& del|& rm| && |script)", 3)
     ],
     "uacme": [(r"(Elevation|pwnd|pawn|elevate to)", 3)],
+    "dots": [(r"(\.\.)", -5)],
+    "spaces": [(r"(  )", -5)],
 }
 
 REGEX_SENSETIVE = {
@@ -193,4 +195,8 @@ REGEX_SENSETIVE = {
     "ua_keywords": [
         (r"(Mozilla|MSIE|Windows NT|Macintosh|Gecko|Opera|User\-Agent)", 5)
     ],
+    "packers": [(r"(WinRAR\\SFX)", -4)],
+    "US_ASCII_char": [(r"\x1f", -4)],
+    "repeated_chars": [(r"(?!.* ([A-Fa-f0-9])\1{8,})", -5)],
+    "nulls": [(r"(00000000)", -5)],
 }

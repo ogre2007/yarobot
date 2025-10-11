@@ -61,9 +61,10 @@ def update_databases(args):
     try:
         for filename, repo_url in REPO_URLS.items():
             print("Downloading %s from %s ..." % (filename, repo_url))
-            with urllib.request.urlopen(repo_url) as response, open(
-                "./dbs/%s" % filename, "wb"
-            ) as out_file:
+            with (
+                urllib.request.urlopen(repo_url) as response,
+                open("./dbs/%s" % filename, "wb") as out_file,
+            ):
                 shutil.copyfileobj(response, out_file)
     except Exception as e:
         if args.debug:
