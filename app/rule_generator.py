@@ -38,11 +38,8 @@ def sanitize_rule_name(path: str, file: str) -> str:
     return cleaned
 
 
-def get_timestamp_basic(date_obj=None):
-    if not date_obj:
-        date_obj = datetime.datetime.now()
-    date_str = date_obj.strftime("%Y-%m-%d")
-    return date_str
+def get_timestamp_basic(date_obj=None): 
+    return date_obj.strftime("%Y-%m-%d") if date_obj else datetime.datetime.now().strftime("%Y-%m-%d")
 
 
 def get_file_range(size, fm_size):
@@ -175,50 +172,43 @@ def generate_general_condition(state, file_info):
     magic_headers = []
     file_sizes = []
     imphashes = []
+ 
+    for filePath in file_info:
+        if not file_info[filePath].magic:
+            continue
+        magic = file_info[filePath].magic
+        size = file_info[filePath].size
+        imphash = file_info[filePath].imphash
 
-    try:
-        for filePath in file_info:
-            if "magic" not in file_info[filePath]:
-                continue
-            magic = file_info[filePath].magic
-            size = file_info[filePath].size
-            imphash = file_info[filePath].imphash
+        # Add them to the lists
+        if magic not in magic_headers and magic != "":
+            magic_headers.append(magic)
+        if size not in file_sizes:
+            file_sizes.append(size)
+        if imphash not in imphashes and imphash != "":
+            imphashes.append(imphash)
 
-            # Add them to the lists
-            if magic not in magic_headers and magic != "":
-                magic_headers.append(magic)
-            if size not in file_sizes:
-                file_sizes.append(size)
-            if imphash not in imphashes and imphash != "":
-                imphashes.append(imphash)
+    # If different magic headers are less than 5
+    if len(magic_headers) <= 5:
+        magic_string = " or ".join(get_uint_string(h) for h in magic_headers)
+        if " or " in magic_string:
+            conditions.append("( {0} )".format(magic_string))
+        else:
+            conditions.append("{0}".format(magic_string))
 
-        # If different magic headers are less than 5
-        if len(magic_headers) <= 5:
-            magic_string = " or ".join(get_uint_string(h) for h in magic_headers)
-            if " or " in magic_string:
-                conditions.append("( {0} )".format(magic_string))
-            else:
-                conditions.append("{0}".format(magic_string))
+    # Biggest size multiplied with maxsize_multiplier
+    if not state.args.nofilesize and len(file_sizes) > 0:
+        conditions.append(get_file_range(max(file_sizes), state.args.fm))
 
-        # Biggest size multiplied with maxsize_multiplier
-        if not state.args.nofilesize and len(file_sizes) > 0:
-            conditions.append(get_file_range(max(file_sizes), state.args.fm))
+    # If different magic headers are less than 5
+    if len(imphashes) == 1:
+        conditions.append('pe.imphash() == "{0}"'.format(imphashes[0]))
+        pe_module_neccessary = True
 
-        # If different magic headers are less than 5
-        if len(imphashes) == 1:
-            conditions.append('pe.imphash() == "{0}"'.format(imphashes[0]))
-            pe_module_neccessary = True
+    # If enough attributes were special
+    condition_string = " and ".join(conditions)
 
-        # If enough attributes were special
-        condition_string = " and ".join(conditions)
 
-    except Exception as e:
-        if state.args.debug:
-            traceback.print_exc()
-            exit(1)
-        print(
-            "[E] ERROR while generating general condition - check the global rule and remove it if it's faulty"
-        )
 
     return condition_string, pe_module_neccessary
 

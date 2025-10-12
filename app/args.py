@@ -187,10 +187,10 @@ def get_args():
         "WARNING: Processed files will be deleted!",
     )
     group_general.add_argument(
-        "--nr",
+        "-R",
         action="store_true",
         default=False,
-        help="Do not recursively scan directories",
+        help="Recursively scan directories",
     )
     group_general.add_argument(
         "--oe",

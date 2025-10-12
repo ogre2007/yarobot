@@ -1,17 +1,22 @@
 use pyo3::prelude::*;
+ 
 
-pub mod utils;
-pub use utils::*;
-pub mod parse_files;
-pub use parse_files::*;
+pub mod types;
+pub use types::*;
+
+
+pub mod parsing;
+pub use parsing::*;
+
+pub mod processing;
+pub use processing::*;
 
 #[cfg(test)]
 mod tests {
     use crate::{get_pe_info, FileInfo};
 
     use super::*;
-    use std::fs::{self, File};
-    use std::io::Write;
+    use std::fs::{self, File}; 
     use tempfile::TempDir;
 
     #[test]
@@ -59,37 +64,7 @@ mod tests {
         let result = remove_non_ascii_drop(non_ascii_data).unwrap();
         assert_eq!(result, b"");
     }
-
-    #[test]
-    fn test_get_file_content() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.txt");
-
-        // Test with existing file
-        let content = "Hello World! This is a test file content.";
-        let mut file = File::create(&file_path).unwrap();
-        file.write_all(content.as_bytes()).unwrap();
-        drop(file);
-
-        let result = get_file_content(file_path.to_str().unwrap().to_string()).unwrap();
-        assert_eq!(result, content);
-
-        // Test with file that doesn't exist
-        let result = get_file_content("non_existent_file.txt".to_string()).unwrap();
-        assert_eq!(result, "not found");
-
-        // Test with file content longer than 1024 characters
-        let long_content = "A".repeat(1500);
-        let file_path2 = temp_dir.path().join("long.txt");
-        let mut file = File::create(&file_path2).unwrap();
-        file.write_all(long_content.as_bytes()).unwrap();
-        drop(file);
-
-        let result = get_file_content(file_path2.to_str().unwrap().to_string()).unwrap();
-        assert_eq!(result.len(), 1024);
-        assert!(result.starts_with('A'));
-    }
-
+ 
     #[test]
     fn test_is_ascii_string() {
         // Test with valid ASCII (no padding)
@@ -164,19 +139,19 @@ mod tests {
         File::create(&file3).unwrap();
 
         // Test non-recursive
-        let files = get_files(&temp_dir.path().to_str().unwrap().to_string(), true).unwrap();
+        let files = get_files(temp_dir.path().to_str().unwrap().to_string(), true).unwrap();
         assert_eq!(files.len(), 1); // Only file1.txt in root
         assert!(files[0].contains("file1.txt"));
 
         // Test recursive
-        let files = get_files(&temp_dir.path().to_str().unwrap().to_string(), false).unwrap();
+        let files = get_files(temp_dir.path().to_str().unwrap().to_string(), false).unwrap();
         assert_eq!(files.len(), 3); // All three files
         assert!(files.iter().any(|f| f.contains("file1.txt")));
         assert!(files.iter().any(|f| f.contains("file2.txt")));
         assert!(files.iter().any(|f| f.contains("file3.txt")));
 
         // Test with non-existent directory
-        let files = get_files(&"/non/existent/directory".to_string(), true).unwrap();
+        let files = get_files("/non/existent/directory".to_string(), true).unwrap();
         assert!(files.is_empty());
     }
 
@@ -227,22 +202,20 @@ mod tests {
 }
 
 #[pymodule]
-fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(process_single_file, m)?)?;
+fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> { 
     m.add_function(wrap_pyfunction!(extract_opcodes, m)?)?;
     m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
-    m.add_function(wrap_pyfunction!(get_file_info, m)?)?;
-    m.add_function(wrap_pyfunction!(parse_sample_dir, m)?)?;
+    m.add_function(wrap_pyfunction!(get_file_info, m)?)?; 
 
     m.add_function(wrap_pyfunction!(get_pe_info, m)?)?;
-    m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?;
-    m.add_function(wrap_pyfunction!(get_file_content, m)?)?;
+    m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?; 
     m.add_function(wrap_pyfunction!(is_ascii_string, m)?)?;
     m.add_function(wrap_pyfunction!(is_base_64, m)?)?;
     m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?;
 
-    m.add_class::<parse_files::TokenInfo>()?;
-    m.add_class::<parse_files::TokenType>()?;
+    m.add_class::<types::TokenInfo>()?;
+    m.add_class::<types::TokenType>()?;
+    m.add_class::<processing::FileProcessor>()?;
 
     Ok(())
 }

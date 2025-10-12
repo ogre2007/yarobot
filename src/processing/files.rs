@@ -1,0 +1,191 @@
+use std::{collections::HashMap, ffi::OsStr, fs::{self, File}, io::Read, path};
+
+use crate::{extract_and_count_ascii_strings, extract_and_count_utf16_strings, extract_opcodes, get_file_info, FileInfo, TokenInfo};
+
+use pyo3::prelude::*;
+use walkdir::WalkDir; 
+
+
+
+
+pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, TokenInfo>) {
+    for (tok, info) in new.into_iter() {
+        if stats.len() > 0 {
+            assert_eq!(stats.iter().nth(0).unwrap().1.typ, info.typ);
+        }
+        let inf = stats.entry(tok).or_insert(Default::default());
+        inf.count += info.count;
+        inf.files.extend(info.files);
+    }
+}
+
+
+#[pyclass]
+#[derive(Debug, Clone, Default)]
+pub struct FileProcessor{
+    recursive: bool,
+    filter_extensions: bool, 
+    extensions: Vec<String>,
+    minssize: usize,
+    maxssize: usize, 
+    fsize: usize,
+    get_opcodes: bool,
+    debug: bool,
+    
+    strings: HashMap<String, TokenInfo>,
+    utf16strings: HashMap<String, TokenInfo>,
+    opcodes: HashMap<String, TokenInfo>,
+    file_infos: HashMap<String, FileInfo>,
+    
+    
+}
+ 
+#[pyfunction]
+pub fn get_files(folder: String, recursive: bool) -> PyResult<Vec<String>> {
+    let mut files = Vec::new();
+
+    if !recursive {
+        if let Ok(entries) = fs::read_dir(folder) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(path_str) = path.to_str() {
+                        files.push(path_str.to_string());
+                    }
+                }
+            }
+        }
+    } else {
+        for entry in WalkDir::new(&folder).into_iter().filter_map(|e| e.ok()) {
+            if entry.file_type().is_file() {
+                if let Some(path_str) = entry.path().to_str() {
+                    files.push(path_str.to_string());
+                }
+            }
+        }
+    }
+
+    Ok(files)
+}
+
+
+#[pymethods]
+impl FileProcessor {
+    #[new]
+    pub fn new(recursive: bool, filter_extensions: bool, extensions: Vec<String>, minssize: usize, maxssize: usize, fsize: usize, get_opcodes:bool, debug:bool) -> Self {
+        Self { recursive, filter_extensions, extensions, minssize, maxssize, fsize, get_opcodes, debug, ..Default::default() }
+    } 
+
+ 
+    pub fn parse_sample_dir(
+        &mut self,
+        dir: String, 
+    ) -> PyResult<(
+        HashMap<String, TokenInfo>,
+        HashMap<String, TokenInfo>,
+        HashMap<String, TokenInfo>,
+        HashMap<String, FileInfo>,
+    )> {
+        for file_path in get_files(dir,self.recursive).unwrap().into_iter() {
+            self.process_file_with_checks(
+                file_path,  
+            );
+        }
+        Ok((self.strings.clone(), self.strings.clone(), self.utf16strings.clone(), self.file_infos.clone()))
+    }
+
+    pub fn process_file_with_checks(
+        &mut self,
+        file_path: String
+    ) -> bool {
+        let os_path = path::Path::new(&file_path);
+
+        if self.filter_extensions {
+            match os_path.extension().and_then(OsStr::to_str) {
+                Some(ext) => {
+                    if !self.extensions.iter().any(|x| x.eq(&ext.to_owned().to_lowercase())) {
+                        if self.debug {
+                            println!("[-] EXTENSION {} - Skipping file {}", ext, file_path);
+                        }
+                        return false;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let meta = fs::metadata(os_path).unwrap();
+        if meta.len() < 15 {
+            if self.debug {
+                println!("[-] File is empty - Skipping file {}", file_path);
+            }
+            return false;
+        }
+        //let bytes = fs::read(os_path).unwrap().into_iter().take(fs*1024*1024).collect();
+        let (fi, strings, utf16strings, opcodes) =
+            self.process_single_file(file_path.to_string()).unwrap();
+
+        if self.file_infos.iter().any(|x| x.1.sha256 == fi.sha256) {
+            if self.debug {
+                println!(
+                    "[-] Skipping strings/opcodes from {} due to MD5 duplicate detection",
+                    file_path
+                );
+            }
+            return false;
+        }
+        self.file_infos.insert(file_path.to_string(), fi);
+        merge_stats(strings, &mut self.strings);
+        merge_stats(utf16strings, &mut self.utf16strings);
+        merge_stats(opcodes, &mut self.opcodes);
+        if self.debug {
+            println!(
+                "[+] Processed {} Size: {} Strings: {} Utf16Strings: {}  OpCodes: {}",
+                file_path,
+                meta.len(),
+                self.strings.len(),
+                self.utf16strings.len(),
+                self.opcodes.len()
+            )
+        }
+        true
+    }
+
+
+ 
+    pub fn process_single_file(
+        &self,
+        file_path: String
+    ) -> PyResult<(
+        FileInfo,
+        HashMap<String, TokenInfo>,
+        HashMap<String, TokenInfo>,
+        HashMap<String, TokenInfo>,
+    )> {
+        let file = File::open(&file_path)?;
+        let mut limited_reader = file.take((self.fsize *1024*1024).try_into().unwrap());
+        let mut buffer = Vec::new();
+        let _ = limited_reader.read_to_end(&mut buffer);
+ 
+        let fi = get_file_info(&buffer).unwrap();
+        let (mut strings, mut utf16strings) = (
+            extract_and_count_ascii_strings(&buffer, self.minssize, self.maxssize),
+            extract_and_count_utf16_strings(&buffer, self.minssize, self.maxssize),
+        );
+        for (_, ti) in strings.iter_mut() {
+            ti.files.insert(file_path.clone());
+        }
+        for (_, ti) in utf16strings.iter_mut() {
+            ti.files.insert(file_path.clone());
+        }
+        let mut opcodes = Default::default();
+        if self.get_opcodes {
+            opcodes = extract_opcodes(buffer).unwrap();
+            for (_, ti) in opcodes.iter_mut() {
+                ti.files.insert(file_path.clone());
+            }
+        }
+
+        Ok((fi, strings, utf16strings, opcodes))
+    }
+
+}

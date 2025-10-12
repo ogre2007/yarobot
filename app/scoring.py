@@ -254,11 +254,7 @@ def sample_string_evaluation(string_stats, opcode_stats, state, utf16string_stat
 
     extract_stats_by_file(utf16string_stats, file_utf16strings)
     if not state.args.nosuper:
-        for string in string_stats:
-            # SUPER RULE GENERATION -----------------------------------------------
-            # SUPER RULES GENERATOR	- preliminary work
-            # If a string occurs more than once in different files
-            # print sample_string_stats[string].count
+        for string in string_stats: 
             if len(string_stats[string].files) > 1:
                 if state.args.debug:
                     logging.getLogger("yarobot").debug(
@@ -293,22 +289,10 @@ def sample_string_evaluation(string_stats, opcode_stats, state, utf16string_stat
     logging.getLogger("yarobot").info("[+] Generating Super Rules ... (a lot of magic)")
     for combi_count in range(max_combi_count, 1, -1):
         for combi in combinations:
-            if combi_count == combinations[combi]["count"]:
-                # print "Count %s - Combi %s" % ( str(combinations[combi]["count"]), combi )
-                # Filter the string set
-                # print "BEFORE"
-                # print len(combinations[combi]["strings"])
-                # print combinations[combi]["strings"]
+            if combi_count == combinations[combi]["count"]: 
                 string_set = combinations[combi]["strings"]
                 combinations[combi]["strings"] = []
-                combinations[combi]["strings"] = filter_string_set(string_set, state)
-                # print combinations[combi]["strings"]
-                # print "AFTER"
-                # print len(combinations[combi]["strings"])
-                # Combi String count after filtering
-                # print "String count after filtering: %s" % str(len(combinations[combi]["strings"]))
-
-                # If the string set of the combination has a required size
+                combinations[combi]["strings"] = filter_string_set(string_set, state) 
                 if len(combinations[combi]["strings"]) >= int(state.args.w):
                     # Remove the files in the combi rule from the simple set
                     if state.args.nosimple:
@@ -319,9 +303,7 @@ def sample_string_evaluation(string_stats, opcode_stats, state, utf16string_stat
                     logging.getLogger("yarobot").info(
                         "[-] Adding Super Rule with %s strings.",
                         str(len(combinations[combi]["strings"])),
-                    )
-                    # if state.args.debug:
-                    # print "Rule Combi: %s" % combi
+                    ) 
                     super_rules.append(combinations[combi])
     logging.getLogger("yarobot").info("OUTPUT:%", len(file_strings))
     # Return all data

@@ -42,8 +42,7 @@ import orjson as json
 from lxml import etree
 
 from app.args import get_args
-from app.config import DB_PATH, PE_STRINGS_FILE
-from yarobot_rs import get_file_content
+from app.config import DB_PATH, PE_STRINGS_FILE 
 
 
 from app.rule_generator import generate_rules
@@ -55,16 +54,16 @@ import yarobot_rs
 
 def parse_good_dir(state, dir):
     print(":: Parsing good samples ...")
-    return yarobot_rs.parse_sample_dir(
-        dir,
-        state.args.oe,
-        RELEVANT_EXTENSIONS,
-        state.args.fs,
-        state.args.debug,
-        state.args.y,
-        state.args.s,
-        state.args.opcodes,
-        state.args.nr,
+    fp = yarobot_rs.FileProcessor(state.args.R,
+                                  state.args.oe,
+                                  RELEVANT_EXTENSIONS,
+                                  state.args.y,
+                                  state.args.s,
+                                  state.args.fs,
+                                  state.args.opcodes,
+                                  state.args.debug)
+    return fp.parse_sample_dir(
+        dir
     )
 
 
@@ -74,19 +73,18 @@ def processSampleDir(targetDir, state):
     :param directory:
     :return:
     """
-
+    fp = yarobot_rs.FileProcessor(state.args.R,
+                                  state.args.oe,
+                                  RELEVANT_EXTENSIONS,
+                                  state.args.y,
+                                  state.args.s,
+                                  state.args.fs,
+                                  state.args.opcodes,
+                                  state.args.debug)
     # Extract all information
     (sample_string_stats, sample_opcode_stats, sample_utf16string_stats, file_info) = (
-        yarobot_rs.parse_sample_dir(
-            targetDir,
-            state.args.oe,
-            RELEVANT_EXTENSIONS,
-            state.args.fs,
-            state.args.debug,
-            state.args.y,
-            state.args.s,
-            state.args.opcodes,
-            state.args.nr,
+        fp.parse_sample_dir(
+            targetDir
         )
     )
     """
@@ -148,7 +146,7 @@ def getIdentifier(id, path):
         return os.path.basename(path.rstrip("/"))
     else:
         # Read identifier from file
-        identifier = get_file_content(id)
+        identifier = open(id).read()
         print("[+] Read identifier from file %s > %s" % (id, identifier))
         return identifier
 
@@ -178,7 +176,7 @@ def getReference(ref):
     :return:
     """
     if os.path.exists(ref):
-        reference = get_file_content(ref)
+        reference = open(ref).read()
         print("[+] Read reference from file %s > %s" % (ref, reference))
         return reference
     else:
@@ -312,8 +310,9 @@ if __name__ == "__main__":
     # Scan goodware files
     if args.g:
         print("[+] Processing goodware files ...")
+        state = State(args, None, None, None, None, pestudio_available, pestudio_strings) 
         good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
-            parse_good_dir(args, args.g, args.nr, args.oe)
+            parse_good_dir(state, args.g)
         )
 
         # Update existing databases
