@@ -46,7 +46,7 @@ from app.config import DB_PATH, PE_STRINGS_FILE
 
 
 from app.rule_generator import generate_rules
-from app.scoring import sample_string_evaluation
+from app.scoring import extract_stats_by_file, sample_string_evaluation
 from app.config import RELEVANT_EXTENSIONS
 
 import yarobot_rs
@@ -73,6 +73,7 @@ def processSampleDir(targetDir, state):
     :param directory:
     :return:
     """
+    
     fp = yarobot_rs.FileProcessor(state.args.R,
                                   state.args.oe,
                                   RELEVANT_EXTENSIONS,
@@ -85,25 +86,35 @@ def processSampleDir(targetDir, state):
     (sample_string_stats, sample_opcode_stats, sample_utf16string_stats, file_info) = (
         fp.parse_sample_dir(
             targetDir
-        )
-    )
-    """
+        )) 
+    '''
     for k, v in sample_string_stats.items():
         #print(v.files)
-        for f in v.files:
-            print(f)
-            if len(f) < 5:
-                print(k, v)
+        print(k, v)
 
-    exit()
-    """
+    exit() 
+    '''
+    file_strings = {}
+    file_utf16strings = {}
+    file_opcodes = {}
+    # OPCODE EVALUATION -----------------------------------------------
+    extract_stats_by_file(sample_string_stats, file_opcodes, lambda x: x < 10)
+
+    # STRING EVALUATION -------------------------------------------------------
+    extract_stats_by_file(sample_opcode_stats, file_strings)
+
+    extract_stats_by_file(sample_utf16string_stats, file_utf16strings)
     # Evaluate Strings
-    (file_strings, file_opcodes, combinations, super_rules) = sample_string_evaluation(
-        sample_string_stats,
-        sample_opcode_stats,
-        state,
-        sample_utf16string_stats,
-    )
+    if not state.args.nosuper: 
+        (combinations, super_rules) = sample_string_evaluation(
+            state,
+            sample_string_stats,
+            sample_opcode_stats,
+            sample_utf16string_stats,
+            file_strings if state.args.nosimple else None,
+            file_utf16strings if state.args.nosimple else None,
+            file_opcodes if state.args.nosimple else None,
+        )
 
     # Create Rule Files
     (rule_count, super_rule_count) = generate_rules(
@@ -284,7 +295,7 @@ if __name__ == "__main__":
     pestudio_available = False
 
     if args.debug:
-        logging.getLogger().setLevel(logging.INFO)
+        logging.getLogger().setLevel(logging.DEBUG)
     # Identifier
     sourcepath = args.m
     if args.g:
@@ -293,8 +304,8 @@ if __name__ == "__main__":
     print("[+] Using identifier '%s'" % args.identifier)
 
     # Reference
-    args.reference = getReference(args.r)
-    print("[+] Using reference '%s'" % args.reference)
+    args.ref = getReference(args.ref)
+    print("[+] Using reference '%s'" % args.ref)
 
     # Prefix
     args.prefix = getPrefix(args.p, args.identifier)
@@ -404,17 +415,13 @@ if __name__ == "__main__":
                         )
                         os.remove(file)
 
-                # Strings
-                good_json = Counter()
+                # Strings 
                 good_json = good_strings_db
-                # Opcodes
-                good_op_json = Counter()
+                # Opcodes 
                 good_op_json = good_opcodes_db
-                # Imphashes
-                good_imphashes_json = Counter()
+                # Imphashes 
                 good_imphashes_json = good_imphashes_db
-                # Exports
-                good_exports_json = Counter()
+                # Exports 
                 good_exports_json = good_exports_db
 
                 # Save
@@ -515,7 +522,7 @@ if __name__ == "__main__":
                     # Read a new identifier
                     identifier = getIdentifier(args.b, args.m)
                     # Read a new reference
-                    reference = getReference(args.r)
+                    reference = getReference(args.ref)
                     # Generate a new description prefix
                     prefix = getPrefix(args.p, identifier)
                     # Process the samples

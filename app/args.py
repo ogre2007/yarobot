@@ -78,7 +78,7 @@ def get_args():
         "-a", help="Author Name", metavar="author", default="yarobot Rule Generator"
     )
     group_output.add_argument(
-        "-r",
+        "--ref",
         help="Reference (can be string or text file)",
         metavar="ref",
         default="https://github.com/oogre2007/yarobot",

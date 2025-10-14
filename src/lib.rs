@@ -139,12 +139,12 @@ mod tests {
         File::create(&file3).unwrap();
 
         // Test non-recursive
-        let files = get_files(temp_dir.path().to_str().unwrap().to_string(), true).unwrap();
+        let files = get_files(temp_dir.path().to_str().unwrap().to_string(), false).unwrap();
         assert_eq!(files.len(), 1); // Only file1.txt in root
         assert!(files[0].contains("file1.txt"));
 
         // Test recursive
-        let files = get_files(temp_dir.path().to_str().unwrap().to_string(), false).unwrap();
+        let files = get_files(temp_dir.path().to_str().unwrap().to_string(), true).unwrap();
         assert_eq!(files.len(), 3); // All three files
         assert!(files.iter().any(|f| f.contains("file1.txt")));
         assert!(files.iter().any(|f| f.contains("file2.txt")));

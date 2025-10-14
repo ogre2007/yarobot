@@ -14,8 +14,7 @@ pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, 
             assert_eq!(stats.iter().nth(0).unwrap().1.typ, info.typ);
         }
         let inf = stats.entry(tok).or_insert(Default::default());
-        inf.count += info.count;
-        inf.files.extend(info.files);
+        inf.merge(&info);
     }
 }
 

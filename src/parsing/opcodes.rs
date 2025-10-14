@@ -112,8 +112,8 @@ fn process_section_data(section_data: &[u8], opcodes: &mut HashMap<String, Token
 
         let hex_string = hex::encode(chunk);
         opcodes
-            .entry(hex_string)
-            .or_insert(TokenInfo::new(0, TokenType::BINARY, HashSet::new()))
+            .entry(hex_string.clone())
+            .or_insert(TokenInfo::new(hex_string.clone(), 0, TokenType::BINARY, HashSet::new(), None))
             .count += 1;
     }
 }

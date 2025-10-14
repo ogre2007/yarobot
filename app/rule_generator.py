@@ -233,7 +233,7 @@ def generate_rules(
     general_info += "   Author: {0}\n".format(state.args.a)
     general_info += "   Date: {0}\n".format(get_timestamp_basic())
     general_info += "   Identifier: {0}\n".format(state.args.identifier)
-    general_info += "   Reference: {0}\n".format(state.args.reference)
+    general_info += "   Reference: {0}\n".format(state.args.ref)
     if state.args.l != "":
         general_info += "   License: {0}\n".format(state.args.l)
     general_info += "*/\n\n"
@@ -275,11 +275,11 @@ def generate_rules(
     # logging.getLogger("yarobot").info(file_strings)
     for filePath in file_strings:
 
-        print("[-] Filtering string set for %s ..." % filePath)
+        print("[-] Filtering string set for %s, len=%d ..." % (filePath, len(file_strings[filePath])))
 
         # Replace the original string set with the filtered one
         file_strings[filePath] = filter_string_set(file_strings[filePath], state)
-
+        #print("[-] Filtered string set for %s, len=%d ..." % (filePath, len(file_strings[filePath])))
         logging.getLogger("yarobot").info(
             "[-] Filtering opcode set for %s ...", filePath
         )
@@ -335,7 +335,7 @@ def generate_rules(
                 file,
             )
             rule += '      author = "%s"\n' % state.args.a
-            rule += '      reference = "%s"\n' % state.args.reference
+            rule += '      reference = "%s"\n' % state.args.ref
             rule += '      date = "%s"\n' % get_timestamp_basic()
             rule += '      hash1 = "%s"\n' % file_info[filePath].sha256
             rule += "   strings:\n"
@@ -563,7 +563,7 @@ def generate_rules(
                     file_listing,
                 )
                 rule += '      author = "%s"\n' % state.args.a
-                rule += '      reference = "%s"\n' % state.args.reference
+                rule += '      reference = "%s"\n' % state.args.ref
                 rule += '      date = "%s"\n' % get_timestamp_basic()
                 for i, filePath in enumerate(super_rule["files"]):
                     rule += '      hash%s = "%s"\n' % (
@@ -693,7 +693,7 @@ def get_rule_strings(state, string_elements, opcode_elements):
     string_elements = list(set(string_elements))
 
     string_elements = sorted(
-        string_elements, key=lambda x: state.stringScores[x], reverse=True
+        string_elements, key=lambda x: state.stringScores[x].score, reverse=True
     )
     for i, string in enumerate(string_elements):
 
@@ -716,11 +716,11 @@ def get_rule_strings(state, string_elements, opcode_elements):
         if string[:8] == "UTF16LE:":
             string = string[8:]
             enc = " wide"
-        if string in state.stringScores:
+        if string in state.stringScores.keys():
             if state.args.score:
-                cat_comment = state.string_to_comms[string]
+                cat_comment = state.stringScores[string].notes
                 score_comment += (
-                    f" /* score: {state.stringScores[string]}  {cat_comment}*/"
+                    f" /* score: {state.stringScores[string].score}  {cat_comment}*/"
                 )
         else:
             print("NO SCORE: %s" % string)
@@ -761,7 +761,7 @@ def get_rule_strings(state, string_elements, opcode_elements):
             fullword = " fullword"
 
         # Now compose the rule line
-        if float(state.stringScores[initial_string]) > state.args.score_highly_specific:
+        if float(state.stringScores[initial_string].score) > state.args.score_highly_specific:
             high_scoring_strings += 1
             rule_strings += '      $x%s = "%s"%s%s%s%s%s%s%s%s\n' % (
                 str(i + 1),

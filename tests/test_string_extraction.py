@@ -55,7 +55,7 @@ def test_parse_good_dir_aggregates_counts(tmp_path):
     f2.write_bytes(b"alpha\0delta\0beta")
 
     # Minimal state.args needed by parse_good_dir
-    args = SimpleNamespace(fs=1, debug=False, s=128, y=4, opcodes=False, b="", r="", nr=False, oe=False)
+    args = SimpleNamespace(fs=1, debug=False, s=128, y=4, opcodes=False, b="", ref="", R=True, oe=False,)
     state = SimpleNamespace(args=args)
 
     all_strings, all_opcodes, all_imphashes, all_exports = parse_good_dir(
@@ -72,5 +72,5 @@ def test_parse_good_dir_aggregates_counts(tmp_path):
 
 
 def test_create_rust_struc():
-    x = yarobot_rs.TokenInfo(16, yarobot_rs.TokenType.BINARY, {"file", "file2"})
+    x = yarobot_rs.TokenInfo("wasd", 16, yarobot_rs.TokenType.BINARY, {"file", "file2"}, "")
     print(str(x)) 

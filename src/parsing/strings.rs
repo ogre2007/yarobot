@@ -34,7 +34,7 @@ pub fn extract_and_count_ascii_strings(
             if current_string.len() >= min_len {
                 stats
                     .entry(current_string.clone())
-                    .or_insert(TokenInfo::new(0, TokenType::ASCII, HashSet::new()))
+                    .or_insert(TokenInfo::new(current_string.clone(), 0, TokenType::ASCII, HashSet::new(), None))
                     .count += 1;
             }
             current_string.clear();
@@ -44,8 +44,9 @@ pub fn extract_and_count_ascii_strings(
     if current_string.len() >= min_len && current_string.len() <= max_len {
         stats
             .entry(current_string.clone())
-            .or_insert(TokenInfo::new(0, TokenType::ASCII, HashSet::new()))
+            .or_insert(TokenInfo::new(current_string.clone(), 0, TokenType::ASCII, HashSet::new(), None))
             .count += 1;
+        assert!(stats.get(&current_string.clone()).unwrap().reprz.len() > 0);
     }
     stats.clone()
 }
@@ -73,7 +74,7 @@ pub fn extract_and_count_utf16_strings(
                 if current_string.len() == max_len {
                     stats
                         .entry(current_string.clone())
-                        .or_insert(TokenInfo::new(0, TokenType::UTF16LE, HashSet::new()))
+                        .or_insert(TokenInfo::new(current_string.clone(), 0, TokenType::UTF16LE, HashSet::new(), None))
                         .count += 1;
                 }
                 current_string.clear();
@@ -83,8 +84,9 @@ pub fn extract_and_count_utf16_strings(
                 if current_string.len() >= min_len {
                     stats
                         .entry(current_string.clone())
-                        .or_insert(TokenInfo::new(0, TokenType::UTF16LE, HashSet::new()))
+                        .or_insert(TokenInfo::new(current_string.clone(),0, TokenType::UTF16LE, HashSet::new(), None))
                         .count += 1;
+                    
                 }
                 current_string.clear();
             }
@@ -97,13 +99,13 @@ pub fn extract_and_count_utf16_strings(
     if current_string.len() >= min_len {
         stats
             .entry(current_string[0..max_len].to_owned())
-            .or_insert(TokenInfo::new(0, TokenType::UTF16LE, HashSet::new()))
+            .or_insert(TokenInfo::new(current_string.clone(), 0, TokenType::UTF16LE, HashSet::new(), None))
             .count += 1;
 
         if current_string.len() - max_len >= min_len {
             stats
                 .entry(current_string[max_len..].to_owned())
-                .or_insert(TokenInfo::new(0, TokenType::UTF16LE, HashSet::new()))
+                .or_insert(TokenInfo::new(current_string.clone(), 0, TokenType::UTF16LE, HashSet::new(), None))
                 .count += 1;
         }
     }

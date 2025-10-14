@@ -12,81 +12,83 @@ from app.heuristics.heuristics import get_pestudio_score, score_with_regex
 
 
 def get_opcode_string(opcode):
-    return " ".join(opcode[i : i + 2] for i in range(0, len(opcode), 2))
+    return " ".join(opcode.reprz[i : i + 2] for i in range(0, len(opcode.reprz), 2))
 
 
-def filter_string_set(string_set, state):
+def filter_string_set(tokens, state):
     # This is the only set we have - even if it's a weak one
     useful_set = []
 
     # Local string scores
-    localStringScores = {}
+    localStringScores = []
 
     # Local UTF strings
     if getattr(state, "utf16strings", None) is None:
         state.utf16strings = []
-
-    for string in string_set:
-
+    if len(tokens) == 0:
+        raise Exception("No tokens found")
+    for tok in tokens: 
+        if tok.reprz == "": 
+            print(tok)
+            print("Empty string")
+            raise Exception()  
         # Goodware string marker
         goodstring = False
         goodcount = 0
 
         # Goodware Strings
-        if string in state.good_strings_db:
+        if tok.reprz in state.good_strings_db:
             goodstring = True
-            goodcount = state.good_strings_db[string]
+            goodcount = state.good_strings_db[tok.reprz]
             # print "%s - %s" % ( goodstring, good_strings[string] )
             if state.args.excludegood:
                 continue
-
-        # UTF
-        original_string = string
-        if string[:8] == "UTF16LE:":
+        # TODO:
+        # UTF16
+        original_string = tok.reprz
+        if tok.reprz[:8] == "UTF16LE:":
             # print "removed UTF16LE from %s" % string
-            string = string[8:]
-            state.utf16strings.append(string)
+            tok.reprz = tok.reprz[8:]
+            state.utf16strings.append(tok.reprz)
 
         # Good string evaluation (after the UTF modification)
+        
         if goodstring:
             # Reduce the score by the number of occurence in goodware files
-            localStringScores[string] = (goodcount * -1) + 5
-        else:
-            localStringScores[string] = 0
-
+            tok.score += (goodcount * -1) + 5
+        # print "Good string: %s" % string
+        
         # PEStudio String Blacklist Evaluation
         if state.pestudio_available:
-            (pescore, type) = get_pestudio_score(string, state.pestudio_strings)
+            (pescore, type) = get_pestudio_score(tok.reprz, state.pestudio_strings)
             # print("PE Match: %s" % string)
             # Reset score of goodware files to 5 if blacklisted in PEStudio
             if type != "":
-                state.pestudioMarker[string] = type
+                state.pestudioMarker[tok.reprz] = type
                 # Modify the PEStudio blacklisted strings with their goodware stats count
                 if goodstring:
                     pescore = pescore - (goodcount / 1000.0)
                     # print "%s - %s - %s" % (string, pescore, goodcount)
-                localStringScores[string] = pescore
+                tok.score = pescore
 
         if not goodstring:
-            score, cats = score_with_regex(string)
+            score, cats = score_with_regex(tok)
             if state.args.trace:
-                print(f"{string} - {score} - {cats}")
-            localStringScores[string] += score
-            state.string_to_comms[string] = cats
+                print(f"{tok.reprz} - {score} - {cats}")
             # ENCODING DETECTIONS --------------------------------------------------
             try:
-                if len(string) > 8:
+                if len(tok.reprz) > 8:
                     # Try different ways - fuzz string
                     # Base64
                     if state.args.trace:
                         print("Starting Base64 string analysis ...")
                     for m_string in (
-                        string,
-                        string[1:],
-                        string[:-1],
-                        string[1:] + "=",
-                        string + "=",
-                        string + "==",
+                        tok.reprz,
+                        tok.reprz[1:],
+                        tok.reprz[:-1],
+                        tok.reprz[1:] + "=",
+                        tok.reprz + "=",
+                        tok.reprz + "==",
                     ):
                         if yarobot_rs.is_base_64(m_string):
                             try:
@@ -99,16 +101,18 @@ def filter_string_set(string_set, state):
                                 decoded_string, padding_allowed=True
                             ):
                                 # print "match"
-                                localStringScores[string] += 10
-                                state.base64strings[string] = decoded_string
+                                tok.score += 10
+                                state.base64strings[tok.reprz] = decoded_string
                     # Hex Encoded string
                     if state.args.trace:
                         print("Starting Hex encoded string analysis ...")
-                    for m_string in [string, re.sub("[^a-zA-Z0-9]", "", string)]:
+                    for m_string in [tok.reprz, re.sub("[^a-zA-Z0-9]", "", tok.reprz)]:
                         # print m_string
                         if yarobot_rs.is_hex_encoded(m_string, True):
                             # print("^ is HEX")
                             decoded_string = bytes.fromhex(m_string)
+                            if len(decoded_string) == 0 :
+                                raise Exception()
                             if yarobot_rs.is_ascii_string(
                                 decoded_string, padding_allowed=True
                             ):
@@ -120,48 +124,51 @@ def filter_string_set(string_set, state):
                                     ):
                                         continue
                                 # print("^ is ASCII / WIDE")
-                                localStringScores[string] += 8
-                                state.hexEncStrings[string] = decoded_string
+                                tok.score += 8
+                                state.hexEncStrings[tok.reprz] = decoded_string
+ 
             except Exception as e:
                 if state.args.debug:
                     traceback.print_exc()
                 pass
 
             # Reversed String -----------------------------------------------------
-            if string[::-1] in state.good_strings_db:
-                localStringScores[string] += 10
-                state.reversedStrings[string] = string[::-1]
+            if tok.reprz[::-1] in state.good_strings_db:
+                tok.score += 10
+                state.reversedStrings[tok.reprz] = tok.reprz[::-1]
 
             # Certain string reduce	-----------------------------------------------
-            if re.search(r"(rundll32\.exe$|kernel\.dll$)", string, re.IGNORECASE):
-                localStringScores[string] -= 4
+            if re.search(r"(rundll32\.exe$|kernel\.dll$)", tok.reprz, re.IGNORECASE):
+                tok.score -= 4
 
         # Set the global string score
-        state.stringScores[original_string] = localStringScores[string]
+        state.stringScores[original_string] = tok
 
         if state.args.debug:
-            if string in state.utf16strings:
+            if tok.reprz in state.utf16strings:
                 is_utf = True
             else:
                 is_utf = False
                 # print "SCORE: %s\tUTF: %s\tSTRING: %s" % ( localStringScores[string], is_utf, string )
-
+        localStringScores.append(tok)
     sorted_set = sorted(
-        localStringScores.items(), key=operator.itemgetter(1), reverse=True
+        localStringScores, key=lambda x: x.score, reverse=True
     )
 
     # Only the top X strings
     c = 0
     result_set = []
-    for string in sorted_set:
+    for tok in sorted_set:
+        if state.args.trace:
+            print("TOP STRINGS:", tok.reprz, tok.score)
+        if tok.score < int(state.args.z):
 
-        if string[1] < int(state.args.z):
             continue
 
-        if string[0] in state.utf16strings:
-            result_set.append("UTF16LE:%s" % string[0])
+        if tok.reprz in state.utf16strings:
+            result_set.append("UTF16LE:%s" % tok.reprz)
         else:
-            result_set.append(string[0])
+            result_set.append(tok.reprz)
 
         # c += 1
         # if c > int(state.args.rc):
@@ -224,69 +231,52 @@ def extract_stats_by_file(stats, outer_dict, flt=lambda x: x):
             count = value.count
             files = value.files
         if flt(count):
-            logging.getLogger("yarobot").info(
+            logging.getLogger("yarobot").debug(
                 f" [-] Adding {token} ({value}) to {len(files)} files."
             )
             for filePath in files:
                 if filePath in outer_dict:
-                    outer_dict[filePath].append(token)
+                    outer_dict[filePath].append(value)
                 else:
-                    outer_dict[filePath] = [token]
+                    outer_dict[filePath] = [value]
 
 
-def sample_string_evaluation(string_stats, opcode_stats, state, utf16string_stats):
-
-    # Generate Stats -----------------------------------------------------------
-    logging.getLogger("yarobot").info("[+] Generating statistical data ...")
-    logging.getLogger("yarobot").info(f"\t[INPUT] Strings %s:", len(string_stats))
-    file_strings = {}
-    file_utf16strings = {}
-    file_opcodes = {}
+def find_combinations(stats):
     combinations = {}
     max_combi_count = 0
+    for token, info in stats.items(): 
+        if len(info.files) > 1: 
+            logging.getLogger("yarobot").debug(
+                'OVERLAP Count: %s\nString: "%s"%s',
+                info.count,
+                token,
+                "\nFILE: ".join(info.files),
+            )
+            # Create a combination string from the file set that matches to that string
+            combi = ":".join(sorted(info.files))
+            # print "STRING: " + string 
+            logging.getLogger("yarobot").debug("COMBI: %s", combi)
+            # If combination not yet known
+            if combi not in combinations:
+                combinations[combi] = {}
+                combinations[combi]["count"] = 1
+                combinations[combi]["strings"] = []
+                combinations[combi]["strings"].append(info)
+                combinations[combi]["files"] = info.files
+            else:
+                combinations[combi]["count"] += 1
+                combinations[combi]["strings"].append(info)
+            # Set the maximum combination count
+            max_combi_count = (
+                combinations[combi]["count"]
+                if combinations[combi]["count"] > max_combi_count
+                else max_combi_count
+            )
+            # print "Max Combi Count set to: %s" % max_combi_count
+    return combinations, max_combi_count
+
+def make_super_rules(combinations, max_combi_count, state, file_strings=None):
     super_rules = []
-
-    # OPCODE EVALUATION -----------------------------------------------
-    extract_stats_by_file(opcode_stats, file_opcodes, lambda x: x < 10)
-
-    # STRING EVALUATION -------------------------------------------------------
-    extract_stats_by_file(string_stats, file_strings)
-
-    extract_stats_by_file(utf16string_stats, file_utf16strings)
-    if not state.args.nosuper:
-        for string in string_stats: 
-            if len(string_stats[string].files) > 1:
-                if state.args.debug:
-                    logging.getLogger("yarobot").debug(
-                        'OVERLAP Count: %s\nString: "%s"%s',
-                        string_stats[string].count,
-                        string,
-                        "\nFILE: ".join(string_stats[string].files),
-                    )
-                # Create a combination string from the file set that matches to that string
-                combi = ":".join(sorted(string_stats[string].files))
-                # print "STRING: " + string
-                if state.args.debug:
-                    logging.getLogger("yarobot").debug("COMBI: %s", combi)
-                # If combination not yet known
-                if combi not in combinations:
-                    combinations[combi] = {}
-                    combinations[combi]["count"] = 1
-                    combinations[combi]["strings"] = []
-                    combinations[combi]["strings"].append(string)
-                    combinations[combi]["files"] = string_stats[string].files
-                else:
-                    combinations[combi]["count"] += 1
-                    combinations[combi]["strings"].append(string)
-                # Set the maximum combination count
-                max_combi_count = (
-                    combinations[combi]["count"]
-                    if combinations[combi]["count"] > max_combi_count
-                    else max_combi_count
-                )
-                # print "Max Combi Count set to: %s" % max_combi_count
-
-    logging.getLogger("yarobot").info("[+] Generating Super Rules ... (a lot of magic)")
     for combi_count in range(max_combi_count, 1, -1):
         for combi in combinations:
             if combi_count == combinations[combi]["count"]: 
@@ -295,7 +285,7 @@ def sample_string_evaluation(string_stats, opcode_stats, state, utf16string_stat
                 combinations[combi]["strings"] = filter_string_set(string_set, state) 
                 if len(combinations[combi]["strings"]) >= int(state.args.w):
                     # Remove the files in the combi rule from the simple set
-                    if state.args.nosimple:
+                    if file_strings:
                         for file in combinations[combi]["files"]:
                             if file in file_strings:
                                 del file_strings[file]
@@ -305,6 +295,24 @@ def sample_string_evaluation(string_stats, opcode_stats, state, utf16string_stat
                         str(len(combinations[combi]["strings"])),
                     ) 
                     super_rules.append(combinations[combi])
-    logging.getLogger("yarobot").info("OUTPUT:%", len(file_strings))
+    return super_rules
+
+def sample_string_evaluation(state, string_stats, opcode_stats, utf16string_stats, file_strings, file_utf16strings, file_opcodes):
+
+    # Generate Stats -----------------------------------------------------------
+    logging.getLogger("yarobot").info("[+] Generating statistical data ...")
+    logging.getLogger("yarobot").info(f"\t[INPUT] Strings %s:", len(string_stats))
+
+    combinations = {}
+    max_combi_count = 0
+    super_rules = []
+ 
+    combinations, max_combi_count = find_combinations(string_stats)
+    # TODO: opcode combos, utf16 combos
+
+    logging.getLogger("yarobot").info("[+] Generating Super Rules ... (a lot of magic)")
+    super_rules = make_super_rules(combinations, max_combi_count, state, file_strings)
+    # TODO: opcode rules, utf16 rules
+    logging.getLogger("yarobot").info("OUTPUT:%s super rules", len(super_rules))
     # Return all data
-    return (file_strings, file_opcodes, combinations, super_rules)
+    return (combinations, super_rules)
