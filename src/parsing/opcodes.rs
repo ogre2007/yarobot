@@ -1,10 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::{TokenInfo, TokenType};
 use goblin::{elf, pe, Object};
 use pyo3::{exceptions::PyException, prelude::*};
 use regex::bytes::Regex;
-use crate::{TokenInfo, TokenType};
-
 
 fn extract_elf_opcodes(elf: elf::Elf, file_data: &[u8]) -> HashMap<String, TokenInfo> {
     let entry_point = elf.header.e_entry;
@@ -113,7 +112,13 @@ fn process_section_data(section_data: &[u8], opcodes: &mut HashMap<String, Token
         let hex_string = hex::encode(chunk);
         opcodes
             .entry(hex_string.clone())
-            .or_insert(TokenInfo::new(hex_string.clone(), 0, TokenType::BINARY, HashSet::new(), None))
+            .or_insert(TokenInfo::new(
+                hex_string.clone(),
+                0,
+                TokenType::BINARY,
+                HashSet::new(),
+                None,
+            ))
             .count += 1;
     }
 }

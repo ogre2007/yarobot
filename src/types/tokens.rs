@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use pyo3::prelude::*;
 
-
 #[pyclass]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum TokenType {
@@ -39,14 +38,27 @@ pub struct TokenInfo {
 #[pymethods]
 impl TokenInfo {
     #[new]
-    pub fn new(reprz: String, count: usize, typ: TokenType, files: HashSet<String>, notes: Option<String>) -> Self {
+    pub fn new(
+        reprz: String,
+        count: usize,
+        typ: TokenType,
+        files: HashSet<String>,
+        notes: Option<String>,
+    ) -> Self {
         if reprz.len() == 0 {
             panic!()
         }
-        TokenInfo { reprz, count, typ, files, notes: notes.unwrap_or_default(), score: Default::default()}
+        TokenInfo {
+            reprz,
+            count,
+            typ,
+            files,
+            notes: notes.unwrap_or_default(),
+            score: Default::default(),
+        }
     }
 
-    pub fn __str__(&self) -> String { 
+    pub fn __str__(&self) -> String {
         format!(
             "TokenInfo: reprz={:?}, score={}, count={}, typ={:?}, files={:?}",
             self.reprz, self.score, self.count, self.typ, self.files
@@ -54,7 +66,6 @@ impl TokenInfo {
     }
 
     pub fn merge(&mut self, value: &Self) {
-        
         self.count += value.count;
         self.files.extend(value.files.clone());
         self.reprz = value.reprz.clone();

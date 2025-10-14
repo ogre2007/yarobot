@@ -5,8 +5,6 @@ use pyo3::prelude::*;
 
 use crate::FileInfo;
 
-
-
 /// Get different PE attributes and hashes using goblin
 #[pyfunction]
 pub fn get_pe_info(file_data: &[u8], fi: &mut FileInfo) {
@@ -58,4 +56,3 @@ fn calculate_imphash(pe: &PE) -> Option<String> {
 
     Some(format!("{:x}", md5::compute(combined)))
 }
-

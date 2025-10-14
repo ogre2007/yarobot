@@ -1,8 +1,7 @@
-
 use std::collections::{HashMap, HashSet};
 
 use pyo3::prelude::*;
-use regex::Regex; 
+use regex::Regex;
 
 use crate::{TokenInfo, TokenType};
 
@@ -34,7 +33,13 @@ pub fn extract_and_count_ascii_strings(
             if current_string.len() >= min_len {
                 stats
                     .entry(current_string.clone())
-                    .or_insert(TokenInfo::new(current_string.clone(), 0, TokenType::ASCII, HashSet::new(), None))
+                    .or_insert(TokenInfo::new(
+                        current_string.clone(),
+                        0,
+                        TokenType::ASCII,
+                        HashSet::new(),
+                        None,
+                    ))
                     .count += 1;
             }
             current_string.clear();
@@ -44,7 +49,13 @@ pub fn extract_and_count_ascii_strings(
     if current_string.len() >= min_len && current_string.len() <= max_len {
         stats
             .entry(current_string.clone())
-            .or_insert(TokenInfo::new(current_string.clone(), 0, TokenType::ASCII, HashSet::new(), None))
+            .or_insert(TokenInfo::new(
+                current_string.clone(),
+                0,
+                TokenType::ASCII,
+                HashSet::new(),
+                None,
+            ))
             .count += 1;
         assert!(stats.get(&current_string.clone()).unwrap().reprz.len() > 0);
     }
@@ -74,7 +85,13 @@ pub fn extract_and_count_utf16_strings(
                 if current_string.len() == max_len {
                     stats
                         .entry(current_string.clone())
-                        .or_insert(TokenInfo::new(current_string.clone(), 0, TokenType::UTF16LE, HashSet::new(), None))
+                        .or_insert(TokenInfo::new(
+                            current_string.clone(),
+                            0,
+                            TokenType::UTF16LE,
+                            HashSet::new(),
+                            None,
+                        ))
                         .count += 1;
                 }
                 current_string.clear();
@@ -84,9 +101,14 @@ pub fn extract_and_count_utf16_strings(
                 if current_string.len() >= min_len {
                     stats
                         .entry(current_string.clone())
-                        .or_insert(TokenInfo::new(current_string.clone(),0, TokenType::UTF16LE, HashSet::new(), None))
+                        .or_insert(TokenInfo::new(
+                            current_string.clone(),
+                            0,
+                            TokenType::UTF16LE,
+                            HashSet::new(),
+                            None,
+                        ))
                         .count += 1;
-                    
                 }
                 current_string.clear();
             }
@@ -99,21 +121,30 @@ pub fn extract_and_count_utf16_strings(
     if current_string.len() >= min_len {
         stats
             .entry(current_string[0..max_len].to_owned())
-            .or_insert(TokenInfo::new(current_string.clone(), 0, TokenType::UTF16LE, HashSet::new(), None))
+            .or_insert(TokenInfo::new(
+                current_string.clone(),
+                0,
+                TokenType::UTF16LE,
+                HashSet::new(),
+                None,
+            ))
             .count += 1;
 
         if current_string.len() - max_len >= min_len {
             stats
                 .entry(current_string[max_len..].to_owned())
-                .or_insert(TokenInfo::new(current_string.clone(), 0, TokenType::UTF16LE, HashSet::new(), None))
+                .or_insert(TokenInfo::new(
+                    current_string.clone(),
+                    0,
+                    TokenType::UTF16LE,
+                    HashSet::new(),
+                    None,
+                ))
                 .count += 1;
         }
     }
     stats
 }
-
-
-
 
 /// Remove non-ASCII characters from bytes, keeping printable ASCII 0x20..0x7E
 #[pyfunction]
@@ -126,7 +157,6 @@ pub fn remove_non_ascii_drop(data: &[u8]) -> PyResult<Vec<u8>> {
 }
 
 /// Gets the contents of a file (limited to 1024 characters)
-
 
 /// Check if data contains only ASCII characters
 #[pyfunction]

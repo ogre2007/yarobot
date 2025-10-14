@@ -1,12 +1,18 @@
-use std::{collections::HashMap, ffi::OsStr, fs::{self, File}, io::Read, path};
+use std::{
+    collections::HashMap,
+    ffi::OsStr,
+    fs::{self, File},
+    io::Read,
+    path,
+};
 
-use crate::{extract_and_count_ascii_strings, extract_and_count_utf16_strings, extract_opcodes, get_file_info, FileInfo, TokenInfo};
+use crate::{
+    extract_and_count_ascii_strings, extract_and_count_utf16_strings, extract_opcodes,
+    get_file_info, FileInfo, TokenInfo,
+};
 
 use pyo3::prelude::*;
-use walkdir::WalkDir; 
-
-
-
+use walkdir::WalkDir;
 
 pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, TokenInfo>) {
     for (tok, info) in new.into_iter() {
@@ -18,27 +24,24 @@ pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, 
     }
 }
 
-
 #[pyclass]
 #[derive(Debug, Clone, Default)]
-pub struct FileProcessor{
+pub struct FileProcessor {
     recursive: bool,
-    filter_extensions: bool, 
+    filter_extensions: bool,
     extensions: Vec<String>,
     minssize: usize,
-    maxssize: usize, 
+    maxssize: usize,
     fsize: usize,
     get_opcodes: bool,
     debug: bool,
-    
+
     strings: HashMap<String, TokenInfo>,
     utf16strings: HashMap<String, TokenInfo>,
     opcodes: HashMap<String, TokenInfo>,
     file_infos: HashMap<String, FileInfo>,
-    
-    
 }
- 
+
 #[pyfunction]
 pub fn get_files(folder: String, recursive: bool) -> PyResult<Vec<String>> {
     let mut files = Vec::new();
@@ -67,42 +70,63 @@ pub fn get_files(folder: String, recursive: bool) -> PyResult<Vec<String>> {
     Ok(files)
 }
 
-
 #[pymethods]
 impl FileProcessor {
     #[new]
-    pub fn new(recursive: bool, filter_extensions: bool, extensions: Vec<String>, minssize: usize, maxssize: usize, fsize: usize, get_opcodes:bool, debug:bool) -> Self {
-        Self { recursive, filter_extensions, extensions, minssize, maxssize, fsize, get_opcodes, debug, ..Default::default() }
-    } 
+    pub fn new(
+        recursive: bool,
+        filter_extensions: bool,
+        extensions: Vec<String>,
+        minssize: usize,
+        maxssize: usize,
+        fsize: usize,
+        get_opcodes: bool,
+        debug: bool,
+    ) -> Self {
+        Self {
+            recursive,
+            filter_extensions,
+            extensions,
+            minssize,
+            maxssize,
+            fsize,
+            get_opcodes,
+            debug,
+            ..Default::default()
+        }
+    }
 
- 
     pub fn parse_sample_dir(
         &mut self,
-        dir: String, 
+        dir: String,
     ) -> PyResult<(
         HashMap<String, TokenInfo>,
         HashMap<String, TokenInfo>,
         HashMap<String, TokenInfo>,
         HashMap<String, FileInfo>,
     )> {
-        for file_path in get_files(dir,self.recursive).unwrap().into_iter() {
-            self.process_file_with_checks(
-                file_path,  
-            );
+        for file_path in get_files(dir, self.recursive).unwrap().into_iter() {
+            self.process_file_with_checks(file_path);
         }
-        Ok((self.strings.clone(), self.strings.clone(), self.utf16strings.clone(), self.file_infos.clone()))
+        Ok((
+            self.strings.clone(),
+            self.strings.clone(),
+            self.utf16strings.clone(),
+            self.file_infos.clone(),
+        ))
     }
 
-    pub fn process_file_with_checks(
-        &mut self,
-        file_path: String
-    ) -> bool {
+    pub fn process_file_with_checks(&mut self, file_path: String) -> bool {
         let os_path = path::Path::new(&file_path);
 
         if self.filter_extensions {
             match os_path.extension().and_then(OsStr::to_str) {
                 Some(ext) => {
-                    if !self.extensions.iter().any(|x| x.eq(&ext.to_owned().to_lowercase())) {
+                    if !self
+                        .extensions
+                        .iter()
+                        .any(|x| x.eq(&ext.to_owned().to_lowercase()))
+                    {
                         if self.debug {
                             println!("[-] EXTENSION {} - Skipping file {}", ext, file_path);
                         }
@@ -149,11 +173,9 @@ impl FileProcessor {
         true
     }
 
-
- 
     pub fn process_single_file(
         &self,
-        file_path: String
+        file_path: String,
     ) -> PyResult<(
         FileInfo,
         HashMap<String, TokenInfo>,
@@ -161,10 +183,10 @@ impl FileProcessor {
         HashMap<String, TokenInfo>,
     )> {
         let file = File::open(&file_path)?;
-        let mut limited_reader = file.take((self.fsize *1024*1024).try_into().unwrap());
+        let mut limited_reader = file.take((self.fsize * 1024 * 1024).try_into().unwrap());
         let mut buffer = Vec::new();
         let _ = limited_reader.read_to_end(&mut buffer);
- 
+
         let fi = get_file_info(&buffer).unwrap();
         let (mut strings, mut utf16strings) = (
             extract_and_count_ascii_strings(&buffer, self.minssize, self.maxssize),
@@ -186,5 +208,4 @@ impl FileProcessor {
 
         Ok((fi, strings, utf16strings, opcodes))
     }
-
 }

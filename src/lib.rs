@@ -1,9 +1,7 @@
 use pyo3::prelude::*;
- 
 
 pub mod types;
 pub use types::*;
-
 
 pub mod parsing;
 pub use parsing::*;
@@ -16,7 +14,7 @@ mod tests {
     use crate::{get_pe_info, FileInfo};
 
     use super::*;
-    use std::fs::{self, File}; 
+    use std::fs::{self, File};
     use tempfile::TempDir;
 
     #[test]
@@ -64,7 +62,7 @@ mod tests {
         let result = remove_non_ascii_drop(non_ascii_data).unwrap();
         assert_eq!(result, b"");
     }
- 
+
     #[test]
     fn test_is_ascii_string() {
         // Test with valid ASCII (no padding)
@@ -202,13 +200,13 @@ mod tests {
 }
 
 #[pymodule]
-fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> { 
+fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_opcodes, m)?)?;
     m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
-    m.add_function(wrap_pyfunction!(get_file_info, m)?)?; 
+    m.add_function(wrap_pyfunction!(get_file_info, m)?)?;
 
     m.add_function(wrap_pyfunction!(get_pe_info, m)?)?;
-    m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?; 
+    m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?;
     m.add_function(wrap_pyfunction!(is_ascii_string, m)?)?;
     m.add_function(wrap_pyfunction!(is_base_64, m)?)?;
     m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?;
