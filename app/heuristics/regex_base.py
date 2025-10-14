@@ -43,7 +43,7 @@ REGEX_INSENSETIVE = {
     "certificates": [
         (r"(thawte|trustcenter|signing|class|crl|certificate|assembly)", -4)
     ],
-    "parameters": [(r"( \-[a-z]{,2}[\s]?[0-9]?| /[a-z]+[\s]?[\w]*)", 4)],
+    "parameters1": [(r"( \-[a-z]{,2}[\s]?[0-9]?| /[a-z]+[\s]?[\w]*)", 4)],
     "directory": [(r"([a-zA-Z]:|^|%)\\[A-Za-z]{4,30}\\", 4)],
     "executable_no_dir": [(r"^[^\\]+\.(exe|com|scr|bat|sys)$", 4)],
     "date_placeholders": [(r"(yyyy|hh:mm|dd/mm|mm/dd|%s:%s:)", 3)],

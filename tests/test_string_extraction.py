@@ -1,8 +1,6 @@
 
 from pathlib import Path
-import tempfile
 from types import SimpleNamespace
-from pytest_datadir.plugin import LazyDataDir
 from app.main import parse_good_dir
 import yarobot_rs 
 

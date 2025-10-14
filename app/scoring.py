@@ -1,6 +1,5 @@
 import base64
 import binascii
-import operator
 import re
 import logging
 import traceback
@@ -27,11 +26,11 @@ def filter_string_set(tokens, state):
         state.utf16strings = []
     if len(tokens) == 0:
         raise Exception("No tokens found")
-    for tok in tokens: 
-        if tok.reprz == "": 
+    for tok in tokens:
+        if tok.reprz == "":
             print(tok)
             print("Empty string")
-            raise Exception()  
+            raise Exception()
         # Goodware string marker
         goodstring = False
         goodcount = 0
@@ -52,12 +51,12 @@ def filter_string_set(tokens, state):
             state.utf16strings.append(tok.reprz)
 
         # Good string evaluation (after the UTF modification)
-        
+
         if goodstring:
             # Reduce the score by the number of occurence in goodware files
             tok.score += (goodcount * -1) + 5
         # print "Good string: %s" % string
-        
+
         # PEStudio String Blacklist Evaluation
         if state.pestudio_available:
             (pescore, type) = get_pestudio_score(tok.reprz, state.pestudio_strings)
@@ -95,7 +94,7 @@ def filter_string_set(tokens, state):
                                 decoded_string = base64.b64decode(
                                     m_string, validate=False
                                 )
-                            except binascii.Error as e:
+                            except binascii.Error:
                                 continue
                             if yarobot_rs.is_ascii_string(
                                 decoded_string, padding_allowed=True
@@ -111,7 +110,7 @@ def filter_string_set(tokens, state):
                         if yarobot_rs.is_hex_encoded(m_string, True):
                             # print("^ is HEX")
                             decoded_string = bytes.fromhex(m_string)
-                            if len(decoded_string) == 0 :
+                            if len(decoded_string) == 0:
                                 raise Exception()
                             if yarobot_rs.is_ascii_string(
                                 decoded_string, padding_allowed=True
@@ -126,8 +125,8 @@ def filter_string_set(tokens, state):
                                 # print("^ is ASCII / WIDE")
                                 tok.score += 8
                                 state.hexEncStrings[tok.reprz] = decoded_string
- 
-            except Exception as e:
+
+            except Exception:
                 if state.args.debug:
                     traceback.print_exc()
                 pass
@@ -151,9 +150,7 @@ def filter_string_set(tokens, state):
                 is_utf = False
                 # print "SCORE: %s\tUTF: %s\tSTRING: %s" % ( localStringScores[string], is_utf, string )
         localStringScores.append(tok)
-    sorted_set = sorted(
-        localStringScores, key=lambda x: x.score, reverse=True
-    )
+    sorted_set = sorted(localStringScores, key=lambda x: x.score, reverse=True)
 
     # Only the top X strings
     c = 0
@@ -244,8 +241,8 @@ def extract_stats_by_file(stats, outer_dict, flt=lambda x: x):
 def find_combinations(stats):
     combinations = {}
     max_combi_count = 0
-    for token, info in stats.items(): 
-        if len(info.files) > 1: 
+    for token, info in stats.items():
+        if len(info.files) > 1:
             logging.getLogger("yarobot").debug(
                 'OVERLAP Count: %s\nString: "%s"%s',
                 info.count,
@@ -254,7 +251,7 @@ def find_combinations(stats):
             )
             # Create a combination string from the file set that matches to that string
             combi = ":".join(sorted(info.files))
-            # print "STRING: " + string 
+            # print "STRING: " + string
             logging.getLogger("yarobot").debug("COMBI: %s", combi)
             # If combination not yet known
             if combi not in combinations:
@@ -275,14 +272,15 @@ def find_combinations(stats):
             # print "Max Combi Count set to: %s" % max_combi_count
     return combinations, max_combi_count
 
+
 def make_super_rules(combinations, max_combi_count, state, file_strings=None):
     super_rules = []
     for combi_count in range(max_combi_count, 1, -1):
         for combi in combinations:
-            if combi_count == combinations[combi]["count"]: 
+            if combi_count == combinations[combi]["count"]:
                 string_set = combinations[combi]["strings"]
                 combinations[combi]["strings"] = []
-                combinations[combi]["strings"] = filter_string_set(string_set, state) 
+                combinations[combi]["strings"] = filter_string_set(string_set, state)
                 if len(combinations[combi]["strings"]) >= int(state.args.w):
                     # Remove the files in the combi rule from the simple set
                     if file_strings:
@@ -293,20 +291,29 @@ def make_super_rules(combinations, max_combi_count, state, file_strings=None):
                     logging.getLogger("yarobot").info(
                         "[-] Adding Super Rule with %s strings.",
                         str(len(combinations[combi]["strings"])),
-                    ) 
+                    )
                     super_rules.append(combinations[combi])
     return super_rules
 
-def sample_string_evaluation(state, string_stats, opcode_stats, utf16string_stats, file_strings, file_utf16strings, file_opcodes):
+
+def sample_string_evaluation(
+    state,
+    string_stats,
+    opcode_stats,
+    utf16string_stats,
+    file_strings,
+    file_utf16strings,
+    file_opcodes,
+):
 
     # Generate Stats -----------------------------------------------------------
     logging.getLogger("yarobot").info("[+] Generating statistical data ...")
-    logging.getLogger("yarobot").info(f"\t[INPUT] Strings %s:", len(string_stats))
+    logging.getLogger("yarobot").info("\t[INPUT] Strings %s:", len(string_stats))
 
     combinations = {}
     max_combi_count = 0
     super_rules = []
- 
+
     combinations, max_combi_count = find_combinations(string_stats)
     # TODO: opcode combos, utf16 combos
 

@@ -42,7 +42,7 @@ import orjson as json
 from lxml import etree
 
 from app.args import get_args
-from app.config import DB_PATH, PE_STRINGS_FILE 
+from app.config import DB_PATH, PE_STRINGS_FILE
 
 
 from app.rule_generator import generate_rules
@@ -54,17 +54,17 @@ import yarobot_rs
 
 def parse_good_dir(state, dir):
     print(":: Parsing good samples ...")
-    fp = yarobot_rs.FileProcessor(state.args.R,
-                                  state.args.oe,
-                                  RELEVANT_EXTENSIONS,
-                                  state.args.y,
-                                  state.args.s,
-                                  state.args.fs,
-                                  state.args.opcodes,
-                                  state.args.debug)
-    return fp.parse_sample_dir(
-        dir
+    fp = yarobot_rs.FileProcessor(
+        state.args.R,
+        state.args.oe,
+        RELEVANT_EXTENSIONS,
+        state.args.y,
+        state.args.s,
+        state.args.fs,
+        state.args.opcodes,
+        state.args.debug,
     )
+    return fp.parse_sample_dir(dir)
 
 
 def processSampleDir(targetDir, state):
@@ -73,27 +73,28 @@ def processSampleDir(targetDir, state):
     :param directory:
     :return:
     """
-    
-    fp = yarobot_rs.FileProcessor(state.args.R,
-                                  state.args.oe,
-                                  RELEVANT_EXTENSIONS,
-                                  state.args.y,
-                                  state.args.s,
-                                  state.args.fs,
-                                  state.args.opcodes,
-                                  state.args.debug)
+
+    fp = yarobot_rs.FileProcessor(
+        state.args.R,
+        state.args.oe,
+        RELEVANT_EXTENSIONS,
+        state.args.y,
+        state.args.s,
+        state.args.fs,
+        state.args.opcodes,
+        state.args.debug,
+    )
     # Extract all information
     (sample_string_stats, sample_opcode_stats, sample_utf16string_stats, file_info) = (
-        fp.parse_sample_dir(
-            targetDir
-        )) 
-    '''
+        fp.parse_sample_dir(targetDir)
+    )
+    """
     for k, v in sample_string_stats.items():
         #print(v.files)
         print(k, v)
 
     exit() 
-    '''
+    """
     file_strings = {}
     file_utf16strings = {}
     file_opcodes = {}
@@ -105,7 +106,7 @@ def processSampleDir(targetDir, state):
 
     extract_stats_by_file(sample_utf16string_stats, file_utf16strings)
     # Evaluate Strings
-    if not state.args.nosuper: 
+    if not state.args.nosuper:
         (combinations, super_rules) = sample_string_evaluation(
             state,
             sample_string_stats,
@@ -247,7 +248,7 @@ def load_db(file, local_counter, prefix):
             local_counter.update(js)
             added = len(local_counter) - before
             print("[+] Total: %s / Added %d entries" % (len(local_counter), added))
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
     return len(local_counter)
 
@@ -321,7 +322,9 @@ if __name__ == "__main__":
     # Scan goodware files
     if args.g:
         print("[+] Processing goodware files ...")
-        state = State(args, None, None, None, None, pestudio_available, pestudio_strings) 
+        state = State(
+            args, None, None, None, None, pestudio_available, pestudio_strings
+        )
         good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
             parse_good_dir(state, args.g)
         )
@@ -372,7 +375,7 @@ if __name__ == "__main__":
                 print("New opcode database entries: %s" % len(good_exports_pickle))
                 save(good_exports_pickle, exports_db)
 
-            except Exception as e:
+            except Exception:
                 traceback.print_exc()
 
         # Create new databases
@@ -415,13 +418,13 @@ if __name__ == "__main__":
                         )
                         os.remove(file)
 
-                # Strings 
+                # Strings
                 good_json = good_strings_db
-                # Opcodes 
+                # Opcodes
                 good_op_json = good_opcodes_db
-                # Imphashes 
+                # Imphashes
                 good_imphashes_json = good_imphashes_db
-                # Exports 
+                # Exports
                 good_exports_json = good_exports_db
 
                 # Save
@@ -440,7 +443,7 @@ if __name__ == "__main__":
                         len(good_exports_db),
                     )
                 )
-            except Exception as e:
+            except Exception:
                 traceback.print_exc()
 
     # Analyse malware samples and create rules

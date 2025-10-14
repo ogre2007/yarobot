@@ -38,8 +38,12 @@ def sanitize_rule_name(path: str, file: str) -> str:
     return cleaned
 
 
-def get_timestamp_basic(date_obj=None): 
-    return date_obj.strftime("%Y-%m-%d") if date_obj else datetime.datetime.now().strftime("%Y-%m-%d")
+def get_timestamp_basic(date_obj=None):
+    return (
+        date_obj.strftime("%Y-%m-%d")
+        if date_obj
+        else datetime.datetime.now().strftime("%Y-%m-%d")
+    )
 
 
 def get_file_range(size, fm_size):
@@ -172,7 +176,7 @@ def generate_general_condition(state, file_info):
     magic_headers = []
     file_sizes = []
     imphashes = []
- 
+
     for filePath in file_info:
         if not file_info[filePath].magic:
             continue
@@ -208,8 +212,6 @@ def generate_general_condition(state, file_info):
     # If enough attributes were special
     condition_string = " and ".join(conditions)
 
-
-
     return condition_string, pe_module_neccessary
 
 
@@ -224,7 +226,7 @@ def generate_rules(
     if state.args.o:
         try:
             fh = open(state.args.o, "w")
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
 
     # General Info
@@ -275,11 +277,14 @@ def generate_rules(
     # logging.getLogger("yarobot").info(file_strings)
     for filePath in file_strings:
 
-        print("[-] Filtering string set for %s, len=%d ..." % (filePath, len(file_strings[filePath])))
+        print(
+            "[-] Filtering string set for %s, len=%d ..."
+            % (filePath, len(file_strings[filePath]))
+        )
 
         # Replace the original string set with the filtered one
         file_strings[filePath] = filter_string_set(file_strings[filePath], state)
-        #print("[-] Filtered string set for %s, len=%d ..." % (filePath, len(file_strings[filePath])))
+        # print("[-] Filtered string set for %s, len=%d ..." % (filePath, len(file_strings[filePath])))
         logging.getLogger("yarobot").info(
             "[-] Filtering opcode set for %s ...", filePath
         )
@@ -495,7 +500,7 @@ def generate_rules(
             rules += rule
 
             rule_count += 1
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
 
     # GENERATE SUPER RULES --------------------------------------------
@@ -654,7 +659,7 @@ def generate_rules(
                 rules += rule
 
                 super_rule_count += 1
-            except Exception as e:
+            except Exception:
                 traceback.print_exc()
 
     try:
@@ -666,14 +671,14 @@ def generate_rules(
         # RULES -----------------------------------------------------------
         if state.args.o:
             fh.write(rules)
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
 
     # Close the rules file --------------------------------------------
     if state.args.o:
         try:
             fh.close()
-        except Exception as e:
+        except Exception:
             traceback.print_exc()
 
     # Print rules to command line -------------------------------------
@@ -761,7 +766,10 @@ def get_rule_strings(state, string_elements, opcode_elements):
             fullword = " fullword"
 
         # Now compose the rule line
-        if float(state.stringScores[initial_string].score) > state.args.score_highly_specific:
+        if (
+            float(state.stringScores[initial_string].score)
+            > state.args.score_highly_specific
+        ):
             high_scoring_strings += 1
             rule_strings += '      $x%s = "%s"%s%s%s%s%s%s%s%s\n' % (
                 str(i + 1),

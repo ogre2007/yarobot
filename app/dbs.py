@@ -51,7 +51,7 @@ def update_databases(args):
         dbDir = "./dbs/"
         if not os.path.exists(dbDir):
             os.makedirs(dbDir)
-    except Exception as e:
+    except Exception:
         if args.debug:
             traceback.print_exc()
         print("Error while creating the database directory ./dbs")
@@ -66,7 +66,7 @@ def update_databases(args):
                 open("./dbs/%s" % filename, "wb") as out_file,
             ):
                 shutil.copyfileobj(response, out_file)
-    except Exception as e:
+    except Exception:
         if args.debug:
             traceback.print_exc()
         print(

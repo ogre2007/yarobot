@@ -26,7 +26,7 @@ def filter_rg(tok, regex_base, ignorecase):
                 found = True
         if found:
             cats += cat + ", "
-    
+
     tok.score += int(score_local)
     tok.add_note(cats)
     return score_local, cats
