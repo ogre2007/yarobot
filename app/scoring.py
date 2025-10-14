@@ -159,7 +159,6 @@ def filter_string_set(tokens, state):
         if state.args.trace:
             print("TOP STRINGS:", tok.reprz, tok.score)
         if tok.score < int(state.args.z):
-
             continue
 
         if tok.reprz in state.utf16strings:
@@ -305,7 +304,6 @@ def sample_string_evaluation(
     file_utf16strings,
     file_opcodes,
 ):
-
     # Generate Stats -----------------------------------------------------------
     logging.getLogger("yarobot").info("[+] Generating statistical data ...")
     logging.getLogger("yarobot").info("\t[INPUT] Strings %s:", len(string_stats))

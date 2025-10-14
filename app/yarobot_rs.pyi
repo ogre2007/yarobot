@@ -1,18 +1,18 @@
-
-
 class TokenInfo:
     def __init__(self):
         pass
+
 class TokenType:
     def __init__(self):
         pass
+
 class FileProcessor:
     def __init__(self):
         pass
+
 class FileInfo:
     def __init__(self):
         pass
-
 
 def get_file_info(self, data: bytes) -> FileInfo:
     pass

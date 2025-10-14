@@ -103,7 +103,6 @@ def get_strings(state, string_elements):
             state.utf16strings,
         )
     for i, string in enumerate(string_elements):
-
         if string[:8] == "UTF16LE:":
             string = string[8:]
             strings["wide"].append(string)
@@ -244,7 +243,6 @@ def generate_rules(
 
     # GLOBAL RULES ----------------------------------------------------
     if state.args.globalrule:
-
         condition, pe_module_necessary = generate_general_condition(file_info)
 
         # Global Rule
@@ -276,7 +274,6 @@ def generate_rules(
     )
     # logging.getLogger("yarobot").info(file_strings)
     for filePath in file_strings:
-
         print(
             "[-] Filtering string set for %s, len=%d ..."
             % (filePath, len(file_strings[filePath]))
@@ -302,7 +299,6 @@ def generate_rules(
     )
 
     for filePath in file_strings:
-
         # Skip if there is nothing to do
         if len(file_strings[filePath]) == 0:
             logging.getLogger("yarobot").warning(
@@ -505,7 +501,6 @@ def generate_rules(
 
     # GENERATE SUPER RULES --------------------------------------------
     if not state.args.nosuper:
-
         rules += "/* Super Rules ------------------------------------------------------------- */\n\n"
         super_rule_names = []
 
@@ -701,7 +696,6 @@ def get_rule_strings(state, string_elements, opcode_elements):
         string_elements, key=lambda x: state.stringScores[x].score, reverse=True
     )
     for i, string in enumerate(string_elements):
-
         # Collect the data
         is_fullword = True
         initial_string = string
@@ -715,8 +709,9 @@ def get_rule_strings(state, string_elements, opcode_elements):
         goodware_comment = ""
 
         if string in state.good_strings_db:
-            goodware_comment = " /* Goodware String - occured %s times */" % (
-                state.good_strings_db[string]
+            goodware_comment = (
+                " /* Goodware String - occured %s times */"
+                % (state.good_strings_db[string])
             )
         if string[:8] == "UTF16LE:":
             string = string[8:]

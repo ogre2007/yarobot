@@ -143,7 +143,7 @@ def get_args():
         "--nosuper",
         action="store_true",
         default=False,
-        help="Don't try to create super rules " "that match against various files",
+        help="Don't try to create super rules that match against various files",
     )
 
     group_db = parser.add_argument_group("Database Operations")
@@ -151,7 +151,7 @@ def get_args():
         "--update",
         action="store_true",
         default=False,
-        help="Update the local strings and opcodes " "dbs from the online repository",
+        help="Update the local strings and opcodes dbs from the online repository",
     )
     group_db.add_argument(
         "-g",
@@ -196,8 +196,7 @@ def get_args():
         "--oe",
         action="store_true",
         default=False,
-        help="Only scan executable extensions EXE, "
-        "DLL, ASP, JSP, PHP, BIN, INFECTED",
+        help="Only scan executable extensions EXE, DLL, ASP, JSP, PHP, BIN, INFECTED",
     )
     group_general.add_argument(
         "-fs",

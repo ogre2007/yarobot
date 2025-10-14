@@ -28,7 +28,6 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-
 import gzip
 import os
 import sys
@@ -410,7 +409,6 @@ if __name__ == "__main__":
 
             try:
                 for file in [strings_db, opcodes_db, imphashes_db, exports_db]:
-
                     if os.path.isfile(file):
                         input(
                             "File %s alread exists. Press enter to proceed or CTRL+C to exit."
