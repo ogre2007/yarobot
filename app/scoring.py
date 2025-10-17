@@ -71,9 +71,7 @@ def filter_string_set(tokens, state):
                 tok.score = pescore
 
         if not goodstring:
-            score, cats = score_with_regex(tok)
-            if state.args.trace:
-                print(f"{tok.reprz} - {score} - {cats}")
+            score, cats = score_with_regex(tok) 
             # ENCODING DETECTIONS --------------------------------------------------
             try:
                 if len(tok.reprz) > 8:

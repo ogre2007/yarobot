@@ -11,6 +11,7 @@ use crate::{
     get_file_info, FileInfo, TokenInfo,
 };
 
+use log::debug;
 use pyo3::prelude::*;
 use walkdir::WalkDir;
 
@@ -127,9 +128,8 @@ impl FileProcessor {
                         .iter()
                         .any(|x| x.eq(&ext.to_owned().to_lowercase()))
                     {
-                        if self.debug {
-                            println!("[-] EXTENSION {} - Skipping file {}", ext, file_path);
-                        }
+                        debug!("[-] EXTENSION {} - Skipping file {}", ext, file_path);
+
                         return false;
                     }
                 }
@@ -138,9 +138,7 @@ impl FileProcessor {
         }
         let meta = fs::metadata(os_path).unwrap();
         if meta.len() < 15 {
-            if self.debug {
-                println!("[-] File is empty - Skipping file {}", file_path);
-            }
+            debug!("[-] File is empty - Skipping file {}", file_path);
             return false;
         }
         //let bytes = fs::read(os_path).unwrap().into_iter().take(fs*1024*1024).collect();
@@ -160,16 +158,14 @@ impl FileProcessor {
         merge_stats(strings, &mut self.strings);
         merge_stats(utf16strings, &mut self.utf16strings);
         merge_stats(opcodes, &mut self.opcodes);
-        if self.debug {
-            println!(
-                "[+] Processed {} Size: {} Strings: {} Utf16Strings: {}  OpCodes: {}",
-                file_path,
-                meta.len(),
-                self.strings.len(),
-                self.utf16strings.len(),
-                self.opcodes.len()
-            )
-        }
+        debug!(
+            "[+] Processed {} Size: {} Strings: {} Utf16Strings: {}  OpCodes: {}",
+            file_path,
+            meta.len(),
+            self.strings.len(),
+            self.utf16strings.len(),
+            self.opcodes.len()
+        );
         true
     }
 

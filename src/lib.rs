@@ -9,6 +9,9 @@ pub use parsing::*;
 pub mod processing;
 pub use processing::*;
 
+pub mod scoring;
+pub use scoring::*;
+
 #[cfg(test)]
 mod tests {
     use crate::{get_pe_info, FileInfo};
