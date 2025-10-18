@@ -6,6 +6,10 @@ DB_PATH = os.path.normpath(os.path.join(_ROOT, "dbs"))
 
 PE_STRINGS_FILE = "./3rdparty/strings.xml"
 
+KNOWN_IMPHASHES = {
+    "a04dd9f5ee88d7774203e0a0cfa1b941": "PsExec",
+    "2b8c9d9ab6fefc247adaf927e83dcea6": "RAR SFX variant",
+}
 
 RELEVANT_EXTENSIONS = [
     "asp",

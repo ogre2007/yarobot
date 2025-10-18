@@ -1,36 +1,64 @@
-use anyhow::{Context, Result};
+use crate::{is_ascii_string, is_base_64, is_hex_encoded, score_with_regex, TokenInfo};
 use base64;
-use clap::Args;
-use log::{debug, info, trace};
+use log::{debug, error, info, trace};
+use pyo3::exceptions::PyValueError;
+use pyo3::ffi::PyErr_BadArgument;
+use pyo3::prelude::*;
+use pyo3::{
+    types::{PyAnyMethods, PyDict, PyList, PyTuple},
+    Py, PyAny, Python,
+};
 use regex::Regex;
 use std::{
     collections::{HashMap, HashSet},
+    sync::OnceLock,
     usize,
 };
 
-use crate::{is_ascii_string, is_base_64, is_hex_encoded, TokenInfo};
-
+#[pyclass]
 #[derive(Debug)]
 
 pub struct ScoringEngine {
+    #[pyo3(get, set)]
     pub good_strings_db: HashMap<String, usize>,
-    pub utf16strings: Vec<String>,
+    #[pyo3(get, set)]
+    pub good_opcodes_db: HashMap<String, usize>,
+    #[pyo3(get, set)]
+    pub utf16strings: HashMap<String, TokenInfo>,
+    #[pyo3(get, set)]
     pub pestudio_strings: HashMap<String, (i64, String)>,
+    #[pyo3(get, set)]
     pub pestudio_marker: HashMap<String, String>,
+    #[pyo3(get, set)]
     pub base64strings: HashMap<String, String>,
+    #[pyo3(get, set)]
     pub hex_enc_strings: HashMap<String, String>,
+    #[pyo3(get, set)]
     pub reversed_strings: HashMap<String, String>,
+    #[pyo3(get, set)]
     pub string_scores: HashMap<String, TokenInfo>,
+    #[pyo3(get, set)]
+    pub opcodes: HashMap<String, TokenInfo>,
+    #[pyo3(get, set)]
     pub excludegood: bool,
-    pub z: i64,
-    pub w: usize,
+    #[pyo3(get, set)]
+    pub min_score: i64,
+    #[pyo3(get, set)]
+    pub superrule_overlap: usize,
 }
+
+#[pyclass]
 #[derive(Debug, Clone)]
 pub struct Combination {
+    #[pyo3(get, set)]
     pub count: usize,
-    pub strings: Vec<String>,
+    #[pyo3(get, set)]
+    pub strings: Vec<TokenInfo>,
+    #[pyo3(get, set)]
     pub files: HashSet<String>,
 }
+
+
 
 // External functions that would be implemented elsewhere
 pub fn get_pestudio_score(
@@ -43,12 +71,7 @@ pub fn get_pestudio_score(
         .cloned()
         .unwrap_or((0, String::new()))
 }
-
-pub fn score_with_regex(token: &TokenInfo) -> (i64, Vec<String>) {
-    // Implementation would go here
-    todo!();
-    (0, Vec::new())
-}
+ 
 
 pub fn get_opcode_string(opcode: &str) -> String {
     let reprz = opcode; // Assuming opcode is already the reprz
@@ -64,18 +87,120 @@ pub fn get_opcode_string(opcode: &str) -> String {
         .collect::<Vec<&str>>()
         .join(" ")
 }
+pub fn find_combinations(
+    stats: &HashMap<String, TokenInfo>,
+) -> PyResult<(HashMap<String, Combination>, usize)> {
+    let mut combinations = HashMap::new();
+    let mut max_combi_count = 0;
 
+    for (token, info) in stats {
+        if info.files.len() > 1 {
+            debug!(
+                "OVERLAP Count: {}\nString: \"{}\"\nFILE: {}",
+                info.count,
+                token,
+                info.files
+                    .clone()
+                    .into_iter()
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            );
+
+            let mut sorted_files: Vec<String> = info.files.clone().into_iter().collect();
+            sorted_files.sort();
+            let combi = sorted_files.join(":");
+
+            debug!("COMBI: {}", combi);
+
+            let combo_entry = combinations
+                .entry(combi.clone())
+                .or_insert_with(|| Combination {
+                    count: 0,
+                    strings: Vec::new(),
+                    files: info.files.clone(),
+                });
+
+            combo_entry.count += 1;
+            combo_entry.strings.push(info.clone());
+
+            if combo_entry.count > max_combi_count {
+                max_combi_count = combo_entry.count;
+            }
+        }
+    }
+
+    Ok((combinations, max_combi_count))
+}
+pub fn extract_stats_by_file<'a>(
+    stats: &HashMap<String, TokenInfo>,
+    outer_dict: &'a mut HashMap<String, Vec<TokenInfo>>,
+    min: Option<usize>,
+    max: Option<usize>,
+) {
+    for (token, value) in stats {
+        let count = value.count;
+        if count >= min.unwrap_or(0) && count < max.unwrap_or(usize::MAX) {
+            debug!(
+                " [-] Adding {} ({:?}) to {} files.",
+                token,
+                value,
+                value.files.len()
+            );
+            for file_path in &value.files {
+                outer_dict
+                    .entry(file_path.to_string())
+                    .or_insert(Vec::new())
+                    .push(value.clone());
+            }
+        }
+    }
+}
+
+#[pymethods]
 impl ScoringEngine {
-    pub fn filter_string_set(&mut self, tokens: Vec<TokenInfo>) -> Result<Vec<String>> {
+    pub fn filter_opcode_set(&self, opcode_set: Vec<String>) -> PyResult<Vec<String>> {
+    let pref_opcodes = vec![" 34 ", "ff ff ff "];
+    let mut useful_set = Vec::new();
+    let mut pref_set = Vec::new();
+
+    for opcode in opcode_set {
+        if self.good_opcodes_db.contains_key(&opcode) {
+            debug!("skipping {}", opcode);
+
+            continue;
+        }
+
+        let formatted_opcode = get_opcode_string(&opcode);
+        let mut set_in_pref = false;
+
+        for pref in &pref_opcodes {
+            if formatted_opcode.contains(pref) {
+                pref_set.push(formatted_opcode.clone());
+                set_in_pref = true;
+                break;
+            }
+        }
+
+        if !set_in_pref {
+            useful_set.push(formatted_opcode);
+        }
+    }
+
+    // Preferred opcodes first
+    pref_set.append(&mut useful_set);
+    Ok(pref_set)
+}
+    pub fn filter_string_set(&mut self, tokens: Vec<TokenInfo>) -> PyResult<Vec<TokenInfo>> {
         if tokens.is_empty() {
-            return Err(anyhow::anyhow!("No tokens found"));
+            panic!();
         }
 
         let mut local_string_scores = Vec::new();
 
         for mut token in tokens {
             if token.reprz.is_empty() {
-                return Err(anyhow::anyhow!("Empty string in token"));
+                println!("{:?}", token);
+                panic!("empty token");
             }
 
             let mut goodstring = false;
@@ -91,12 +216,6 @@ impl ScoringEngine {
             }
 
             let original_string = token.reprz.clone();
-
-            // UTF16 handling
-            if token.reprz.starts_with("UTF16LE:") {
-                token.reprz = token.reprz[8..].to_string();
-                self.utf16strings.push(token.reprz.clone());
-            }
 
             // Good string evaluation
             if goodstring {
@@ -116,9 +235,9 @@ impl ScoringEngine {
             }
 
             if !goodstring {
-                let (regex_score, cats) = score_with_regex(&token);
-                token.score += regex_score;
-
+                info!("before heur: {}", token.score);
+ 
+                score_with_regex(&mut token);
                 // Encoding detections
                 if token.reprz.len() > 8 {
                     // Base64 detection
@@ -186,7 +305,7 @@ impl ScoringEngine {
                 }
 
                 // Certain string reduce
-                let reduce_regex = Regex::new(r"(?i)(rundll32\.exe$|kernel\.dll$)")?;
+                let reduce_regex = Regex::new(r"(?i)(rundll32\.exe$|kernel\.dll$)").unwrap();
                 if reduce_regex.is_match(&token.reprz) {
                     token.score -= 4;
                 }
@@ -201,7 +320,7 @@ impl ScoringEngine {
         local_string_scores.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap());
 
         // Filter by threshold and collect results
-        let threshold: i64 = self.z;
+        let threshold: i64 = self.min_score;
         let mut result_set = Vec::new();
 
         for token in local_string_scores {
@@ -211,11 +330,7 @@ impl ScoringEngine {
                 continue;
             }
 
-            if self.utf16strings.contains(&token.reprz) {
-                result_set.push(format!("UTF16LE:{}", token.reprz));
-            } else {
-                result_set.push(token.reprz);
-            }
+            result_set.push(token);
         }
 
         debug!("RESULT SET: {:?}", result_set);
@@ -223,142 +338,56 @@ impl ScoringEngine {
         Ok(result_set)
     }
 
-    pub fn filter_opcode_set(
-        opcode_set: Vec<String>,
-        good_opcodes_db: &HashSet<String>,
-    ) -> Vec<String> {
-        let pref_opcodes = vec![" 34 ", "ff ff ff "];
-        let mut useful_set = Vec::new();
-        let mut pref_set = Vec::new();
+    pub fn sample_string_evaluation(
+        &mut self 
+    ) -> PyResult<(HashMap<String, Combination>, Vec<Combination>, HashMap<String, Vec<TokenInfo>>, HashMap<String, Vec<TokenInfo>>, HashMap<String, Vec<TokenInfo>>)> {
+        info!("[+] Generating statistical data ...");
+        info!("\t[INPUT] Strings: {}", self.string_scores.len());
+        let mut file_strings = HashMap::new();
+        let mut file_utf16strings = HashMap::new();
 
-        for opcode in opcode_set {
-            if good_opcodes_db.contains(&opcode) {
-                debug!("skipping {}", opcode);
+        let mut file_opcodes = HashMap::new();
 
-                continue;
-            }
+        extract_stats_by_file(
+            &self.string_scores,
+            &mut file_strings,
+            Some(0),
+            Some(10),
+        );
 
-            let formatted_opcode = get_opcode_string(&opcode);
-            let mut set_in_pref = false;
+        //STRING EVALUATION -------------------------------------------------------
+        extract_stats_by_file(&self.opcodes, &mut file_opcodes, None, None);
 
-            for pref in &pref_opcodes {
-                if formatted_opcode.contains(pref) {
-                    pref_set.push(formatted_opcode.clone());
-                    set_in_pref = true;
-                    break;
-                }
-            }
+        extract_stats_by_file(
+            &self.utf16strings,
+            &mut file_utf16strings,
+            None,
+            None,
+        );
+        let (mut combinations, max_combi_count) = find_combinations(&self.string_scores).unwrap();
 
-            if !set_in_pref {
-                useful_set.push(formatted_opcode);
-            }
-        }
-
-        // Preferred opcodes first
-        pref_set.append(&mut useful_set);
-        pref_set
-    }
-
-    pub fn extract_stats_by_file<'a>(
-        stats: &HashMap<String, TokenInfo>,
-        outer_dict: &'a mut HashMap<String, Vec<TokenInfo>>,
-        min: Option<usize>,
-        max: Option<usize>,
-    ) {
-        for (token, value) in stats {
-            let count = value.count;
-            if count >= min.unwrap_or(0) && count < max.unwrap_or(usize::MAX) {
-                debug!(
-                    " [-] Adding {} ({:?}) to {} files.",
-                    token,
-                    value,
-                    value.files.len()
-                );
-                for file_path in &value.files {
-                    outer_dict
-                        .entry(file_path.to_string())
-                        .or_insert(Vec::new())
-                        .push(value.clone());
-                }
-            }
-        }
-    }
-
-    pub fn find_combinations(
-        stats: &HashMap<String, TokenInfo>,
-    ) -> (HashMap<String, Combination>, usize) {
-        let mut combinations = HashMap::new();
-        let mut max_combi_count = 0;
-
-        for (token, info) in stats {
-            if info.files.len() > 1 {
-                debug!(
-                    "OVERLAP Count: {}\nString: \"{}\"\nFILE: {}",
-                    info.count,
-                    token,
-                    info.files
-                        .clone()
-                        .into_iter()
-                        .collect::<Vec<String>>()
-                        .join(", ")
-                );
-
-                let mut sorted_files: Vec<String> = info.files.clone().into_iter().collect();
-                sorted_files.sort();
-                let combi = sorted_files.join(":");
-
-                debug!("COMBI: {}", combi);
-
-                let combo_entry =
-                    combinations
-                        .entry(combi.clone())
-                        .or_insert_with(|| Combination {
-                            count: 0,
-                            strings: Vec::new(),
-                            files: info.files.clone(),
-                        });
-
-                combo_entry.count += 1;
-                combo_entry.strings.push(info.reprz.clone());
-
-                if combo_entry.count > max_combi_count {
-                    max_combi_count = combo_entry.count;
-                }
-            }
-        }
-
-        (combinations, max_combi_count)
-    }
-
-    pub fn make_super_rules(
-        &mut self,
-        combinations: &mut HashMap<String, Combination>,
-        max_combi_count: usize,
-        mut file_strings: Option<&mut HashMap<String, Vec<String>>>,
-    ) -> Result<Vec<Combination>> {
+        info!("[+] Generating Super Rules ... (a lot of magic)");
         let mut super_rules = Vec::new();
-        let min_strings: usize = self.w;
+        let min_strings: usize = self.superrule_overlap;
 
         for combi_count in (2..=max_combi_count).rev() {
             for (combi_key, combo) in combinations.iter_mut() {
                 if combo.count == combi_count {
                     // Convert FileStats to Tokens for filtering
-                    let tokens: Vec<TokenInfo> =
-                        combo.strings.iter().map(|fs| Default::default()).collect();
-
+                    let tokens: Vec<TokenInfo> = combo.strings.clone();
+                    debug!("calling filter with combo strings...");
                     let filtered_strings = self.filter_string_set(tokens)?;
-                    combo.strings.clear(); // Clear original strings
-
-                    if filtered_strings.len() >= min_strings {
+                    combo.strings = filtered_strings;
+                    if combo.strings.len() >= min_strings {
                         // Remove files from file_strings if provided
                         for file in &combo.files {
-                            file_strings.as_deref_mut().unwrap().remove(&file.clone());
+                            file_strings.remove(&file.clone());
                         }
                     }
 
                     info!(
                         "[-] Adding Super Rule with {} strings.",
-                        filtered_strings.len()
+                        combo.strings.len()
                     );
                     let mut new_combo = combo.clone();
                     // Store the filtered strings - you might need to adjust this based on your data structure
@@ -366,30 +395,8 @@ impl ScoringEngine {
                 }
             }
         }
-
-        Ok(super_rules)
-    }
-
-    pub fn sample_string_evaluation(
-        &mut self,
-        string_stats: &HashMap<String, TokenInfo>,
-        opcode_stats: &HashMap<String, TokenInfo>,
-        utf16string_stats: &HashMap<String, TokenInfo>,
-        file_strings: &mut HashMap<String, Vec<String>>,
-        file_utf16strings: &mut HashMap<String, Vec<String>>,
-        file_opcodes: &mut HashMap<String, Vec<String>>,
-    ) -> Result<(HashMap<String, Combination>, Vec<Combination>)> {
-        info!("[+] Generating statistical data ...");
-        info!("\t[INPUT] Strings: {}", string_stats.len());
-
-        let (mut combinations, max_combi_count) = ScoringEngine::find_combinations(string_stats);
-
-        info!("[+] Generating Super Rules ... (a lot of magic)");
-        let super_rules =
-            self.make_super_rules(&mut combinations, max_combi_count, Some(file_strings))?;
-
         info!("OUTPUT: {} super rules", super_rules.len());
 
-        Ok((combinations, super_rules))
+        Ok((combinations, super_rules, file_strings, file_opcodes, file_utf16strings))
     }
 }

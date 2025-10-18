@@ -1,4 +1,6 @@
+use log::info;
 use pyo3::prelude::*;
+use std::{collections::HashMap, fs, path::Path};
 
 pub mod types;
 pub use types::*;
@@ -11,6 +13,76 @@ pub use processing::*;
 
 pub mod scoring;
 pub use scoring::*;
+
+#[pyfunction]
+fn process_malware(
+    malware_path: String,
+    recursive: bool,
+    extensions: Option<Vec<String>>,
+    minssize: usize,
+    maxssize: usize,
+    fsize: usize,
+    get_opcodes: bool,
+    debug: bool,
+    excludegood: bool,
+    min_score: i64,
+    superrule_overlap: usize,
+    good_strings_db: HashMap<String, usize>,
+    good_opcodes_db: HashMap<String, usize>,
+    good_imphashes_db: HashMap<String, usize>,
+    good_exports_db: HashMap<String, usize>,
+) -> PyResult<(
+    HashMap<String, Combination>,
+    Vec<Combination>,
+    HashMap<String, Vec<TokenInfo>>,
+    HashMap<String, Vec<TokenInfo>>,
+    HashMap<String, Vec<TokenInfo>>,
+    HashMap<String, FileInfo>,
+    ScoringEngine,
+)> {
+    // Check if we should disable super rules for single files
+    let mut fp = FileProcessor::new(
+        recursive,
+        extensions,
+        minssize,
+        maxssize,
+        fsize,
+        get_opcodes,
+        debug,
+    );
+
+    info!("Processing malware files...");
+    let (string_scores, opcodes, utf16strings, file_infos) =
+        fp.parse_sample_dir(malware_path).unwrap();
+    let mut scoring_engine = ScoringEngine {
+        good_strings_db,
+        good_opcodes_db,
+        utf16strings,
+        pestudio_strings: Default::default(),
+        pestudio_marker: Default::default(),
+        base64strings: Default::default(),
+        hex_enc_strings: Default::default(),
+        reversed_strings: Default::default(),
+        string_scores,
+        excludegood,
+        min_score,
+        superrule_overlap,
+        opcodes,
+    };
+
+    let (combis, superrules, file_strings, file_opcodes, file_utf16strings) = scoring_engine
+        .sample_string_evaluation()
+        .unwrap();
+    Ok((
+        combis,
+        superrules,
+        file_strings,
+        file_opcodes,
+        file_utf16strings,
+        file_infos,
+        scoring_engine,
+    ))
+}
 
 #[cfg(test)]
 mod tests {
@@ -207,6 +279,7 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_opcodes, m)?)?;
     m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
     m.add_function(wrap_pyfunction!(get_file_info, m)?)?;
+    m.add_function(wrap_pyfunction!(process_malware, m)?)?;
 
     m.add_function(wrap_pyfunction!(get_pe_info, m)?)?;
     m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?;
@@ -217,6 +290,9 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<types::TokenInfo>()?;
     m.add_class::<types::TokenType>()?;
     m.add_class::<processing::FileProcessor>()?;
+        m.add_class::<ScoringEngine>()?;
+
+    m.add_class::<Combination>()?;
 
     Ok(())
 }

@@ -40,17 +40,13 @@ REGEX_INSENSETIVE = {
     "extensions_generic": [(r"\.[a-zA-Z]{3}\b", 3)],
     "alll_characters": [(r"^[A-Z][a-z]{5,}$", 2)],
     "URL": [(r"(%[a-z][:\-,;]|\\\\%s|\\\\[A-Z0-9a-z%]+\\[A-Z0-9a-z%]+)", 2.5)],
-    "certificates": [
-        (r"(thawte|trustcenter|signing|class|crl|certificate|assembly)", -4)
-    ],
+    "certificates": [(r"(thawte|trustcenter|signing|class|crl|certificate|assembly)", -4)],
     "parameters1": [(r"( \-[a-z]{,2}[\s]?[0-9]?| /[a-z]+[\s]?[\w]*)", 4)],
     "directory": [(r"([a-zA-Z]:|^|%)\\[A-Za-z]{4,30}\\", 4)],
     "executable_no_dir": [(r"^[^\\]+\.(exe|com|scr|bat|sys)$", 4)],
     "date_placeholders": [(r"(yyyy|hh:mm|dd/mm|mm/dd|%s:%s:)", 3)],
     "placeholders": [(r"[^A-Za-z](%s|%d|%i|%02d|%04d|%2d|%3s)[^A-Za-z]", 3)],
-    "string_parts": [
-        (r"(cmd|com|pipe|tmp|temp|recycle|bin|secret|private|AppData|driver|config)", 3)
-    ],
+    "string_parts": [(r"(cmd|com|pipe|tmp|temp|recycle|bin|secret|private|AppData|driver|config)", 3)],
     "programming": [
         (
             r"(execute|run|system|shell|root|cimv2|login|exec|stdin|read|process|netuse|script|share)",
@@ -85,9 +81,7 @@ REGEX_INSENSETIVE = {
     "file": [(r"^[a-zA-Z0-9]{3,40}\.[a-zA-Z]{3}", 3)],
     "comment": [(r"^([\*\#]+ |\[[\*\-\+]\] |[\-=]> |\[[A-Za-z]\] )", 4)],
     "typo": [(r"(!\.$|!!!$| :\)$| ;\)$|fucked|[\w]\.\.\.\.$)", 4)],
-    "base64": [
-        (r"^(?:[A-Za-z0-9+/]{4}){30,}(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$", 7)
-    ],
+    "base64": [(r"^(?:[A-Za-z0-9+/]{4}){30,}(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$", 7)],
     "b64exec": [
         (
             r"(TVqQAAMAAAAEAAAA//8AALgAAAA|TVpQAAIAAAAEAA8A//8AALgAAAA|TVqAAAEAAAAEABAAAAAAAAAAAAA|TVoAAAAAAAAAAAAAAAAAAAAAAAA|TVpTAQEAAAAEAAAA//8AALgAAAA)",
@@ -100,9 +94,7 @@ REGEX_INSENSETIVE = {
             5,
         )
     ],
-    "privilege": [
-        (r"(administrator|highest|system|debug|dbg|admin|adm|root) privelege", 4)
-    ],
+    "privilege": [(r"(administrator|highest|system|debug|dbg|admin|adm|root) privelege", 4)],
     "system_file": [(r"(LSASS|SAM|lsass.exe|cmd.exe|LSASRV.DLL)", 4)],
     "compiler": [(r"(Release|Debug|bin|sbin)", 2)],
     "pe_exe": [(r"(\.exe|\.dll|\.sys)$", 4)],
@@ -167,16 +159,12 @@ REGEX_INSENSETIVE = {
             3,
         )
     ],
-    "less_value": [
-        (r"(abcdefghijklmnopqsst|ABCDEFGHIJKLMNOPQRSTUVWXYZ|0123456789:;)", -5)
-    ],
+    "less_value": [(r"(abcdefghijklmnopqsst|ABCDEFGHIJKLMNOPQRSTUVWXYZ|0123456789:;)", -5)],
     "vb_backdoors": [(r"(kill|wscript|plugins|svr32|Select )", 3)],
     "susp_strings_combo": [(r"([a-z]{4,}[!\?]|\[[!+\-]\] )", 3)],
     "special_chars": [(r"(-->|!!!| <<< | >>> )", 5)],
     "swear": [(r"\b(fuck|damn|shit|penis|nigger)\b", 5)],
-    "scripts": [
-        (r"(%APPDATA%|%USERPROFILE%|Public|Roaming|& del|& rm| && |script)", 3)
-    ],
+    "scripts": [(r"(%APPDATA%|%USERPROFILE%|Public|Roaming|& del|& rm| && |script)", 3)],
     "uacme": [(r"(Elevation|pwnd|pawn|elevate to)", 3)],
     "dots": [(r"(\.\.)", -5)],
     "spaces": [(r"(  )", -5)],
@@ -192,9 +180,7 @@ REGEX_SENSETIVE = {
             3,
         )
     ],
-    "ua_keywords": [
-        (r"(Mozilla|MSIE|Windows NT|Macintosh|Gecko|Opera|User\-Agent)", 5)
-    ],
+    "ua_keywords": [(r"(Mozilla|MSIE|Windows NT|Macintosh|Gecko|Opera|User\-Agent)", 5)],
     "packers": [(r"(WinRAR\\SFX)", -4)],
     "US_ASCII_char": [(r"\x1f", -4)],
     "repeated_chars": [(r"(?!.* ([A-Fa-f0-9])\1{8,})", -5)],

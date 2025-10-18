@@ -30,7 +30,7 @@ pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, 
 pub struct FileProcessor {
     recursive: bool,
     filter_extensions: bool,
-    extensions: Vec<String>,
+    extensions: Option<Vec<String>>,
     minssize: usize,
     maxssize: usize,
     fsize: usize,
@@ -75,9 +75,8 @@ pub fn get_files(folder: String, recursive: bool) -> PyResult<Vec<String>> {
 impl FileProcessor {
     #[new]
     pub fn new(
-        recursive: bool,
-        filter_extensions: bool,
-        extensions: Vec<String>,
+        recursive: bool, 
+        extensions: Option<Vec<String>>,
         minssize: usize,
         maxssize: usize,
         fsize: usize,
@@ -85,8 +84,7 @@ impl FileProcessor {
         debug: bool,
     ) -> Self {
         Self {
-            recursive,
-            filter_extensions,
+            recursive, 
             extensions,
             minssize,
             maxssize,
@@ -111,7 +109,7 @@ impl FileProcessor {
         }
         Ok((
             self.strings.clone(),
-            self.strings.clone(),
+            self.opcodes.clone(),
             self.utf16strings.clone(),
             self.file_infos.clone(),
         ))
@@ -120,11 +118,10 @@ impl FileProcessor {
     pub fn process_file_with_checks(&mut self, file_path: String) -> bool {
         let os_path = path::Path::new(&file_path);
 
-        if self.filter_extensions {
+        if let Some(extensions) = &self.extensions{
             match os_path.extension().and_then(OsStr::to_str) {
                 Some(ext) => {
-                    if !self
-                        .extensions
+                    if !extensions
                         .iter()
                         .any(|x| x.eq(&ext.to_owned().to_lowercase()))
                     {

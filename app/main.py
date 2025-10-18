@@ -40,15 +40,21 @@ import signal as signal_module
 import orjson as json
 from lxml import etree
 
-from app.args import get_args
 from app.config import DB_PATH, PE_STRINGS_FILE
 
 
 from app.rule_generator import generate_rules
-from app.scoring import extract_stats_by_file, sample_string_evaluation
+
+# from app.scoring import extract_stats_by_file, sample_string_evaluation
 from app.config import RELEVANT_EXTENSIONS
 
 import yarobot_rs
+
+import click
+import os
+import sys
+
+from app import dbs
 
 
 def parse_good_dir(state, dir):
@@ -59,7 +65,7 @@ def parse_good_dir(state, dir):
         RELEVANT_EXTENSIONS,
         state.args.y,
         state.args.s,
-        state.args.fs,
+        state.args.max_file_size,
         state.args.opcodes,
         state.args.debug,
     )
@@ -84,9 +90,7 @@ def processSampleDir(targetDir, state):
         state.args.debug,
     )
     # Extract all information
-    (sample_string_stats, sample_opcode_stats, sample_utf16string_stats, file_info) = (
-        fp.parse_sample_dir(targetDir)
-    )
+    (sample_string_stats, sample_opcode_stats, sample_utf16string_stats, file_info) = fp.parse_sample_dir(targetDir)
     """
     for k, v in sample_string_stats.items():
         #print(v.files)
@@ -118,6 +122,7 @@ def processSampleDir(targetDir, state):
 
     # Create Rule Files
     (rule_count, super_rule_count) = generate_rules(
+        scoring_engine,
         state,
         file_strings,
         file_opcodes,
@@ -128,7 +133,7 @@ def processSampleDir(targetDir, state):
     print("[=] Generated %s SIMPLE rules." % str(rule_count))
     if not state.args.nosuper:
         print("[=] Generated %s SUPER rules." % str(super_rule_count))
-    print("[=] All rules written to %s" % state.args.o)
+    print("[=] All rules written to %s" % state.args.output_rule_file)
 
 
 def getPrefix(prefix, identifier):
@@ -260,7 +265,6 @@ class State:
         good_opcodes_db,
         good_imphashes_db,
         good_exports_db,
-        pestudio_available,
         pestudio_strings,
     ):
         self.base64strings = {}
@@ -272,35 +276,189 @@ class State:
         self.good_opcodes_db = good_opcodes_db
         self.good_imphashes_db = good_imphashes_db
         self.good_exports_db = good_exports_db
-        self.pestudio_available = pestudio_available
         self.pestudio_strings = pestudio_strings
         self.args = args
         self.string_to_comms = dict()
 
 
-# CTRL+C Handler --------------------------------------------------------------
-def signal_handler(signal_name, frame):
-    print("> yarobot's work has been interrupted")
-    sys.exit(0)
+@click.group()
+def cli():
+    """yarobot - YARA rule generator"""
+    pass
 
 
-# MAIN ################################################################
-if __name__ == "__main__":
-    logging.basicConfig(level=os.environ.get("YAROBOT_LOG_LEVEL", "WARNING"))
-    # Signal handler for CTRL+C
-    signal_module.signal(signal_module.SIGINT, signal_handler)
-    args = get_args()
-    # Read PEStudio string list
-    pestudio_strings = {}
-    pestudio_available = False
+@cli.command()
+@click.option("-m", "--malware-path", required=True, help="Path to scan for malware")
+@click.option(
+    "-y",
+    "--min-size",
+    help="Minimum string length to consider (default=8)",
+    type=int,
+    default=8,
+)
+@click.option(
+    "-z",
+    "--min-score",
+    help="Minimum score to consider (default=5)",
+    type=int,
+    default=5,
+)
+@click.option(
+    "-x",
+    "--high-scoring",
+    help='Score required to set string as "highly specific string" (default: 30)',
+    type=int,
+    default=30,
+)
+@click.option(
+    "-w",
+    "--superrule-overlap",
+    help="Minimum number of strings that overlap to create a super rule (default: 5)",
+    type=int,
+    default=5,
+)
+@click.option(
+    "-s",
+    "--max-size",
+    help="Maximum length to consider (default=128)",
+    type=int,
+    default=128,
+)
+@click.option(
+    "-rc",
+    "--strings-per-rule",
+    help="Maximum number of strings per rule (default=20, intelligent filtering will be applied)",
+    type=int,
+    default=20,
+)
+@click.option(
+    "--excludegood",
+    help="Force the exclude all goodware strings",
+    is_flag=True,
+    default=False,
+)
+@click.option("-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar")
+@click.option("-e", "--output-dir-strings", help="Output directory for string exports", default="")
+@click.option("-a", "--author", help="Author Name", default="yarobot Rule Generator")
+@click.option(
+    "--ref",
+    help="Reference (can be string or text file)",
+    default="https://github.com/oogre2007/yarobot",
+)
+@click.option("-l", "--license", help="License", default="")
+@click.option(
+    "-p",
+    "--prefix",
+    help="Prefix for the rule description",
+    default="Auto-generated rule",
+)
+@click.option(
+    "-b",
+    "--identifier",
+    help="Text file from which the identifier is read (default: last folder name in the full path)",
+    default="not set",
+)
+@click.option(
+    "--score",
+    help="Show the string scores as comments in the rules",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--strings",
+    help="Show the string scores as comments in the rules",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--nosimple",
+    help="Skip simple rule creation for files included in super rules",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--nomagic",
+    help="Don't include the magic header condition statement",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--nofilesize",
+    help="Don't include the filesize condition statement",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "-fm",
+    "--filesize-multiplier",
+    help="Multiplier for the maximum 'filesize' condition value (default: 3)",
+    type=int,
+    default=3,
+)
+@click.option(
+    "--globalrule",
+    help="Create global rules (improved rule set speed)",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--nosuper",
+    help="Don't try to create super rules that match against various files",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "-R",
+    "--recursive",
+    help="Recursively scan directories",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--oe",
+    "--only-executable",
+    help="Only scan executable extensions EXE, DLL, ASP, JSP, PHP, BIN, INFECTED",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "-fs",
+    "--max-file-size",
+    help="Max file size in MB to analyze (default=10)",
+    type=int,
+    default=10,
+)
+@click.option(
+    "--noextras",
+    help="Don't use extras like Imphash or PE header specifics",
+    is_flag=True,
+    default=False,
+)
+@click.option("--debug", help="Debug output", is_flag=True, default=False)
+@click.option("--trace", help="Trace output", is_flag=True, default=False)
+@click.option(
+    "--opcodes",
+    help="Do use the OpCode feature (use this if not enough high scoring strings can be found)",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "-n",
+    "--opcode-num",
+    help="Number of opcodes to add if not enough high scoring string could be found (default=3)",
+    type=int,
+    default=3,
+)
+def generate(**kwargs):
+    """Generate YARA rules from malware samples"""
+    args = type("Args", (), kwargs)()
 
-    if args.debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-    # Identifier
-    sourcepath = args.m
-    if args.g:
-        sourcepath = args.g
-    args.identifier = getIdentifier(args.b, sourcepath)
+    # Validate input
+    if args.malware_path and os.path.isfile(args.malware_path):
+        click.echo("[E] Input is a file, please use a directory instead (-m path)")
+        sys.exit(0)
+    sourcepath = args.malware_path
+    args.identifier = getIdentifier(args.identifier, sourcepath)
     print("[+] Using identifier '%s'" % args.identifier)
 
     # Reference
@@ -308,232 +466,263 @@ if __name__ == "__main__":
     print("[+] Using reference '%s'" % args.ref)
 
     # Prefix
-    args.prefix = getPrefix(args.p, args.identifier)
+    args.prefix = getPrefix(args.prefix, args.identifier)
     print("[+] Using prefix '%s'" % args.prefix)
 
-    if strs := initialize_pestudio_strings():
-        pestudio_available = True
-        pestudio_strings = strs
+    pestudio_strings = initialize_pestudio_strings()
+    print("[+] Reading goodware strings from database 'good-strings.db' ...")
+    print("    (This could take some time and uses several Gigabytes of RAM depending on your db size)")
 
-    # Highly specific string score
-    args.score_highly_specific = int(args.x)
+    good_strings_db = Counter()
+    good_opcodes_db = Counter()
+    good_imphashes_db = Counter()
+    good_exports_db = Counter()
 
-    # Scan goodware files
-    if args.g:
-        print("[+] Processing goodware files ...")
-        state = State(
-            args, None, None, None, None, pestudio_available, pestudio_strings
-        )
-        good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
-            parse_good_dir(state, args.g)
-        )
+    opcodes_num = 0
+    strings_num = 0
+    imphash_num = 0
+    exports_num = 0
 
-        # Update existing databases
-        if args.u:
-            try:
-                print("[+] Updating databases ...")
+    # Initialize all databases
+    for file in os.listdir(get_abs_path(DB_PATH)):
+        if not file.endswith(".db"):
+            continue  # String databases
+        strings_num = load_db(file, good_strings_db, "good-strings")
+        opcodes_num = load_db(file, good_opcodes_db, "good-opcodes")
+        imphash_num = load_db(file, good_imphashes_db, "good-imphash")
+        exports_num = load_db(file, good_exports_db, "good-exports")
 
-                # Evaluate the database identifiers
-                db_identifier = ""
-                if args.i != "":
-                    db_identifier = "-%s" % args.i
-                strings_db = "./dbs/good-strings%s.db" % db_identifier
-                opcodes_db = "./dbs/good-opcodes%s.db" % db_identifier
-                imphashes_db = "./dbs/good-imphashes%s.db" % db_identifier
-                exports_db = "./dbs/good-exports%s.db" % db_identifier
+    if args.opcodes and len(good_opcodes_db) < 1:
+        click.echo("[E] Missing goodware opcode databases.    Please run 'yarGen.py --update' to retrieve the newest database set.")
+        args.opcodes = False
 
-                # Strings -----------------------------------------------------
-                print("[+] Updating %s ..." % strings_db)
-                good_pickle = load(get_abs_path(strings_db))
-                print("Old string database entries: %s" % len(good_pickle))
-                good_pickle.update(good_strings_db)
-                print("New string database entries: %s" % len(good_pickle))
-                save(good_pickle, strings_db)
+    if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
+        click.echo("[E] Missing goodware imphash/export databases.     Please run 'yarGen.py --update' to retrieve the newest database set.")
 
-                # Opcodes -----------------------------------------------------
-                print("[+] Updating %s ..." % opcodes_db)
-                good_opcode_pickle = load(get_abs_path(opcodes_db))
-                print("Old opcode database entries: %s" % len(good_opcode_pickle))
-                good_opcode_pickle.update(good_opcodes_db)
-                print("New opcode database entries: %s" % len(good_opcode_pickle))
-                save(good_opcode_pickle, opcodes_db)
+    if len(good_strings_db) < 1 and not args.c:
+        click.echo("[E] Error - no goodware databases found.     Please run 'yarGen.py --update' to retrieve the newest database set.")
+        sys.exit(1)
+    # Deactivate super rule generation if there's only a single file in the folder
+    if len(os.listdir(args.malware_path)) < 2:
+        args.nosuper = True
 
-                # Imphashes ---------------------------------------------------
-                print("[+] Updating %s ..." % imphashes_db)
-                good_imphashes_pickle = load(get_abs_path(imphashes_db))
-                print("Old opcode database entries: %s" % len(good_imphashes_pickle))
-                good_imphashes_pickle.update(good_imphashes_db)
-                print("New opcode database entries: %s" % len(good_imphashes_pickle))
-                save(good_imphashes_pickle, imphashes_db)
+    # Special strings
+    state = State(
+        args,
+        good_strings_db,
+        good_opcodes_db,
+        good_imphashes_db,
+        good_exports_db,
+        pestudio_strings,
+    )
+    # Scan malware files
+    click.echo(f"[+] Generating YARA rules from {args.malware_path}")
+    (combinations, super_rules, file_strings, file_opcodes, file_utf16strings, file_info, scoring_engine) = yarobot_rs.process_malware(
+        args.malware_path,
+        args.recursive,
+        RELEVANT_EXTENSIONS,
+        args.min_size,
+        args.max_size,
+        args.max_file_size,
+        args.opcodes,
+        args.debug,
+        args.excludegood,
+        args.min_score,
+        args.superrule_overlap,
+        good_strings_db,
+        good_opcodes_db,
+        good_imphashes_db,
+        good_exports_db,
+    )
+    # Create Rule Files
+    (rule_count, super_rule_count) = generate_rules(
+        scoring_engine,
+        state,
+        file_strings,
+        file_opcodes,
+        super_rules,
+        file_info,
+    )
 
-                # Exports -----------------------------------------------------
-                print("[+] Updating %s ..." % exports_db)
-                good_exports_pickle = load(get_abs_path(exports_db))
-                print("Old opcode database entries: %s" % len(good_exports_pickle))
-                good_exports_pickle.update(good_exports_db)
-                print("New opcode database entries: %s" % len(good_exports_pickle))
-                save(good_exports_pickle, exports_db)
+    print("[=] Generated %s SIMPLE rules." % str(rule_count))
+    if not state.args.nosuper:
+        print("[=] Generated %s SUPER rules." % str(super_rule_count))
+    print("[=] All rules written to %s" % state.args.output_rule_file)
 
-            except Exception:
-                traceback.print_exc()
 
-        # Create new databases
-        if args.c:
-            print("[+] Creating local database ...")
-            # Evaluate the database identifiers
-            db_identifier = ""
-            if args.i != "":
-                db_identifier = "-%s" % args.i
-            strings_db = "./dbs/good-strings%s.db" % db_identifier
-            opcodes_db = "./dbs/good-opcodes%s.db" % db_identifier
-            imphashes_db = "./dbs/good-imphashes%s.db" % db_identifier
-            exports_db = "./dbs/good-exports%s.db" % db_identifier
+@cli.command()
+@click.option("-g", "--goodware-path", required=True, help="Path to scan for goodware")
+@click.option("-i", "--identifier", help="Identifier for the database files", required=True)
+@click.option(
+    "--update",
+    help="Update existing database with new goodware samples",
+    is_flag=True,
+    default=False,
+)
+@click.option("--debug", help="Debug output", is_flag=True, default=False)
+def database(**kwargs):
+    """Manage goodware databases"""
+    args = type("Args", (), kwargs)()
+    print("[+] Processing goodware files ...")
+    state = State(args, None, None, None, None, pestudio_strings)
+    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = parse_good_dir(state, args.g)
 
-            # Creating the databases
-            print(
-                "[+] Using '%s' as filename for newly created strings database"
-                % strings_db
-            )
-            print(
-                "[+] Using '%s' as filename for newly created opcodes database"
-                % opcodes_db
-            )
-            print(
-                "[+] Using '%s' as filename for newly created opcodes database"
-                % imphashes_db
-            )
-            print(
-                "[+] Using '%s' as filename for newly created opcodes database"
-                % exports_db
-            )
+    # Update existing databases
+    if args.update:
+        print("[+] Updating databases ...")
 
-            try:
-                for file in [strings_db, opcodes_db, imphashes_db, exports_db]:
-                    if os.path.isfile(file):
-                        input(
-                            "File %s alread exists. Press enter to proceed or CTRL+C to exit."
-                            % file
-                        )
-                        os.remove(file)
+        # Evaluate the database identifiers
+        db_identifier = ""
+        if args.i != "":
+            db_identifier = "-%s" % args.i
+        strings_db = "./dbs/good-strings%s.db" % db_identifier
+        opcodes_db = "./dbs/good-opcodes%s.db" % db_identifier
+        imphashes_db = "./dbs/good-imphashes%s.db" % db_identifier
+        exports_db = "./dbs/good-exports%s.db" % db_identifier
 
-                # Strings
-                good_json = good_strings_db
-                # Opcodes
-                good_op_json = good_opcodes_db
-                # Imphashes
-                good_imphashes_json = good_imphashes_db
-                # Exports
-                good_exports_json = good_exports_db
+        # Strings -----------------------------------------------------
+        print("[+] Updating %s ..." % strings_db)
+        good_pickle = load(get_abs_path(strings_db))
+        print("Old string database entries: %s" % len(good_pickle))
+        good_pickle.update(good_strings_db)
+        print("New string database entries: %s" % len(good_pickle))
+        save(good_pickle, strings_db)
 
-                # Save
-                save(good_json, strings_db)
-                save(good_op_json, opcodes_db)
-                save(good_imphashes_json, imphashes_db)
-                save(good_exports_json, exports_db)
+        # Opcodes -----------------------------------------------------
+        print("[+] Updating %s ..." % opcodes_db)
+        good_opcode_pickle = load(get_abs_path(opcodes_db))
+        print("Old opcode database entries: %s" % len(good_opcode_pickle))
+        good_opcode_pickle.update(good_opcodes_db)
+        print("New opcode database entries: %s" % len(good_opcode_pickle))
+        save(good_opcode_pickle, opcodes_db)
 
-                print(
-                    "New database with %d string, %d opcode, %d imphash, %d export entries created. "
-                    "(remember to use --opcodes to extract opcodes from the samples and create the opcode databases)"
-                    % (
-                        len(good_strings_db),
-                        len(good_opcodes_db),
-                        len(good_imphashes_db),
-                        len(good_exports_db),
-                    )
-                )
-            except Exception:
-                traceback.print_exc()
+        # Imphashes ---------------------------------------------------
+        print("[+] Updating %s ..." % imphashes_db)
+        good_imphashes_pickle = load(get_abs_path(imphashes_db))
+        print("Old opcode database entries: %s" % len(good_imphashes_pickle))
+        good_imphashes_pickle.update(good_imphashes_db)
+        print("New opcode database entries: %s" % len(good_imphashes_pickle))
+        save(good_imphashes_pickle, imphashes_db)
 
-    # Analyse malware samples and create rules
+        # Exports -----------------------------------------------------
+        print("[+] Updating %s ..." % exports_db)
+        good_exports_pickle = load(get_abs_path(exports_db))
+        print("Old opcode database entries: %s" % len(good_exports_pickle))
+        good_exports_pickle.update(good_exports_db)
+        print("New opcode database entries: %s" % len(good_exports_pickle))
+        save(good_exports_pickle, exports_db)
+
+    if args.update:
+        click.echo(f"[+] Updating goodware database with samples from {args.goodware_path}")
+        # from app.dbs import update_goodware_db
+        # update_goodware_db(args)
     else:
-        print("[+] Reading goodware strings from database 'good-strings.db' ...")
-        print(
-            "    (This could take some time and uses several Gigabytes of RAM depending on your db size)"
+        click.echo("[+] Creating local database ...")
+        # Evaluate the database identifiers
+        db_identifier = ""
+        if args.i != "":
+            db_identifier = "-%s" % args.i
+        strings_db = "./dbs/good-strings%s.db" % db_identifier
+        opcodes_db = "./dbs/good-opcodes%s.db" % db_identifier
+        imphashes_db = "./dbs/good-imphashes%s.db" % db_identifier
+        exports_db = "./dbs/good-exports%s.db" % db_identifier
+
+        # Creating the databases
+        click.echo("[+] Using '%s' as filename for newly created strings database" % strings_db)
+        click.echo("[+] Using '%s' as filename for newly created opcodes database" % opcodes_db)
+        click.echo("[+] Using '%s' as filename for newly created opcodes database" % imphashes_db)
+        click.echo("[+] Using '%s' as filename for newly created opcodes database" % exports_db)
+
+        for file in [strings_db, opcodes_db, imphashes_db, exports_db]:
+            if os.path.isfile(file):
+                input("File %s alread exists. Press enter to proceed or CTRL+C to exit." % file)
+                os.remove(file)
+
+        # Strings
+        good_json = good_strings_db
+        # Opcodes
+        good_op_json = good_opcodes_db
+        # Imphashes
+        good_imphashes_json = good_imphashes_db
+        # Exports
+        good_exports_json = good_exports_db
+
+        # Save
+        save(good_json, strings_db)
+        save(good_op_json, opcodes_db)
+        save(good_imphashes_json, imphashes_db)
+        save(good_exports_json, exports_db)
+
+        click.echo(
+            "New database with %d string, %d opcode, %d imphash, %d export entries created. "
+            "(remember to use --opcodes to extract opcodes from the samples and create the opcode databases)"
+            % (
+                len(good_strings_db),
+                len(good_opcodes_db),
+                len(good_imphashes_db),
+                len(good_exports_db),
+            )
         )
 
-        good_strings_db = Counter()
-        good_opcodes_db = Counter()
-        good_imphashes_db = Counter()
-        good_exports_db = Counter()
 
-        opcodes_num = 0
-        strings_num = 0
-        imphash_num = 0
-        exports_num = 0
+@cli.command()
+def update():
+    """Update the local strings and opcodes databases from the online repository"""
+    args = type("Args", (), {})()
+    dbs.update_databases(args)
+    click.echo("[+] Updated databases - you can now start creating YARA rules")
 
-        # Initialize all databases
-        for file in os.listdir(get_abs_path(DB_PATH)):
-            if not file.endswith(".db"):
-                continue  # String databases
-            strings_num = load_db(file, good_strings_db, "good-strings")
-            opcodes_num = load_db(file, good_opcodes_db, "good-opcodes")
-            imphash_num = load_db(file, good_imphashes_db, "good-imphash")
-            exports_num = load_db(file, good_exports_db, "good-exports")
 
-        if args.opcodes and len(good_opcodes_db) < 1:
-            print(
-                "[E] Missing goodware opcode databases."
-                "    Please run 'yarGen.py --update' to retrieve the newest database set."
-            )
-            args.opcodes = False
+@cli.command()
+@click.option("-m", "--malware-path", required=True, help="Path to monitor for malware samples")
+@click.option(
+    "-y",
+    "--min-size",
+    help="Minimum string length to consider (default=8)",
+    type=int,
+    default=8,
+)
+@click.option(
+    "-z",
+    "--min-score",
+    help="Minimum score to consider (default=5)",
+    type=int,
+    default=5,
+)
+@click.option("-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar")
+@click.option("-a", "--author", help="Author Name", default="yarobot Rule Generator")
+@click.option("--opcodes", help="Use the OpCode feature", is_flag=True, default=False)
+@click.option("--debug", help="Debug output", is_flag=True, default=False)
+def dropzone(**kwargs):
+    """Dropzone mode - monitor directory for new samples and generate rules automatically"""
+    args = type("Args", (), kwargs)()
 
-        if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
-            print(
-                "[E] Missing goodware imphash/export databases. "
-                "    Please run 'yarGen.py --update' to retrieve the newest database set."
-            )
+    click.echo(f"[+] Starting dropzone mode, monitoring {args.malware_path}")
+    click.echo("[!] WARNING: Processed files will be deleted!")
 
-        if len(good_strings_db) < 1 and not args.c:
-            print(
-                "[E] Error - no goodware databases found. "
-                "    Please run 'yarGen.py --update' to retrieve the newest database set."
-            )
-            sys.exit(1)
-
-    # If malware directory given
-    if args.m:
-        # Deactivate super rule generation if there's only a single file in the folder
-        if len(os.listdir(args.m)) < 2:
-            args.nosuper = True
-
-        # Special strings
-        state = State(
-            args,
-            good_strings_db,
-            good_opcodes_db,
-            good_imphashes_db,
-            good_exports_db,
-            pestudio_available,
-            pestudio_strings,
-        )
-        # Dropzone mode
-        if args.dropzone:
-            # Monitoring folder for changes
-            print(
-                "Monitoring %s for new sample files (processed samples will be removed)"
-                % args.m
-            )
-            while True:
-                if len(os.listdir(args.m)) > 0:
-                    # Deactivate super rule generation if there's only a single file in the folder
-                    if len(os.listdir(args.m)) < 2:
-                        args.nosuper = True
-                    else:
-                        args.nosuper = False
-                    # Read a new identifier
-                    identifier = getIdentifier(args.b, args.m)
-                    # Read a new reference
-                    reference = getReference(args.ref)
-                    # Generate a new description prefix
-                    prefix = getPrefix(args.p, identifier)
-                    # Process the samples
-                    processSampleDir(args.m, state)
-                    # Delete all samples from the dropzone folder
-                    emptyFolder(args.m)
-                time.sleep(1)
-        else:
-            # Scan malware files
-            print("[+] Processing malware files ...")
+    while True:
+        if len(os.listdir(args.m)) > 0:
+            # Deactivate super rule generation if there's only a single file in the folder
+            if len(os.listdir(args.m)) < 2:
+                args.nosuper = True
+            else:
+                args.nosuper = False
+            # Read a new identifier
+            identifier = getIdentifier(args.b, args.m)
+            # Read a new reference
+            reference = getReference(args.ref)
+            # Generate a new description prefix
+            prefix = getPrefix(args.p, identifier)
+            # Process the samples
             processSampleDir(args.m, state)
+            # Delete all samples from the dropzone folder
+            emptyFolder(args.m)
+        time.sleep(1)
 
-        print("[+] yarGen run finished")
+
+# MAIN ################################################################
+if __name__ == "__main__":
+    logging.basicConfig(level=os.environ.get("YAROBOT_LOG_LEVEL", "INFO"))
+    logging.getLogger().setLevel(logging.DEBUG)
+    cli()
+    # Identifier

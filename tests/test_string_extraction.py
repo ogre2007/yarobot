@@ -5,9 +5,7 @@ import yarobot_rs
 
 
 def test_string_extraction():
-    strings, utf16strs = yarobot_rs.extract_strings(
-        b"string1\0string2\nmultilinestring\n1\0string1", 5, 128
-    )
+    strings, utf16strs = yarobot_rs.extract_strings(b"string1\0string2\nmultilinestring\n1\0string1", 5, 128)
     print(strings)
     assert strings["string1"].count == 2
     assert strings["string2"].count == 1
@@ -70,9 +68,7 @@ def test_parse_good_dir_aggregates_counts(tmp_path):
     )
     state = SimpleNamespace(args=args)
 
-    all_strings, all_opcodes, all_imphashes, all_exports = parse_good_dir(
-        state, str(tmp_path)
-    )
+    all_strings, all_opcodes, all_imphashes, all_exports = parse_good_dir(state, str(tmp_path))
     print(all_strings)
     # alpha appears 3 times across files
     assert all_strings["alpha"].count == 3
@@ -84,7 +80,5 @@ def test_parse_good_dir_aggregates_counts(tmp_path):
 
 
 def test_create_rust_struc():
-    x = yarobot_rs.TokenInfo(
-        "wasd", 16, yarobot_rs.TokenType.BINARY, {"file", "file2"}, ""
-    )
+    x = yarobot_rs.TokenInfo("wasd", 16, yarobot_rs.TokenType.BINARY, {"file", "file2"}, "")
     print(str(x))

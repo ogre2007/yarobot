@@ -14,7 +14,7 @@ def get_opcode_string(opcode):
     return " ".join(opcode.reprz[i : i + 2] for i in range(0, len(opcode.reprz), 2))
 
 
-def filter_string_set(tokens, state):
+def __filter_string_set(tokens, state):
     # This is the only set we have - even if it's a weak one
     useful_set = []
 
@@ -58,7 +58,7 @@ def filter_string_set(tokens, state):
         # print "Good string: %s" % string
 
         # PEStudio String Blacklist Evaluation
-        if state.pestudio_available:
+        if state.pestudio_strings:
             (pescore, type) = get_pestudio_score(tok.reprz, state.pestudio_strings)
             # print("PE Match: %s" % string)
             # Reset score of goodware files to 5 if blacklisted in PEStudio
@@ -71,7 +71,7 @@ def filter_string_set(tokens, state):
                 tok.score = pescore
 
         if not goodstring:
-            score, cats = score_with_regex(tok) 
+            score, cats = score_with_regex(tok)
             # ENCODING DETECTIONS --------------------------------------------------
             try:
                 if len(tok.reprz) > 8:
@@ -89,14 +89,10 @@ def filter_string_set(tokens, state):
                     ):
                         if yarobot_rs.is_base_64(m_string):
                             try:
-                                decoded_string = base64.b64decode(
-                                    m_string, validate=False
-                                )
+                                decoded_string = base64.b64decode(m_string, validate=False)
                             except binascii.Error:
                                 continue
-                            if yarobot_rs.is_ascii_string(
-                                decoded_string, padding_allowed=True
-                            ):
+                            if yarobot_rs.is_ascii_string(decoded_string, padding_allowed=True):
                                 # print "match"
                                 tok.score += 10
                                 state.base64strings[tok.reprz] = decoded_string
@@ -110,15 +106,10 @@ def filter_string_set(tokens, state):
                             decoded_string = bytes.fromhex(m_string)
                             if len(decoded_string) == 0:
                                 raise Exception()
-                            if yarobot_rs.is_ascii_string(
-                                decoded_string, padding_allowed=True
-                            ):
+                            if yarobot_rs.is_ascii_string(decoded_string, padding_allowed=True):
                                 # not too many 00s
                                 if "00" in m_string:
-                                    if (
-                                        len(m_string) / float(m_string.count("0"))
-                                        <= 1.2
-                                    ):
+                                    if len(m_string) / float(m_string.count("0")) <= 1.2:
                                         continue
                                 # print("^ is ASCII / WIDE")
                                 tok.score += 8
@@ -225,9 +216,7 @@ def extract_stats_by_file(stats, outer_dict, flt=lambda x: x):
             count = value.count
             files = value.files
         if flt(count):
-            logging.getLogger("yarobot").debug(
-                f" [-] Adding {token} ({value}) to {len(files)} files."
-            )
+            logging.getLogger("yarobot").debug(f" [-] Adding {token} ({value}) to {len(files)} files.")
             for filePath in files:
                 if filePath in outer_dict:
                     outer_dict[filePath].append(value)
@@ -261,11 +250,7 @@ def find_combinations(stats):
                 combinations[combi]["count"] += 1
                 combinations[combi]["strings"].append(info)
             # Set the maximum combination count
-            max_combi_count = (
-                combinations[combi]["count"]
-                if combinations[combi]["count"] > max_combi_count
-                else max_combi_count
-            )
+            max_combi_count = combinations[combi]["count"] if combinations[combi]["count"] > max_combi_count else max_combi_count
             # print "Max Combi Count set to: %s" % max_combi_count
     return combinations, max_combi_count
 
