@@ -75,7 +75,7 @@ pub fn get_files(folder: String, recursive: bool) -> PyResult<Vec<String>> {
 impl FileProcessor {
     #[new]
     pub fn new(
-        recursive: bool, 
+        recursive: bool,
         extensions: Option<Vec<String>>,
         minssize: usize,
         maxssize: usize,
@@ -84,7 +84,7 @@ impl FileProcessor {
         debug: bool,
     ) -> Self {
         Self {
-            recursive, 
+            recursive,
             extensions,
             minssize,
             maxssize,
@@ -118,7 +118,7 @@ impl FileProcessor {
     pub fn process_file_with_checks(&mut self, file_path: String) -> bool {
         let os_path = path::Path::new(&file_path);
 
-        if let Some(extensions) = &self.extensions{
+        if let Some(extensions) = &self.extensions {
             match os_path.extension().and_then(OsStr::to_str) {
                 Some(ext) => {
                     if !extensions

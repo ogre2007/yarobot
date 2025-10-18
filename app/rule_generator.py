@@ -212,7 +212,7 @@ def generate_rules(
     file_opcodes,
     super_rules,
     file_info,
-): 
+):
     try:
         fh = open(state.args.output_rule_file, "w")
     except Exception:
@@ -629,11 +629,11 @@ def generate_rules(
         if not state.args.noextras:
             if pe_module_necessary:
                 fh.write('import "pe"\n\n')
-        # RULES ------------------------------ 
+        # RULES ------------------------------
         fh.write(rules)
     except Exception:
         traceback.print_exc()
- 
+
     try:
         fh.close()
     except Exception:

@@ -70,9 +70,8 @@ fn process_malware(
         opcodes,
     };
 
-    let (combis, superrules, file_strings, file_opcodes, file_utf16strings) = scoring_engine
-        .sample_string_evaluation()
-        .unwrap();
+    let (combis, superrules, file_strings, file_opcodes, file_utf16strings) =
+        scoring_engine.sample_string_evaluation().unwrap();
     Ok((
         combis,
         superrules,
@@ -290,7 +289,7 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<types::TokenInfo>()?;
     m.add_class::<types::TokenType>()?;
     m.add_class::<processing::FileProcessor>()?;
-        m.add_class::<ScoringEngine>()?;
+    m.add_class::<ScoringEngine>()?;
 
     m.add_class::<Combination>()?;
 

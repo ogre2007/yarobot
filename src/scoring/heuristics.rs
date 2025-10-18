@@ -1,19 +1,24 @@
 use regex::Regex;
 use std::collections::HashMap;
 
-use crate::{regex_base::{RegexRules, REGEX_INSENSITIVE, REGEX_SENSITIVE}, TokenInfo};
-  
+use crate::{
+    regex_base::{RegexRules, REGEX_INSENSITIVE, REGEX_SENSITIVE},
+    TokenInfo,
+};
 
-pub fn get_pestudio_score(string: &str, pestudio_strings: HashMap<String, (i64, String)>) -> (i32, String) {
+pub fn get_pestudio_score(
+    string: &str,
+    pestudio_strings: HashMap<String, (i64, String)>,
+) -> (i32, String) {
     for (str, elem) in pestudio_strings {
         // Exclude the "extension" black list for now
         if elem.1 == "ext" {
             continue;
         }
- 
+
         if str.to_lowercase() == string.to_lowercase() {
             return (5, elem.1.clone());
-        } 
+        }
     }
     (0, String::new())
 }
@@ -65,4 +70,3 @@ pub fn score_with_regex(tok: &mut TokenInfo) -> (i64, String) {
 
     (total_score, all_cats)
 }
- 

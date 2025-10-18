@@ -11,7 +11,6 @@ use pyo3::{
 use regex::Regex;
 use std::{
     collections::{HashMap, HashSet},
-    sync::OnceLock,
     usize,
 };
 
@@ -58,8 +57,6 @@ pub struct Combination {
     pub files: HashSet<String>,
 }
 
-
-
 // External functions that would be implemented elsewhere
 pub fn get_pestudio_score(
     string: &str,
@@ -71,7 +68,6 @@ pub fn get_pestudio_score(
         .cloned()
         .unwrap_or((0, String::new()))
 }
- 
 
 pub fn get_opcode_string(opcode: &str) -> String {
     let reprz = opcode; // Assuming opcode is already the reprz
@@ -159,37 +155,37 @@ pub fn extract_stats_by_file<'a>(
 #[pymethods]
 impl ScoringEngine {
     pub fn filter_opcode_set(&self, opcode_set: Vec<String>) -> PyResult<Vec<String>> {
-    let pref_opcodes = vec![" 34 ", "ff ff ff "];
-    let mut useful_set = Vec::new();
-    let mut pref_set = Vec::new();
+        let pref_opcodes = vec![" 34 ", "ff ff ff "];
+        let mut useful_set = Vec::new();
+        let mut pref_set = Vec::new();
 
-    for opcode in opcode_set {
-        if self.good_opcodes_db.contains_key(&opcode) {
-            debug!("skipping {}", opcode);
+        for opcode in opcode_set {
+            if self.good_opcodes_db.contains_key(&opcode) {
+                debug!("skipping {}", opcode);
 
-            continue;
-        }
+                continue;
+            }
 
-        let formatted_opcode = get_opcode_string(&opcode);
-        let mut set_in_pref = false;
+            let formatted_opcode = get_opcode_string(&opcode);
+            let mut set_in_pref = false;
 
-        for pref in &pref_opcodes {
-            if formatted_opcode.contains(pref) {
-                pref_set.push(formatted_opcode.clone());
-                set_in_pref = true;
-                break;
+            for pref in &pref_opcodes {
+                if formatted_opcode.contains(pref) {
+                    pref_set.push(formatted_opcode.clone());
+                    set_in_pref = true;
+                    break;
+                }
+            }
+
+            if !set_in_pref {
+                useful_set.push(formatted_opcode);
             }
         }
 
-        if !set_in_pref {
-            useful_set.push(formatted_opcode);
-        }
+        // Preferred opcodes first
+        pref_set.append(&mut useful_set);
+        Ok(pref_set)
     }
-
-    // Preferred opcodes first
-    pref_set.append(&mut useful_set);
-    Ok(pref_set)
-}
     pub fn filter_string_set(&mut self, tokens: Vec<TokenInfo>) -> PyResult<Vec<TokenInfo>> {
         if tokens.is_empty() {
             panic!();
@@ -236,7 +232,7 @@ impl ScoringEngine {
 
             if !goodstring {
                 info!("before heur: {}", token.score);
- 
+
                 score_with_regex(&mut token);
                 // Encoding detections
                 if token.reprz.len() > 8 {
@@ -339,8 +335,14 @@ impl ScoringEngine {
     }
 
     pub fn sample_string_evaluation(
-        &mut self 
-    ) -> PyResult<(HashMap<String, Combination>, Vec<Combination>, HashMap<String, Vec<TokenInfo>>, HashMap<String, Vec<TokenInfo>>, HashMap<String, Vec<TokenInfo>>)> {
+        &mut self,
+    ) -> PyResult<(
+        HashMap<String, Combination>,
+        Vec<Combination>,
+        HashMap<String, Vec<TokenInfo>>,
+        HashMap<String, Vec<TokenInfo>>,
+        HashMap<String, Vec<TokenInfo>>,
+    )> {
         info!("[+] Generating statistical data ...");
         info!("\t[INPUT] Strings: {}", self.string_scores.len());
         let mut file_strings = HashMap::new();
@@ -348,22 +350,12 @@ impl ScoringEngine {
 
         let mut file_opcodes = HashMap::new();
 
-        extract_stats_by_file(
-            &self.string_scores,
-            &mut file_strings,
-            Some(0),
-            Some(10),
-        );
+        extract_stats_by_file(&self.string_scores, &mut file_strings, Some(0), Some(10));
 
         //STRING EVALUATION -------------------------------------------------------
         extract_stats_by_file(&self.opcodes, &mut file_opcodes, None, None);
 
-        extract_stats_by_file(
-            &self.utf16strings,
-            &mut file_utf16strings,
-            None,
-            None,
-        );
+        extract_stats_by_file(&self.utf16strings, &mut file_utf16strings, None, None);
         let (mut combinations, max_combi_count) = find_combinations(&self.string_scores).unwrap();
 
         info!("[+] Generating Super Rules ... (a lot of magic)");
@@ -397,6 +389,12 @@ impl ScoringEngine {
         }
         info!("OUTPUT: {} super rules", super_rules.len());
 
-        Ok((combinations, super_rules, file_strings, file_opcodes, file_utf16strings))
+        Ok((
+            combinations,
+            super_rules,
+            file_strings,
+            file_opcodes,
+            file_utf16strings,
+        ))
     }
 }
