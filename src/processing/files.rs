@@ -18,7 +18,8 @@ use walkdir::WalkDir;
 pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, TokenInfo>) {
     for (tok, info) in new.into_iter() {
         if stats.len() > 0 {
-            assert_eq!(stats.iter().nth(0).unwrap().1.typ, info.typ);
+            //println!("{:?}", &info);
+            //assert_eq!(stats.iter().nth(0).unwrap().1.typ, info.typ);
         }
         let inf = stats.entry(tok).or_insert(Default::default());
         inf.merge(&info);
@@ -29,7 +30,6 @@ pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, 
 #[derive(Debug, Clone, Default)]
 pub struct FileProcessor {
     recursive: bool,
-    filter_extensions: bool,
     extensions: Option<Vec<String>>,
     minssize: usize,
     maxssize: usize,

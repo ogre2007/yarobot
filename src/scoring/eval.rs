@@ -69,9 +69,9 @@ pub fn get_pestudio_score(
         .unwrap_or((0, String::new()))
 }
 
-pub fn get_opcode_string(opcode: &str) -> String {
-    let reprz = opcode; // Assuming opcode is already the reprz
-    (0..reprz.len())
+pub fn get_opcode_string(opcode: &mut TokenInfo) {
+    let reprz = opcode.reprz.clone(); // Assuming opcode is already the reprz
+    opcode.reprz = (0..reprz.len())
         .step_by(2)
         .map(|i| {
             if i + 2 <= reprz.len() {
@@ -154,31 +154,31 @@ pub fn extract_stats_by_file<'a>(
 
 #[pymethods]
 impl ScoringEngine {
-    pub fn filter_opcode_set(&self, opcode_set: Vec<String>) -> PyResult<Vec<String>> {
+    pub fn filter_opcode_set(&self, mut opcode_set: Vec<TokenInfo>) -> PyResult<Vec<TokenInfo>> {
         let pref_opcodes = vec![" 34 ", "ff ff ff "];
         let mut useful_set = Vec::new();
         let mut pref_set = Vec::new();
 
-        for opcode in opcode_set {
-            if self.good_opcodes_db.contains_key(&opcode) {
-                debug!("skipping {}", opcode);
+        for opcode in opcode_set.iter_mut() {
+            if self.good_opcodes_db.contains_key(&opcode.reprz) {
+                debug!("skipping {}", opcode.reprz);
 
                 continue;
             }
 
-            let formatted_opcode = get_opcode_string(&opcode);
+            get_opcode_string(opcode);
             let mut set_in_pref = false;
 
             for pref in &pref_opcodes {
-                if formatted_opcode.contains(pref) {
-                    pref_set.push(formatted_opcode.clone());
+                if opcode.reprz.contains(pref) {
+                    pref_set.push(opcode.clone());
                     set_in_pref = true;
                     break;
                 }
             }
 
             if !set_in_pref {
-                useful_set.push(formatted_opcode);
+                useful_set.push(opcode.clone());
             }
         }
 
@@ -222,6 +222,7 @@ impl ScoringEngine {
             let (pescore, type_str) = get_pestudio_score(&token.reprz, &self.pestudio_strings);
             if !type_str.is_empty() {
                 self.pestudio_marker.insert(token.reprz.clone(), type_str);
+                token.from_pestudio = true;
                 if goodstring {
                     let adjusted_pescore = pescore - (goodcount as f64 / 1000.0) as i64;
                     token.score = adjusted_pescore;
@@ -256,6 +257,7 @@ impl ScoringEngine {
                                         token.reprz.clone(),
                                         String::from_utf8_lossy(&decoded_bytes).to_string(),
                                     );
+                                    token.b64 = true;
                                 }
                             }
                         }
@@ -287,6 +289,8 @@ impl ScoringEngine {
                                         token.reprz.clone(),
                                         String::from_utf8_lossy(&decoded_bytes).to_string(),
                                     );
+                                    token.hexed = true;
+                                    token.fullword = false;
                                 }
                             }
                         }
@@ -298,6 +302,7 @@ impl ScoringEngine {
                 if self.good_strings_db.contains_key(&reversed) {
                     token.score += 10;
                     self.reversed_strings.insert(token.reprz.clone(), reversed);
+                    token.reversed = true;
                 }
 
                 // Certain string reduce

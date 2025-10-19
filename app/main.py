@@ -57,85 +57,6 @@ import sys
 from app import dbs
 
 
-def parse_good_dir(state, dir):
-    print(":: Parsing good samples ...")
-    fp = yarobot_rs.FileProcessor(
-        state.args.R,
-        state.args.oe,
-        RELEVANT_EXTENSIONS,
-        state.args.y,
-        state.args.s,
-        state.args.max_file_size,
-        state.args.opcodes,
-        state.args.debug,
-    )
-    return fp.parse_sample_dir(dir)
-
-
-def processSampleDir(targetDir, state):
-    """
-    Processes samples in a given directory and creates a yara rule file
-    :param directory:
-    :return:
-    """
-
-    fp = yarobot_rs.FileProcessor(
-        state.args.R,
-        state.args.oe,
-        RELEVANT_EXTENSIONS,
-        state.args.y,
-        state.args.s,
-        state.args.fs,
-        state.args.opcodes,
-        state.args.debug,
-    )
-    # Extract all information
-    (sample_string_stats, sample_opcode_stats, sample_utf16string_stats, file_info) = fp.parse_sample_dir(targetDir)
-    """
-    for k, v in sample_string_stats.items():
-        #print(v.files)
-        print(k, v)
-
-    exit() 
-    """
-    file_strings = {}
-    file_utf16strings = {}
-    file_opcodes = {}
-    # OPCODE EVALUATION -----------------------------------------------
-    extract_stats_by_file(sample_string_stats, file_opcodes, lambda x: x < 10)
-
-    # STRING EVALUATION -------------------------------------------------------
-    extract_stats_by_file(sample_opcode_stats, file_strings)
-
-    extract_stats_by_file(sample_utf16string_stats, file_utf16strings)
-    # Evaluate Strings
-    if not state.args.nosuper:
-        (combinations, super_rules) = sample_string_evaluation(
-            state,
-            sample_string_stats,
-            sample_opcode_stats,
-            sample_utf16string_stats,
-            file_strings if state.args.nosimple else None,
-            file_utf16strings if state.args.nosimple else None,
-            file_opcodes if state.args.nosimple else None,
-        )
-
-    # Create Rule Files
-    (rule_count, super_rule_count) = generate_rules(
-        scoring_engine,
-        state,
-        file_strings,
-        file_opcodes,
-        super_rules,
-        file_info,
-    )
-
-    print("[=] Generated %s SIMPLE rules." % str(rule_count))
-    if not state.args.nosuper:
-        print("[=] Generated %s SUPER rules." % str(super_rule_count))
-    print("[=] All rules written to %s" % state.args.output_rule_file)
-
-
 def getPrefix(prefix, identifier):
     """
     Get a prefix string for the rule description based on the identifier
@@ -343,7 +264,7 @@ def cli():
 @click.option(
     "--ref",
     help="Reference (can be string or text file)",
-    default="https://github.com/oogre2007/yarobot",
+    default="https://github.com/ogre2007/yarobot",
 )
 @click.option("-l", "--license", help="License", default="")
 @click.option(
@@ -360,12 +281,6 @@ def cli():
 )
 @click.option(
     "--score",
-    help="Show the string scores as comments in the rules",
-    is_flag=True,
-    default=False,
-)
-@click.option(
-    "--strings",
     help="Show the string scores as comments in the rules",
     is_flag=True,
     default=False,
@@ -493,14 +408,14 @@ def generate(**kwargs):
         exports_num = load_db(file, good_exports_db, "good-exports")
 
     if args.opcodes and len(good_opcodes_db) < 1:
-        click.echo("[E] Missing goodware opcode databases.    Please run 'yarGen.py --update' to retrieve the newest database set.")
+        click.echo("[E] Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set.")
         args.opcodes = False
 
     if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
-        click.echo("[E] Missing goodware imphash/export databases.     Please run 'yarGen.py --update' to retrieve the newest database set.")
+        click.echo("[E] Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set.")
 
     if len(good_strings_db) < 1 and not args.c:
-        click.echo("[E] Error - no goodware databases found.     Please run 'yarGen.py --update' to retrieve the newest database set.")
+        click.echo("[E] Error - no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set.")
         sys.exit(1)
     # Deactivate super rule generation if there's only a single file in the folder
     if len(os.listdir(args.malware_path)) < 2:
@@ -534,6 +449,10 @@ def generate(**kwargs):
         good_imphashes_db,
         good_exports_db,
     )
+
+    file_strings = {fpath: scoring_engine.filter_string_set(strings) for fpath, strings in file_strings.items()}
+    file_opcodes = {fpath: scoring_engine.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()}
+
     # Create Rule Files
     (rule_count, super_rule_count) = generate_rules(
         scoring_engine,

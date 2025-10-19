@@ -78,11 +78,11 @@ pub fn extract_opcodes(file_data: Vec<u8>) -> PyResult<HashMap<String, TokenInfo
         }
         Object::Mach(_) => {
             // Mach-O support can be added here
-            println!("Mach-O parsing not yet implemented");
+            println!("Mach-O parsing not yet implemented"); // TODO:
         }
         Object::Archive(_) => {
             // Archive support can be added here
-            println!("Archive parsing not yet implemented");
+            println!("Archive parsing not yet implemented"); // TODO: 
         }
         _ => {
             println!("Unknown binary format");

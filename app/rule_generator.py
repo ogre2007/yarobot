@@ -1,6 +1,7 @@
 from collections import Counter
 import datetime
 import traceback
+from typing import Any, List
 
 from app.config import KNOWN_IMPHASHES
 
@@ -10,6 +11,8 @@ import os
 import re
 import logging
 
+
+from yarobot_rs import ScoringEngine, TokenInfo
 
 def get_uint_string(magic):
     print(magic)
@@ -96,9 +99,6 @@ def get_strings(state, string_elements):
             state.utf16strings,
         )
     for i, string in enumerate(string_elements):
-        if string[:8] == "UTF16LE:":
-            string = string[8:]
-            strings["wide"].append(string)
         if string in state.utf16strings:
             strings["wide"].append(string)
         elif string in state.base64strings:
@@ -152,7 +152,7 @@ def write_strings(filePath, strings, output_dir, scores, stringScores):
         fh.write("\n".join(output_string))
 
 
-def generate_general_condition(state, file_info):
+def generate_general_condition(file_info, nofilesize, filesize_multiplier):
     """
     Generates a general condition for a set of files
     :param file_info:
@@ -191,8 +191,8 @@ def generate_general_condition(state, file_info):
             conditions.append("{0}".format(magic_string))
 
     # Biggest size multiplied with maxsize_multiplier
-    if not state.args.nofilesize and len(file_sizes) > 0:
-        conditions.append(get_file_range(max(file_sizes), state.args.filesize_multiplier))
+    if not nofilesize and len(file_sizes) > 0:
+        conditions.append(get_file_range(max(file_sizes), filesize_multiplier))
 
     # If different magic headers are less than 5
     if len(imphashes) == 1:
@@ -203,6 +203,290 @@ def generate_general_condition(state, file_info):
     condition_string = " and ".join(conditions)
 
     return condition_string, pe_module_neccessary
+
+
+
+def generate_meta(file, prefix, author, ref, hashes):
+    # Meta data -----------------------------------------------
+    rule = "   meta:\n"
+    rule += '      description = "%s - file %s"\n' % (
+        prefix,
+        file,
+    )
+    rule += '      author = "%s"\n' % author
+    rule += '      reference = "%s"\n' % ref
+    rule += '      date = "%s"\n' % get_timestamp_basic()
+    for i, hash in enumerate(hashes):
+        rule += '      hash%d = "%s"\n' % (i, hash)
+
+    return rule
+
+def add_conditions(conditions, subconditions, rule_strings, rule_opcodes, high_scoring_strings, pe_conditions_add):
+    # String combinations
+    cond_op = ""  # opcodes condition
+    cond_hs = ""  # high scoring strings condition
+    cond_ls = ""  # low scoring strings condition
+
+    low_scoring_strings = len(rule_strings) - high_scoring_strings
+    if high_scoring_strings > 0:
+        cond_hs = "1 of ($x*)"
+    if low_scoring_strings > 0:
+        if low_scoring_strings > 10:
+            if high_scoring_strings > 0:
+                cond_ls = "4 of them"
+            else:
+                cond_ls = "8 of them"
+        else:
+            cond_ls = "all of them"
+
+    # If low scoring and high scoring
+    cond_combined = "all of them"
+    needs_brackets = False
+    if low_scoring_strings > 0 and high_scoring_strings > 0:
+        # If PE conditions have been added, don't be so strict with the strings
+        if pe_conditions_add:
+            cond_combined = "{0} or {1}".format(cond_hs, cond_ls)
+            needs_brackets = True
+        else:
+            cond_combined = "{0} and {1}".format(cond_hs, cond_ls)
+    elif low_scoring_strings > 0 and not high_scoring_strings > 0:
+        cond_combined = "{0}".format(cond_ls)
+    elif not low_scoring_strings > 0 and high_scoring_strings > 0:
+        cond_combined = "{0}".format(cond_hs)
+    if rule_opcodes:
+        cond_op = " and all of ($op*)"
+        # Opcodes (if needed)
+    if cond_op or needs_brackets:
+        subconditions.append("( {0}{1} )".format(cond_combined, cond_op))
+    else:
+        subconditions.append(cond_combined)
+
+
+def generate_simple_rule(printed_rules, scoring_engine: ScoringEngine, state, strings: List[TokenInfo], opcodes, info, fname) -> str:
+    # Skip if there is nothing to do
+    if not strings:
+        logging.getLogger("yarobot").warning(
+            "[W] Not enough high scoring strings to create a rule. (Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s",
+            fname,
+        )
+        return False
+    elif not opcodes:
+        logging.getLogger("yarobot").warning(
+            "[W] Not enough high scoring strings and opcodes to create a rule. (Try -z 0 to reduce the min score) FILE: %s",
+            fname,
+        )
+
+    # Print rule title ----------------------------------------
+
+    (path, file) = os.path.split(fname)
+    # Prepare name via helper
+    cleanedName = sanitize_rule_name(path, file)
+    # Check if already printed
+    if cleanedName in printed_rules:
+        printed_rules[cleanedName] += 1
+        cleanedName = cleanedName + "_" + str(printed_rules[cleanedName])
+    else:
+        printed_rules[cleanedName] = 1
+
+    rule = "rule %s {\n" % cleanedName
+
+    rule += generate_meta(file, state.args.prefix, state.args.author, state.args.ref, [info.sha256])
+
+    rule += "   strings:\n"
+    # Get the strings -----------------------------------------
+    # Rule String generation
+    (
+        rule_strings,
+        high_scoring_strings,
+    ) = generate_rule_strings(
+        scoring_engine,
+        state,
+        strings,
+    )
+
+    rule += "\n".join(rule_strings)
+    rule_opcodes = generate_rule_opcodes(opcodes, state.args.opcode_num)
+
+    rule += "\n".join(rule_opcodes)
+
+    # Condition -----------------------------------------------
+    # Conditions list (will later be joined with 'or')
+    conditions = []  # AND connected
+    subconditions = []  # OR connected
+
+    # Condition PE
+    # Imphash and Exports - applicable to PE files only
+    condition_pe = []
+    condition_pe_part1 = []
+    condition_pe_part2 = []
+
+    if not state.args.noextras and info.magic.startswith(b"MZ"):
+        # Add imphash - if certain conditions are met
+        if info.imphash not in state.good_imphashes_db and info.imphash != "":
+            # Comment to imphash
+            imphash = info.imphash
+            comment = ""
+            if imphash in KNOWN_IMPHASHES:
+                comment = " /* {0} */".format(KNOWN_IMPHASHES[imphash])
+            # Add imphash to condition
+            condition_pe_part1.append('pe.imphash() == "{0}"{1}'.format(imphash, comment))
+            pe_module_necessary = True
+        if info.exports:
+            e_count = 0
+            for export in info.exports:
+                if export not in state.good_exports_db:
+                    condition_pe_part2.append('pe.exports("{0}")'.format(export))
+                    e_count += 1
+                    pe_module_necessary = True
+                if e_count > 5:
+                    break
+
+    # 1st Part of Condition 1
+    basic_conditions: List[Any] = []
+    # Filesize
+    if not state.args.nofilesize:
+        basic_conditions.insert(0, get_file_range(info.size, state.args.filesize_multiplier))
+    # Magic
+    if info.magic != b"":
+        uint_string = get_uint_string(info.magic)
+        basic_conditions.insert(0, uint_string)
+    # Basic Condition
+    if len(basic_conditions):
+        conditions.append(" and ".join(basic_conditions))
+
+    # Add extra PE conditions to condition 1
+    pe_conditions_add = False
+    if condition_pe_part1 or condition_pe_part2:
+        if len(condition_pe_part1) == 1:
+            condition_pe.append(condition_pe_part1[0])
+        elif len(condition_pe_part1) > 1:
+            condition_pe.append("( %s )" % " or ".join(condition_pe_part1))
+        if len(condition_pe_part2) == 1:
+            condition_pe.append(condition_pe_part2[0])
+        elif len(condition_pe_part2) > 1:
+            condition_pe.append("( %s )" % " and ".join(condition_pe_part2))
+        # Marker that PE conditions have been added
+        pe_conditions_add = True
+        # Add to sub condition
+        subconditions.append(" and ".join(condition_pe))
+
+
+
+    add_conditions(conditions, subconditions, rule_strings, rule_opcodes, high_scoring_strings, pe_conditions_add)
+
+
+
+    # Now add string condition to the conditions
+    if len(subconditions) == 1:
+        conditions.append(subconditions[0])
+    elif len(subconditions) > 1:
+        conditions.append("( %s )" % " or ".join(subconditions))
+
+    # Create condition string
+    condition_string = " and\n      ".join(conditions)
+
+
+    rule += "   condition:\n"
+    rule += "      %s\n" % condition_string
+    rule += "}\n\n"
+
+    return rule
+
+
+def generate_super_rule(super_rule, infos, state, scoring_engine, printed_rules, super_rule_names, printed_combi, super_rule_count, opcodes):
+    rule = ""
+    # Prepare Name
+    rule_name = ""
+    file_list = []
+    hashes = []
+    # Loop through files
+    imphashes = Counter()
+    for filePath in super_rule.files:
+        (path, file) = os.path.split(filePath)
+        file_list.append(file)
+        # Prepare name via helper
+        cleanedName = sanitize_rule_name(path, file)
+        # Append it to the full name
+        rule_name += "_" + cleanedName
+        # Check if imphash of all files is equal
+        imphash = infos[filePath].imphash
+        hashes.append(infos[filePath].sha256)
+        if imphash != "-" and imphash != "":
+            imphashes.update([imphash])
+
+    # Imphash usable
+    if len(imphashes) == 1:
+        unique_imphash = list(imphashes.items())[0][0]
+        if unique_imphash in state.good_imphashes_db:
+            unique_imphash = ""
+
+    # Shorten rule name
+    rule_name = rule_name[:124]
+    # Add count if rule name already taken
+    if rule_name not in super_rule_names:
+        rule_name = "%s_%s" % (rule_name, super_rule_count)
+    super_rule_names.append(rule_name)
+
+    # File name starts with a number
+    if re.search(r"^[0-9]", rule_name):
+        rule_name = "sig_" + rule_name
+    # clean name from all characters that would cause errors
+    rule_name = re.sub(r"[^\w]", "_", rule_name)
+    # Check if already printed
+    if rule_name in printed_rules:
+        printed_combi[rule_name] += 1
+        rule_name = rule_name + "_" + str(printed_combi[rule_name])
+    else:
+        printed_combi[rule_name] = 1
+
+    # Print rule title
+    rule += "rule %s {\n" % rule_name
+    rule += generate_meta(", ".join(file_list), state.args.prefix, state.args.author, state.args.ref, hashes)
+
+    rule += "   strings:\n"
+
+    tmp_file_opcodes = opcodes
+    (
+        rule_strings,
+        high_scoring_strings,
+    ) = generate_rule_strings(
+        scoring_engine,
+        state,
+        super_rule.strings,
+    )
+
+    rule_opcodes = generate_rule_opcodes(tmp_file_opcodes, state.args.opcode_num)
+
+    rule += "\n".join(rule_strings)
+    rule += "\n".join(rule_opcodes)
+    rule += "\n"
+    # Condition -----------------------------------------------
+    # Conditions list (will later be joined with 'or')
+    conditions = []
+    subbconditions = []
+    # 1st condition
+    # Evaluate the general characteristics
+    file_info_super = {}
+    for filePath in super_rule.files:
+        file_info_super[filePath] = infos[filePath]
+    condition_strings, pe_module_necessary_gen = generate_general_condition(infos, state.args.nofilesize, state.args.filesize_multiplier)
+    if pe_module_necessary_gen:
+        pe_module_necessary = True
+
+    # 2nd condition
+    # String combinations
+    add_conditions(conditions, subbconditions, rule_strings, rule_opcodes, high_scoring_strings, pe_module_necessary)
+ 
+    # Create condition string
+    condition_string = "\n      ) or ( ".join(conditions)
+
+    rule += "   condition:\n"
+    rule += "      ( %s )\n" % condition_string
+    rule += "}\n\n"
+
+    # print rule
+    # Add to rules string
+    return rule
 
 
 def generate_rules(
@@ -233,7 +517,7 @@ def generate_rules(
 
     # GLOBAL RULES ----------------------------------------------------
     if state.args.globalrule:
-        condition, pe_module_necessary = generate_general_condition(file_info)
+        condition, pe_module_necessary = generate_general_condition(file_info, state.args.nofilesize, state.args.filesize_multiplier)
 
         # Global Rule
         if condition != "":
@@ -259,212 +543,14 @@ def generate_rules(
     # Apply intelligent filters
     logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
     # logging.getLogger("yarobot").info(file_strings)
-    for filePath in file_strings:
-        print("[-] Filtering string set for %s, len=%d ..." % (filePath, len(file_strings[filePath])))
-
-        # Replace the original string set with the filtered one
-        file_strings[filePath] = scoring_engine.filter_string_set(file_strings[filePath])
-        # print("[-] Filtered string set for %s, len=%d ..." % (filePath, len(file_strings[filePath])))
-        logging.getLogger("yarobot").info("[-] Filtering opcode set for %s ...", filePath)
-
-        # Replace the original opcode set with the filtered one
-        file_opcodes[filePath] = scoring_engine.filter_opcode_set(file_opcodes[filePath]) if filePath in file_opcodes else []
 
     # GENERATE SIMPLE RULES -------------------------------------------
     fh.write("/* Rule Set ----------------------------------------------------------------- */\n\n")
 
-    for filePath in file_strings:
-        # Skip if there is nothing to do
-        if len(file_strings[filePath]) == 0:
-            logging.getLogger("yarobot").warning(
-                "[W] Not enough high scoring strings to create a rule. (Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s",
-                filePath,
-            )
-            continue
-        elif len(file_strings[filePath]) == 0 and len(file_opcodes[filePath]) == 0:
-            logging.getLogger("yarobot").warning(
-                "[W] Not enough high scoring strings and opcodes to create a rule. (Try -z 0 to reduce the min score) FILE: %s",
-                filePath,
-            )
-            continue
-
-        # Create Rule
-        try:
-            rule = ""
-            (path, file) = os.path.split(filePath)
-            # Prepare name via helper
-            cleanedName = sanitize_rule_name(path, file)
-            # Check if already printed
-            if cleanedName in printed_rules:
-                printed_rules[cleanedName] += 1
-                cleanedName = cleanedName + "_" + str(printed_rules[cleanedName])
-            else:
-                printed_rules[cleanedName] = 1
-
-            # Print rule title ----------------------------------------
-            rule += "rule %s {\n" % cleanedName
-
-            # Meta data -----------------------------------------------
-            rule += "   meta:\n"
-            rule += '      description = "%s - file %s"\n' % (
-                state.args.prefix,
-                file,
-            )
-            rule += '      author = "%s"\n' % state.args.author
-            rule += '      reference = "%s"\n' % state.args.ref
-            rule += '      date = "%s"\n' % get_timestamp_basic()
-            rule += '      hash1 = "%s"\n' % file_info[filePath].sha256
-            rule += "   strings:\n"
-
-            # Get the strings -----------------------------------------
-            # Rule String generation
-            (
-                rule_strings,
-                opcodes_included,
-                string_rule_count,
-                high_scoring_strings,
-            ) = get_rule_strings(
-                scoring_engine,
-                state,
-                file_strings[filePath],
-                file_opcodes[filePath],
-            )
-
-            rule += rule_strings
-
-            # Extract rul strings
-            if state.args.strings:
-                strings = get_strings(
-                    state,
-                    file_strings[filePath],
-                )
-                write_strings(
-                    filePath,
-                    strings,
-                    state.args.e,
-                    state.args.score,
-                    scoring_engine.stringScores,
-                )
-
-            # Condition -----------------------------------------------
-            # Conditions list (will later be joined with 'or')
-            conditions = []  # AND connected
-            subconditions = []  # OR connected
-
-            # Condition PE
-            # Imphash and Exports - applicable to PE files only
-            condition_pe = []
-            condition_pe_part1 = []
-            condition_pe_part2 = []
-            if not state.args.noextras and file_info[filePath].magic.startswith(b"MZ"):
-                # Add imphash - if certain conditions are met
-                if file_info[filePath].imphash not in state.good_imphashes_db and file_info[filePath].imphash != "":
-                    # Comment to imphash
-                    imphash = file_info[filePath].imphash
-                    comment = ""
-                    if imphash in KNOWN_IMPHASHES:
-                        comment = " /* {0} */".format(KNOWN_IMPHASHES[imphash])
-                    # Add imphash to condition
-                    condition_pe_part1.append('pe.imphash() == "{0}"{1}'.format(imphash, comment))
-                    pe_module_necessary = True
-                if file_info[filePath].exports:
-                    e_count = 0
-                    for export in file_info[filePath].exports:
-                        if export not in state.good_exports_db:
-                            condition_pe_part2.append('pe.exports("{0}")'.format(export))
-                            e_count += 1
-                            pe_module_necessary = True
-                        if e_count > 5:
-                            break
-
-            # 1st Part of Condition 1
-            basic_conditions = []
-            # Filesize
-            if not state.args.nofilesize:
-                basic_conditions.insert(0, get_file_range(file_info[filePath].size, state.args.filesize_multiplier))
-            # Magic
-            if file_info[filePath].magic != b"":
-                uint_string = get_uint_string(file_info[filePath].magic)
-                basic_conditions.insert(0, uint_string)
-            # Basic Condition
-            if len(basic_conditions):
-                conditions.append(" and ".join(basic_conditions))
-
-            # Add extra PE conditions to condition 1
-            pe_conditions_add = False
-            if condition_pe_part1 or condition_pe_part2:
-                if len(condition_pe_part1) == 1:
-                    condition_pe.append(condition_pe_part1[0])
-                elif len(condition_pe_part1) > 1:
-                    condition_pe.append("( %s )" % " or ".join(condition_pe_part1))
-                if len(condition_pe_part2) == 1:
-                    condition_pe.append(condition_pe_part2[0])
-                elif len(condition_pe_part2) > 1:
-                    condition_pe.append("( %s )" % " and ".join(condition_pe_part2))
-                # Marker that PE conditions have been added
-                pe_conditions_add = True
-                # Add to sub condition
-                subconditions.append(" and ".join(condition_pe))
-
-            # String combinations
-            cond_op = ""  # opcodes condition
-            cond_hs = ""  # high scoring strings condition
-            cond_ls = ""  # low scoring strings condition
-
-            low_scoring_strings = string_rule_count - high_scoring_strings
-            if high_scoring_strings > 0:
-                cond_hs = "1 of ($x*)"
-            if low_scoring_strings > 0:
-                if low_scoring_strings > 10:
-                    if high_scoring_strings > 0:
-                        cond_ls = "4 of them"
-                    else:
-                        cond_ls = "8 of them"
-                else:
-                    cond_ls = "all of them"
-
-            # If low scoring and high scoring
-            cond_combined = "all of them"
-            needs_brackets = False
-            if low_scoring_strings > 0 and high_scoring_strings > 0:
-                # If PE conditions have been added, don't be so strict with the strings
-                if pe_conditions_add:
-                    cond_combined = "{0} or {1}".format(cond_hs, cond_ls)
-                    needs_brackets = True
-                else:
-                    cond_combined = "{0} and {1}".format(cond_hs, cond_ls)
-            elif low_scoring_strings > 0 and not high_scoring_strings > 0:
-                cond_combined = "{0}".format(cond_ls)
-            elif not low_scoring_strings > 0 and high_scoring_strings > 0:
-                cond_combined = "{0}".format(cond_hs)
-            if opcodes_included:
-                cond_op = " and all of ($op*)"
-
-            # Opcodes (if needed)
-            if cond_op or needs_brackets:
-                subconditions.append("( {0}{1} )".format(cond_combined, cond_op))
-            else:
-                subconditions.append(cond_combined)
-
-            # Now add string condition to the conditions
-            if len(subconditions) == 1:
-                conditions.append(subconditions[0])
-            elif len(subconditions) > 1:
-                conditions.append("( %s )" % " or ".join(subconditions))
-
-            # Create condition string
-            condition_string = " and\n      ".join(conditions)
-
-            rule += "   condition:\n"
-            rule += "      %s\n" % condition_string
-            rule += "}\n\n"
-
-            # Add to rules string
+    for filePath, strings in file_strings.items():
+        if rule := generate_simple_rule(printed_rules, scoring_engine, state, strings, file_opcodes, file_info[filePath], filePath):
             rules += rule
-
             rule_count += 1
-        except Exception:
-            traceback.print_exc()
 
     # GENERATE SUPER RULES --------------------------------------------
     if not state.args.nosuper:
@@ -474,170 +560,18 @@ def generate_rules(
         print("[+] Generating Super Rules ...")
         printed_combi = {}
         for super_rule in super_rules:
-            try:
-                rule = ""
-                # Prepare Name
-                rule_name = ""
-                file_list = []
+            rules += generate_super_rule(super_rule, file_info, state, scoring_engine, printed_rules, super_rule_names, printed_combi, super_rule_count, file_opcodes)
+            super_rule_count += 1
 
-                # Loop through files
-                imphashes = Counter()
-                for filePath in super_rule.files:
-                    (path, file) = os.path.split(filePath)
-                    file_list.append(file)
-                    # Prepare name via helper
-                    cleanedName = sanitize_rule_name(path, file)
-                    # Append it to the full name
-                    rule_name += "_" + cleanedName
-                    # Check if imphash of all files is equal
-                    imphash = file_info[filePath].imphash
-                    if imphash != "-" and imphash != "":
-                        imphashes.update([imphash])
+    # WRITING RULES TO FILE
+    # PE Module -------------------------------------------------------
+    if not state.args.noextras:
+        if pe_module_necessary:
+            fh.write('import "pe"\n\n')
+    # RULES ------------------------------
+    fh.write(rules)
 
-                # Imphash usable
-                if len(imphashes) == 1:
-                    unique_imphash = list(imphashes.items())[0][0]
-                    if unique_imphash in state.good_imphashes_db:
-                        unique_imphash = ""
-
-                # Shorten rule name
-                rule_name = rule_name[:124]
-                # Add count if rule name already taken
-                if rule_name not in super_rule_names:
-                    rule_name = "%s_%s" % (rule_name, super_rule_count)
-                super_rule_names.append(rule_name)
-
-                # Create a list of files
-                file_listing = ", ".join(file_list)
-
-                # File name starts with a number
-                if re.search(r"^[0-9]", rule_name):
-                    rule_name = "sig_" + rule_name
-                # clean name from all characters that would cause errors
-                rule_name = re.sub(r"[^\w]", "_", rule_name)
-                # Check if already printed
-                if rule_name in printed_rules:
-                    printed_combi[rule_name] += 1
-                    rule_name = rule_name + "_" + str(printed_combi[rule_name])
-                else:
-                    printed_combi[rule_name] = 1
-
-                # Print rule title
-                rule += "rule %s {\n" % rule_name
-                rule += "   meta:\n"
-                rule += '      description = "%s - from files %s"\n' % (
-                    state.args.prefix,
-                    file_listing,
-                )
-                rule += '      author = "%s"\n' % state.args.author
-                rule += '      reference = "%s"\n' % state.args.ref
-                rule += '      date = "%s"\n' % get_timestamp_basic()
-                for i, filePath in enumerate(super_rule.files):
-                    rule += '      hash%s = "%s"\n' % (
-                        str(i + 1),
-                        file_info[filePath].sha256,
-                    )
-
-                rule += "   strings:\n"
-
-                # Adding the opcodes
-                if file_opcodes.get(filePath) is None:
-                    tmp_file_opcodes = {}
-                else:
-                    tmp_file_opcodes = file_opcodes.get(filePath)
-                (
-                    rule_strings,
-                    opcodes_included,
-                    string_rule_count,
-                    high_scoring_strings,
-                ) = get_rule_strings(
-                    scoring_engine,
-                    state,
-                    super_rule.strings,
-                    tmp_file_opcodes,
-                )
-                rule += rule_strings
-
-                # Condition -----------------------------------------------
-                # Conditions list (will later be joined with 'or')
-                conditions = []
-
-                # 1st condition
-                # Evaluate the general characteristics
-                file_info_super = {}
-                for filePath in super_rule.files:
-                    file_info_super[filePath] = file_info[filePath]
-                condition_strings, pe_module_necessary_gen = generate_general_condition(state, file_info_super)
-                if pe_module_necessary_gen:
-                    pe_module_necessary = True
-
-                # 2nd condition
-                # String combinations
-                cond_op = ""  # opcodes condition
-                cond_hs = ""  # high scoring strings condition
-                cond_ls = ""  # low scoring strings condition
-
-                low_scoring_strings = string_rule_count - high_scoring_strings
-                if high_scoring_strings > 0:
-                    cond_hs = "1 of ($x*)"
-                if low_scoring_strings > 0:
-                    if low_scoring_strings > 10:
-                        if high_scoring_strings > 0:
-                            cond_ls = "4 of them"
-                        else:
-                            cond_ls = "8 of them"
-                    else:
-                        cond_ls = "all of them"
-
-                # If low scoring and high scoring
-                cond_combined = "all of them"
-                if low_scoring_strings > 0 and high_scoring_strings > 0:
-                    cond_combined = "{0} and {1}".format(cond_hs, cond_ls)
-                elif low_scoring_strings > 0 and not high_scoring_strings > 0:
-                    cond_combined = "{0}".format(cond_ls)
-                elif not low_scoring_strings > 0 and high_scoring_strings > 0:
-                    cond_combined = "{0}".format(cond_hs)
-                if opcodes_included:
-                    cond_op = " and all of ($op*)"
-
-                condition2 = "( {0} ){1}".format(cond_combined, cond_op)
-                conditions.append(" and ".join([condition_strings, condition2]))
-
-                # 3nd condition
-                # In memory detection base condition (no magic, no filesize)
-                condition_pe = "all of them"
-                conditions.append(condition_pe)
-
-                # Create condition string
-                condition_string = "\n      ) or ( ".join(conditions)
-
-                rule += "   condition:\n"
-                rule += "      ( %s )\n" % condition_string
-                rule += "}\n\n"
-
-                # print rule
-                # Add to rules string
-                rules += rule
-
-                super_rule_count += 1
-            except Exception:
-                traceback.print_exc()
-
-    try:
-        # WRITING RULES TO FILE
-        # PE Module -------------------------------------------------------
-        if not state.args.noextras:
-            if pe_module_necessary:
-                fh.write('import "pe"\n\n')
-        # RULES ------------------------------
-        fh.write(rules)
-    except Exception:
-        traceback.print_exc()
-
-    try:
-        fh.close()
-    except Exception:
-        traceback.print_exc()
+    fh.close()
 
     # Print rules to command line -------------------------------------
     if state.args.debug:
@@ -646,112 +580,75 @@ def generate_rules(
     return (rule_count, super_rule_count)
 
 
-def get_rule_strings(scoring_engine, state, string_elements, opcode_elements):
-    rule_strings = ""
-    high_scoring_strings = 0
-    string_rule_count = 0
+from yarobot_rs import TokenType
 
+
+def generate_string_repr(is_super_string, i, stringe):
+    return f'\t${"x" if is_super_string else "s"}{i + 1} = "{stringe.reprz.replace('\\', '\\\\')}" {"wide" if stringe.typ == TokenType.UTF16LE else "ascii"}\
+ {"fullword" if stringe.fullword else ""} /*{stringe.notes}*/'
+
+
+def generate_opcode_repr(i, opcode):
+    return f"\t$op{i} = {{{opcode}}}\n"
+
+
+def generate_rule_opcodes(opcode_elements, opcodes_per_rule):
+    # Adding the opcodes --------------------------------------
+    rule_opcodes = []
+    for i, opcode in enumerate(opcode_elements):
+        rule_opcodes.append(generate_opcode_repr(i, opcode))
+        if i >= opcodes_per_rule:
+            break
+    return rule_opcodes
+
+
+def generate_rule_strings(scoring_engine, state, string_elements):
+    rule_strings = []
     # Adding the strings --------------------------------------
 
     string_elements = list(set(string_elements))
-
     string_elements = sorted(string_elements, key=lambda x: x.score, reverse=True)
+    high_scoring_strings = 0
     for i, stringe in enumerate(string_elements):
         # Collect the data
         string = stringe.reprz
-        is_fullword = True
-        initial_string = string
-        enc = " ascii"
-        base64comment = ""
-        hexEncComment = ""
-        reversedComment = ""
-        fullword = ""
-        pestudio_comment = ""
-        score_comment = ""
-        goodware_comment = ""
 
         if string in scoring_engine.good_strings_db:
-            goodware_comment = " /* Goodware String - occured %s times */" % (scoring_engine.good_strings_db[string])
-        if string[:8] == "UTF16LE:":
-            string = string[8:]
-            enc = " wide"
-        if string in scoring_engine.string_scores.keys():
-            if state.args.score:
-                cat_comment = scoring_engine.string_scores[string].notes
-                score_comment += f" /* score: {scoring_engine.string_scores[string].score}  {cat_comment}*/"
+            stringe.add_note(f"goodware string - occured {scoring_engine.good_strings_db[string]} times")
+
+        if state.args.score:
+            stringe.add_note(f" / score: {scoring_engine.string_scores[string].score} /")
         else:
-            print("NO SCORE: %s" % string)
+            logging.getLogger("yarobot").debug("NO SCORE: %s", string)
 
-        if string in scoring_engine.utf16strings:
-            enc = " wide"
-        if string in scoring_engine.base64strings:
-            base64comment = " /* base64 encoded string '%s' */" % scoring_engine.base64strings[string]
-        if string in scoring_engine.hex_enc_strings:
-            hexEncComment = " /* hex encoded string '%s' */" % yarobot_rs.remove_non_ascii_drop(scoring_engine.hex_enc_strings[string]).decode()
-        if string in scoring_engine.pestudio_marker and state.args.score:
-            pestudio_comment = " /* PEStudio Blacklist: %s */" % state.args.pestudio_marker[string]
-        if string in scoring_engine.reversed_strings:
-            reversedComment = " /* reversed goodware string '%s' */" % scoring_engine.reversed_strings[string]
-
-        # Extra checks
-        if yarobot_rs.is_hex_encoded(string, check_length=False):
-            is_fullword = False
+        if stringe.b64:
+            stringe.add_note(f" / base64 encoded string '{scoring_engine.base64strings[string]}' /")
+        if stringe.hexed:
+            stringe.add_note(f" / hex encoded string '{yarobot_rs.remove_non_ascii_drop(scoring_engine.hex_enc_strings[string]).decode()}' /")
+        if stringe.from_pestudio and state.args.score:
+            stringe.add_note(f" / PEStudio Blacklist: {state.args.pestudio_marker[string]} /")
+        if stringe.reversed:
+            stringe.add_note(f" / reversed goodware string '{scoring_engine.reversed_strings[string]}' /")
 
         # Checking string length
         if len(string) >= state.args.max_size:
             # cut string
-            string = string[: state.args.max_size].rstrip("\\")
-            # not fullword anymore
-            is_fullword = False
-        # Show as fullword
-        if is_fullword:
-            fullword = " fullword"
-
+            stringe.reprz = string[: state.args.max_size].rstrip("\\")
+            stringe.fullword = False
         # Now compose the rule line
-        if float(scoring_engine.string_scores[initial_string].score) > state.args.high_scoring:
+
+        is_super_string = float(stringe.score) > state.args.high_scoring
+        if is_super_string:
             high_scoring_strings += 1
-            rule_strings += '      $x%s = "%s"%s%s%s%s%s%s%s%s\n' % (
-                str(i + 1),
-                string,
-                fullword,
-                enc,
-                base64comment,
-                reversedComment,
-                pestudio_comment,
-                score_comment,
-                goodware_comment,
-                hexEncComment,
-            )
-        else:
-            rule_strings += '      $s%s = "%s"%s%s%s%s%s%s%s%s\n' % (
-                str(i + 1),
-                string,
-                fullword,
-                enc,
-                base64comment,
-                reversedComment,
-                pestudio_comment,
-                score_comment,
-                goodware_comment,
-                hexEncComment,
-            )
+        rule_strings.append(generate_string_repr(is_super_string, i, stringe))
 
         # If too many string definitions found - cut it at the
         # count defined via command line param -rc
-        if (i + 1) >= 20:  # state.args.strings_per_rule:
+        if (i + 1) >= state.args.strings_per_rule:  # state.args.strings_per_rule:
             break
+ 
 
-        string_rule_count += 1
-
-    # Adding the opcodes --------------------------------------
-    opcodes_included = False
-    if len(opcode_elements) > 0:
-        rule_strings += "\n"
-        for i, opcode in enumerate(opcode_elements):
-            rule_strings += "      $op%s = { %s }\n" % (str(i), opcode)
-            opcodes_included = True
     else:
-        if state.args.opcodes:
-            logging.getLogger("yarobot").info("[-] Not enough unique opcodes found to include them")
+        logging.getLogger("yarobot").info("[-] Not enough unique opcodes found to include them")
 
-    return rule_strings, opcodes_included, string_rule_count, high_scoring_strings
+    return rule_strings, high_scoring_strings

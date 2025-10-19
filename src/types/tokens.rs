@@ -33,6 +33,16 @@ pub struct TokenInfo {
     pub notes: String,
     #[pyo3(get, set)]
     pub score: i64,
+    #[pyo3(get, set)]
+    pub fullword: bool,
+    #[pyo3(get, set)]
+    pub b64: bool,
+    #[pyo3(get, set)]
+    pub hexed: bool,
+    #[pyo3(get, set)]
+    pub reversed: bool,
+    #[pyo3(get, set)]
+    pub from_pestudio: bool,
 }
 
 #[pymethods]
@@ -54,14 +64,15 @@ impl TokenInfo {
             typ,
             files,
             notes: notes.unwrap_or_default(),
-            score: Default::default(),
+            fullword: true,
+            ..Default::default()
         }
     }
 
     pub fn __str__(&self) -> String {
         format!(
-            "TokenInfo: reprz={:?}, score={}, count={}, typ={:?}, files={:?}",
-            self.reprz, self.score, self.count, self.typ, self.files
+            "TokenInfo: reprz={:?}, score={}, count={}, typ={:?}, files={:?}, fullword={}, b64={}, hexed={}, reversed={}, pestud={}",
+            self.reprz, self.score, self.count, self.typ, self.files, self.fullword, self.b64, self.hexed, self.reversed, self.from_pestudio
         )
     }
 
