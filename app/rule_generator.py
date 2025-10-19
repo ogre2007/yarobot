@@ -43,113 +43,33 @@ def get_timestamp_basic(date_obj=None):
 
 
 def get_file_range(size, fm_size):
-    size_string = ""
-    try:
-        # max sample size - args.filesize_multiplier times the original size
-        max_size_b = size * fm_size
-        # Minimum size
-        if max_size_b < 1024:
-            max_size_b = 1024
-        # in KB
-        max_size = int(max_size_b / 1024)
-        max_size_kb = max_size
-        # Round
-        if len(str(max_size)) == 2:
-            max_size = int(round(max_size, -1))
-        elif len(str(max_size)) == 3:
-            max_size = int(round(max_size, -2))
-        elif len(str(max_size)) == 4:
-            max_size = int(round(max_size, -3))
-        elif len(str(max_size)) >= 5:
-            max_size = int(round(max_size, -3))
-        size_string = "filesize < {0}KB".format(max_size)
-        logging.getLogger("yarobot").debug(
-            "File Size Eval: SampleSize (b): %s SizeWithMultiplier (b/Kb): %s / %s RoundedSize: %s",
-            str(size),
-            str(max_size_b),
-            str(max_size_kb),
-            str(max_size),
-        )
-    except Exception:
-        traceback.print_exc()
-    finally:
-        return size_string
-
-
-def get_strings(state, string_elements):
-    """
-    Get a dictionary of all string types
-    :param string_elements:
-    :return:
-    """
-    strings = {
-        "ascii": [],
-        "wide": [],
-        "base64 encoded": [],
-        "hex encoded": [],
-        "reversed": [],
-    }
-
-    # Adding the strings --------------------------------------
-    if state.args.debug:
-        print(
-            state.base64strings,
-            state.hexEncStrings,
-            state.reversedStrings,
-            state.utf16strings,
-        )
-    for i, string in enumerate(string_elements):
-        if string in state.utf16strings:
-            strings["wide"].append(string)
-        elif string in state.base64strings:
-            strings["base64 encoded"].append(string)
-        elif string in state.hexEncStrings:
-            strings["hex encoded"].append(string)
-        elif string in state.reversedStrings:
-            strings["reversed"].append(string)
-        else:
-            strings["ascii"].append(string)
-
-    return strings
-
-
-def write_strings(filePath, strings, output_dir, scores, stringScores):
-    """
-    Writes string information to an output file
-    :param filePath:
-    :param strings:
-    :param output_dir:
-    :param scores:
-    :return:
-    """
-    SECTIONS = ["ascii", "wide", "base64 encoded", "hex encoded", "reversed"]
-    # File
-    filename = os.path.basename(filePath)
-    strings_filename = os.path.join(output_dir, "%s_strings.txt" % filename)
-    print("[+] Writing strings to file %s" % strings_filename)
-    # Strings
-    output_string = []
-    for key in SECTIONS:
-        # Skip empty
-        if len(strings[key]) < 1:
-            continue
-        # Section
-        output_string.append("%s Strings" % key.upper())
-        output_string.append("------------------------------------------------------------------------")
-        for string in strings[key]:
-            if scores:
-                score = "unknown"
-                if key == "wide":
-                    score = stringScores["UTF16LE:%s" % string]
-                else:
-                    score = stringScores[string]
-                output_string.append("%d;%s" % (score, string))
-            else:
-                output_string.append(string)
-        # Empty line between sections
-        output_string.append("\n")
-    with open(strings_filename, "w") as fh:
-        fh.write("\n".join(output_string))
+    size_string = "" 
+    # max sample size - args.filesize_multiplier times the original size
+    max_size_b = size * fm_size
+    # Minimum size
+    if max_size_b < 1024:
+        max_size_b = 1024
+    # in KB
+    max_size = int(max_size_b / 1024)
+    max_size_kb = max_size
+    # Round
+    if len(str(max_size)) == 2:
+        max_size = int(round(max_size, -1))
+    elif len(str(max_size)) == 3:
+        max_size = int(round(max_size, -2))
+    elif len(str(max_size)) == 4:
+        max_size = int(round(max_size, -3))
+    elif len(str(max_size)) >= 5:
+        max_size = int(round(max_size, -3))
+    size_string = f"filesize < {max_size}KB" 
+    logging.getLogger("yarobot").debug(
+        "File Size Eval: SampleSize (b): %s SizeWithMultiplier (b/Kb): %s / %s RoundedSize: %s",
+        str(size),
+        str(max_size_b),
+        str(max_size_kb),
+        str(max_size),
+    ) 
+    return size_string
 
 
 def generate_general_condition(file_info, nofilesize, filesize_multiplier):
@@ -206,7 +126,9 @@ def generate_general_condition(file_info, nofilesize, filesize_multiplier):
 
 
 
-def generate_meta(file, prefix, author, ref, hashes):
+def generate_meta(rule_name, file, prefix, author, ref, hashes):
+    # Print rule title
+    rule += "rule %s {\n" % rule_name
     # Meta data -----------------------------------------------
     rule = "   meta:\n"
     rule += '      description = "%s - file %s"\n' % (
@@ -287,10 +209,8 @@ def generate_simple_rule(printed_rules, scoring_engine: ScoringEngine, state, st
         cleanedName = cleanedName + "_" + str(printed_rules[cleanedName])
     else:
         printed_rules[cleanedName] = 1
-
-    rule = "rule %s {\n" % cleanedName
-
-    rule += generate_meta(file, state.args.prefix, state.args.author, state.args.ref, [info.sha256])
+ 
+    rule = generate_meta(cleanedName, file, state.args.prefix, state.args.author, state.args.ref, [info.sha256])
 
     rule += "   strings:\n"
     # Get the strings -----------------------------------------
@@ -319,8 +239,7 @@ def generate_simple_rule(printed_rules, scoring_engine: ScoringEngine, state, st
     condition_pe = []
     condition_pe_part1 = []
     condition_pe_part2 = []
-
-    if not state.args.noextras and info.magic.startswith(b"MZ"):
+    def add_extras():
         # Add imphash - if certain conditions are met
         if info.imphash not in state.good_imphashes_db and info.imphash != "":
             # Comment to imphash
@@ -341,19 +260,22 @@ def generate_simple_rule(printed_rules, scoring_engine: ScoringEngine, state, st
                 if e_count > 5:
                     break
 
-    # 1st Part of Condition 1
-    basic_conditions: List[Any] = []
-    # Filesize
-    if not state.args.nofilesize:
-        basic_conditions.insert(0, get_file_range(info.size, state.args.filesize_multiplier))
-    # Magic
-    if info.magic != b"":
-        uint_string = get_uint_string(info.magic)
-        basic_conditions.insert(0, uint_string)
-    # Basic Condition
-    if len(basic_conditions):
-        conditions.append(" and ".join(basic_conditions))
+    if not state.args.noextras and info.magic.startswith(b"MZ"):
+        add_extras()
 
+    # 1st Part of Condition 1
+    def add_basic_conditions():
+        basic_conditions: List[Any] = []
+        # Filesize
+        if not state.args.nofilesize:
+            basic_conditions.insert(0, get_file_range(info.size, state.args.filesize_multiplier))
+        # Magic
+        if info.magic != b"":
+            uint_string = get_uint_string(info.magic)
+            basic_conditions.insert(0, uint_string)
+        conditions.append(" and ".join(basic_conditions))
+        
+    add_basic_conditions()
     # Add extra PE conditions to condition 1
     pe_conditions_add = False
     if condition_pe_part1 or condition_pe_part2:
@@ -439,9 +361,8 @@ def generate_super_rule(super_rule, infos, state, scoring_engine, printed_rules,
     else:
         printed_combi[rule_name] = 1
 
-    # Print rule title
-    rule += "rule %s {\n" % rule_name
-    rule += generate_meta(", ".join(file_list), state.args.prefix, state.args.author, state.args.ref, hashes)
+    
+    rule += generate_meta(rule_name, ", ".join(file_list), state.args.prefix, state.args.author, state.args.ref, hashes)
 
     rule += "   strings:\n"
 
@@ -489,6 +410,19 @@ def generate_super_rule(super_rule, infos, state, scoring_engine, printed_rules,
     return rule
 
 
+def generate_top_info(author, identifier, ref, license):
+    # General Info
+    general_info = "/*\n"
+    general_info += "   YARA Rule Set\n"
+    general_info += "   Author: {0}\n".format(author)
+    general_info += "   Date: {0}\n".format(get_timestamp_basic())
+    general_info += "   Identifier: {0}\n".format(identifier)
+    general_info += "   Reference: {0}\n".format(ref)
+    if license != "":
+        general_info += "   License: {0}\n".format(license)
+    general_info += "*/\n\n"
+    return general_info
+
 def generate_rules(
     scoring_engine,
     state,
@@ -497,85 +431,64 @@ def generate_rules(
     super_rules,
     file_info,
 ):
-    try:
-        fh = open(state.args.output_rule_file, "w")
-    except Exception:
-        traceback.print_exc()
+    with open(state.args.output_rule_file, "w") as fh:
 
-    # General Info
-    general_info = "/*\n"
-    general_info += "   YARA Rule Set\n"
-    general_info += "   Author: {0}\n".format(state.args.author)
-    general_info += "   Date: {0}\n".format(get_timestamp_basic())
-    general_info += "   Identifier: {0}\n".format(state.args.identifier)
-    general_info += "   Reference: {0}\n".format(state.args.ref)
-    if state.args.license != "":
-        general_info += "   License: {0}\n".format(state.args.license)
-    general_info += "*/\n\n"
+        fh.write(generate_top_info(state.args.author, state.args.identifier, state.args.ref, state.args.license))
 
-    fh.write(general_info)
+        # GLOBAL RULES ----------------------------------------------------
+        if state.args.globalrule:
+            condition, pe_module_necessary = generate_general_condition(file_info, state.args.nofilesize, state.args.filesize_multiplier)
 
-    # GLOBAL RULES ----------------------------------------------------
-    if state.args.globalrule:
-        condition, pe_module_necessary = generate_general_condition(file_info, state.args.nofilesize, state.args.filesize_multiplier)
+            # Global Rule
+            if condition != "":
+                global_rule = "/* Global Rule -------------------------------------------------------------- */\n"
+                global_rule += "/* Will be evaluated first, speeds up scanning process, remove at will */\n\n"
+                global_rule += "global private rule gen_characteristics {\n"
+                global_rule += "   condition:\n"
+                global_rule += "      {0}\n".format(condition)
+                global_rule += "}\n\n"
 
-        # Global Rule
-        if condition != "":
-            global_rule = "/* Global Rule -------------------------------------------------------------- */\n"
-            global_rule += "/* Will be evaluated first, speeds up scanning process, remove at will */\n\n"
-            global_rule += "global private rule gen_characteristics {\n"
-            global_rule += "   condition:\n"
-            global_rule += "      {0}\n".format(condition)
-            global_rule += "}\n\n"
+                fh.write(global_rule)
 
-            fh.write(global_rule)
+        # General vars
+        rules = ""
+        printed_rules = {}
+        rule_count = 0
+        super_rule_count = 0
 
-    # General vars
-    rules = ""
-    printed_rules = {}
-    opcodes_to_add = []
-    rule_count = 0
-    super_rule_count = 0
-    pe_module_necessary = False
+        # PROCESS SIMPLE RULES ----------------------------------------------------
+        logging.getLogger("yarobot").info("[+] Generating Simple Rules ...")
 
-    # PROCESS SIMPLE RULES ----------------------------------------------------
-    logging.getLogger("yarobot").info("[+] Generating Simple Rules ...")
-    # Apply intelligent filters
-    logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
-    # logging.getLogger("yarobot").info(file_strings)
+        # logging.getLogger("yarobot").info(file_strings)
 
-    # GENERATE SIMPLE RULES -------------------------------------------
-    fh.write("/* Rule Set ----------------------------------------------------------------- */\n\n")
+        # GENERATE SIMPLE RULES -------------------------------------------
+        fh.write("/* Rule Set ----------------------------------------------------------------- */\n\n")
 
-    for filePath, strings in file_strings.items():
-        if rule := generate_simple_rule(printed_rules, scoring_engine, state, strings, file_opcodes, file_info[filePath], filePath):
-            rules += rule
-            rule_count += 1
+        for filePath, strings in file_strings.items():
+            if rule := generate_simple_rule(printed_rules, scoring_engine, state, strings, file_opcodes, file_info[filePath], filePath):
+                rules += rule
+                rule_count += 1
 
-    # GENERATE SUPER RULES --------------------------------------------
-    if not state.args.nosuper:
-        rules += "/* Super Rules ------------------------------------------------------------- */\n\n"
-        super_rule_names = []
+        # GENERATE SUPER RULES --------------------------------------------
+        if not state.args.nosuper:
+            rules += "/* Super Rules ------------------------------------------------------------- */\n\n"
+            super_rule_names = []
 
-        print("[+] Generating Super Rules ...")
-        printed_combi = {}
-        for super_rule in super_rules:
-            rules += generate_super_rule(super_rule, file_info, state, scoring_engine, printed_rules, super_rule_names, printed_combi, super_rule_count, file_opcodes)
-            super_rule_count += 1
+            print("[+] Generating Super Rules ...")
+            printed_combi = {}
+            for super_rule in super_rules:
+                rules += generate_super_rule(super_rule, file_info, state, scoring_engine, printed_rules, super_rule_names, printed_combi, super_rule_count, file_opcodes)
+                super_rule_count += 1
 
-    # WRITING RULES TO FILE
-    # PE Module -------------------------------------------------------
-    if not state.args.noextras:
-        if pe_module_necessary:
-            fh.write('import "pe"\n\n')
-    # RULES ------------------------------
-    fh.write(rules)
-
-    fh.close()
-
-    # Print rules to command line -------------------------------------
-    if state.args.debug:
-        print(rules)
+        # WRITING RULES TO FILE
+        # PE Module -------------------------------------------------------
+        if not state.args.noextras:
+            if "pe." in rules:
+                fh.write('import "pe"\n\n')
+        # RULES ------------------------------
+        fh.write(rules)
+        # Print rules to command line -------------------------------------
+        logging.getLogger("yarobot").debug(rules)
 
     return (rule_count, super_rule_count)
 
@@ -617,7 +530,7 @@ def generate_rule_strings(scoring_engine, state, string_elements):
             stringe.add_note(f"goodware string - occured {scoring_engine.good_strings_db[string]} times")
 
         if state.args.score:
-            stringe.add_note(f" / score: {scoring_engine.string_scores[string].score} /")
+            stringe.add_note(f" / score: {stringe.score} /")
         else:
             logging.getLogger("yarobot").debug("NO SCORE: %s", string)
 

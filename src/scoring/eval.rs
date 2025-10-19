@@ -20,6 +20,10 @@ use std::{
 pub struct ScoringEngine {
     #[pyo3(get, set)]
     pub good_strings_db: HashMap<String, usize>,
+    #[pyo3(get, set)]   
+    pub good_imphashes_db: HashMap<String, usize>,
+    #[pyo3(get, set)]   
+    pub good_exports_db: HashMap<String, usize>,
     #[pyo3(get, set)]
     pub good_opcodes_db: HashMap<String, usize>,
     #[pyo3(get, set)]

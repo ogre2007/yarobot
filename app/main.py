@@ -182,24 +182,8 @@ class State:
     def __init__(
         self,
         args,
-        good_strings_db,
-        good_opcodes_db,
-        good_imphashes_db,
-        good_exports_db,
-        pestudio_strings,
-    ):
-        self.base64strings = {}
-        self.reversedStrings = {}
-        self.hexEncStrings = {}
-        self.pestudioMarker = {}
-        self.stringScores = {}
-        self.good_strings_db = good_strings_db
-        self.good_opcodes_db = good_opcodes_db
-        self.good_imphashes_db = good_imphashes_db
-        self.good_exports_db = good_exports_db
-        self.pestudio_strings = pestudio_strings
-        self.args = args
-        self.string_to_comms = dict()
+    ): 
+        self.args = args 
 
 
 @click.group()
@@ -423,12 +407,7 @@ def generate(**kwargs):
 
     # Special strings
     state = State(
-        args,
-        good_strings_db,
-        good_opcodes_db,
-        good_imphashes_db,
-        good_exports_db,
-        pestudio_strings,
+        args, 
     )
     # Scan malware files
     click.echo(f"[+] Generating YARA rules from {args.malware_path}")
@@ -449,7 +428,8 @@ def generate(**kwargs):
         good_imphashes_db,
         good_exports_db,
     )
-
+    # Apply intelligent filters
+    logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
     file_strings = {fpath: scoring_engine.filter_string_set(strings) for fpath, strings in file_strings.items()}
     file_opcodes = {fpath: scoring_engine.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()}
 
@@ -483,7 +463,7 @@ def database(**kwargs):
     """Manage goodware databases"""
     args = type("Args", (), kwargs)()
     print("[+] Processing goodware files ...")
-    state = State(args, None, None, None, None, pestudio_strings)
+    state = State(args )
     good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = parse_good_dir(state, args.g)
 
     # Update existing databases

@@ -57,6 +57,8 @@ fn process_malware(
     let mut scoring_engine = ScoringEngine {
         good_strings_db,
         good_opcodes_db,
+        good_imphashes_db,
+        good_exports_db,
         utf16strings,
         pestudio_strings: Default::default(),
         pestudio_marker: Default::default(),
