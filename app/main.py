@@ -133,17 +133,18 @@ def emptyFolder(dir):
                 os.unlink(filePath)
         except Exception as e:
             print(e)
+ 
 
 
 def initialize_pestudio_strings():
-    if not os.path.isfile(get_abs_path(PE_STRINGS_FILE)):
-        return None
+    #if not os.path.isfile(get_abs_path(PE_STRINGS_FILE)):
+    #    return None
     print("[+] Processing PEStudio strings ...")
 
     pestudio_strings = {}
 
     tree = etree.parse(get_abs_path(PE_STRINGS_FILE))
-
+    processed_strings = {}
     pestudio_strings["strings"] = tree.findall(".//string")
     pestudio_strings["av"] = tree.findall(".//av")
     pestudio_strings["folder"] = tree.findall(".//folder")
@@ -155,36 +156,101 @@ def initialize_pestudio_strings():
     pestudio_strings["agent"] = tree.findall(".//agent")
     pestudio_strings["oid"] = tree.findall(".//oid")
     pestudio_strings["priv"] = tree.findall(".//priv")
-
-    # Obsolete
-    # for elem in string_elems:
-    #    strings.append(elem.text)
-
-    return pestudio_strings
+    for category, elements in pestudio_strings.items():
+        for elem in elements:
+            processed_strings[elem.text] = (5, category)   
+    return processed_strings
 
 
-def load_db(file, local_counter, prefix):
-    if file.startswith(prefix):
-        try:
-            filePath = os.path.join(DB_PATH, file)
-            print("[+] Loading %s ..." % filePath)
-            before = len(local_counter)
-            js = load(get_abs_path(filePath))
-            local_counter.update(js)
-            added = len(local_counter) - before
-            print("[+] Total: %s / Added %d entries" % (len(local_counter), added))
-        except Exception:
-            traceback.print_exc()
+def load_db(file, local_counter ):
+ 
+    filePath = os.path.join(DB_PATH, file)
+    print("[+] Loading %s ..." % filePath)
+    before = len(local_counter)
+    js = load(get_abs_path(filePath))
+    local_counter.update(js)
+    added = len(local_counter) - before
+    print("[+] Total: %s / Added %d entries" % (len(local_counter), added))
+ 
     return len(local_counter)
 
+def load_databases():
+    good_strings_db = Counter()
+    good_opcodes_db = Counter()
+    good_imphashes_db = Counter()
+    good_exports_db = Counter() 
 
-class State:
-    def __init__(
-        self,
+    # Initialize all databases
+    for file in os.listdir(get_abs_path(DB_PATH)):
+
+        if not file.endswith(".db"):
+            continue  # String databases
+        match '-'.join(file.split("-")[:2]):
+            case "good-strings":
+                load_db(file, good_strings_db)
+            case "good-opcodes":
+                load_db(file, good_opcodes_db)
+            case "good-imphashes":
+                load_db(file, good_imphashes_db)
+            case "good-exports":
+                load_db(file, good_exports_db)
+    return good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db
+
+
+def process_folder(args, folder, good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db, pestudio_strings):
+    if args.opcodes and len(good_opcodes_db) < 1:
+        logging.getLogger("yarobot").warning("[E] Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set.")
+        args.opcodes = False
+
+    if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
+        logging.getLogger("yarobot").info("[E] Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set.")
+
+    if len(good_strings_db) < 1 and not args.c:
+        logging.getLogger("yarobot").error("[E] Error - no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set.")
+        sys.exit(1)
+    # Deactivate super rule generation if there's only a single file in the folder
+    if len(os.listdir(args.malware_path)) < 2:
+        args.nosuper = True
+    
+    # Scan malware files
+    logging.getLogger("yarobot").info(f"[+] Generating YARA rules from {args.malware_path}")
+    (combinations, super_rules, file_strings, file_opcodes, file_utf16strings, file_info, scoring_engine) = yarobot_rs.process_malware(
+        args.malware_path,
+        args.recursive,
+        RELEVANT_EXTENSIONS,
+        args.min_size,
+        args.max_size,
+        args.max_file_size,
+        args.opcodes,
+        args.debug,
+        args.excludegood,
+        args.min_score,
+        args.superrule_overlap,
+        good_strings_db,
+        good_opcodes_db,
+        good_imphashes_db,
+        good_exports_db,
+        pestudio_strings
+    )
+    # Apply intelligent filters
+    logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
+    file_strings = {fpath: scoring_engine.filter_string_set(strings) for fpath, strings in file_strings.items()}
+    file_opcodes = {fpath: scoring_engine.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()}
+
+    # Create Rule Files
+    (rule_count, super_rule_count) = generate_rules(
+        scoring_engine, 
         args,
-    ): 
-        self.args = args 
+        file_strings,
+        file_opcodes,
+        super_rules,
+        file_info,
+    )
 
+    print("[=] Generated %s SIMPLE rules." % str(rule_count))
+    if not args.nosuper:
+        print("[=] Generated %s SUPER rules." % str(super_rule_count))
+    print("[=] All rules written to %s" % args.output_rule_file)
 
 @click.group()
 def cli():
@@ -372,81 +438,8 @@ def generate(**kwargs):
     print("[+] Reading goodware strings from database 'good-strings.db' ...")
     print("    (This could take some time and uses several Gigabytes of RAM depending on your db size)")
 
-    good_strings_db = Counter()
-    good_opcodes_db = Counter()
-    good_imphashes_db = Counter()
-    good_exports_db = Counter()
-
-    opcodes_num = 0
-    strings_num = 0
-    imphash_num = 0
-    exports_num = 0
-
-    # Initialize all databases
-    for file in os.listdir(get_abs_path(DB_PATH)):
-        if not file.endswith(".db"):
-            continue  # String databases
-        strings_num = load_db(file, good_strings_db, "good-strings")
-        opcodes_num = load_db(file, good_opcodes_db, "good-opcodes")
-        imphash_num = load_db(file, good_imphashes_db, "good-imphash")
-        exports_num = load_db(file, good_exports_db, "good-exports")
-
-    if args.opcodes and len(good_opcodes_db) < 1:
-        click.echo("[E] Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set.")
-        args.opcodes = False
-
-    if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
-        click.echo("[E] Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set.")
-
-    if len(good_strings_db) < 1 and not args.c:
-        click.echo("[E] Error - no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set.")
-        sys.exit(1)
-    # Deactivate super rule generation if there's only a single file in the folder
-    if len(os.listdir(args.malware_path)) < 2:
-        args.nosuper = True
-
-    # Special strings
-    state = State(
-        args, 
-    )
-    # Scan malware files
-    click.echo(f"[+] Generating YARA rules from {args.malware_path}")
-    (combinations, super_rules, file_strings, file_opcodes, file_utf16strings, file_info, scoring_engine) = yarobot_rs.process_malware(
-        args.malware_path,
-        args.recursive,
-        RELEVANT_EXTENSIONS,
-        args.min_size,
-        args.max_size,
-        args.max_file_size,
-        args.opcodes,
-        args.debug,
-        args.excludegood,
-        args.min_score,
-        args.superrule_overlap,
-        good_strings_db,
-        good_opcodes_db,
-        good_imphashes_db,
-        good_exports_db,
-    )
-    # Apply intelligent filters
-    logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
-    file_strings = {fpath: scoring_engine.filter_string_set(strings) for fpath, strings in file_strings.items()}
-    file_opcodes = {fpath: scoring_engine.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()}
-
-    # Create Rule Files
-    (rule_count, super_rule_count) = generate_rules(
-        scoring_engine,
-        state,
-        file_strings,
-        file_opcodes,
-        super_rules,
-        file_info,
-    )
-
-    print("[=] Generated %s SIMPLE rules." % str(rule_count))
-    if not state.args.nosuper:
-        print("[=] Generated %s SUPER rules." % str(super_rule_count))
-    print("[=] All rules written to %s" % state.args.output_rule_file)
+    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = load_databases()
+    process_folder(args, args.malware_path, good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db, pestudio_strings)
 
 
 @cli.command()
@@ -462,9 +455,8 @@ def generate(**kwargs):
 def database(**kwargs):
     """Manage goodware databases"""
     args = type("Args", (), kwargs)()
-    print("[+] Processing goodware files ...")
-    state = State(args )
-    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = parse_good_dir(state, args.g)
+    print("[+] Processing goodware files ...") 
+    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = parse_good_dir(args.g)
 
     # Update existing databases
     if args.update:
@@ -613,7 +605,7 @@ def dropzone(**kwargs):
             # Generate a new description prefix
             prefix = getPrefix(args.p, identifier)
             # Process the samples
-            processSampleDir(args.m, state)
+            processSampleDir(args.m)
             # Delete all samples from the dropzone folder
             emptyFolder(args.m)
         time.sleep(1)

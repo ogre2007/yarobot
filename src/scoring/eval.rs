@@ -1,28 +1,21 @@
 use crate::{is_ascii_string, is_base_64, is_hex_encoded, score_with_regex, TokenInfo};
 use base64;
-use log::{debug, error, info, trace};
-use pyo3::exceptions::PyValueError;
-use pyo3::ffi::PyErr_BadArgument;
+use log::{debug, info, warn};
 use pyo3::prelude::*;
-use pyo3::{
-    types::{PyAnyMethods, PyDict, PyList, PyTuple},
-    Py, PyAny, Python,
-};
 use regex::Regex;
+use core::error;
 use std::{
-    collections::{HashMap, HashSet},
-    usize,
+    collections::{HashMap, HashSet},  usize
 };
 
 #[pyclass]
 #[derive(Debug)]
-
 pub struct ScoringEngine {
     #[pyo3(get, set)]
     pub good_strings_db: HashMap<String, usize>,
-    #[pyo3(get, set)]   
+    #[pyo3(get, set)]
     pub good_imphashes_db: HashMap<String, usize>,
-    #[pyo3(get, set)]   
+    #[pyo3(get, set)]
     pub good_exports_db: HashMap<String, usize>,
     #[pyo3(get, set)]
     pub good_opcodes_db: HashMap<String, usize>,
@@ -66,11 +59,8 @@ pub fn get_pestudio_score(
     string: &str,
     pestudio_strings: &HashMap<String, (i64, String)>,
 ) -> (i64, String) {
-    // Implementation would go here
-    pestudio_strings
-        .get(string)
-        .cloned()
-        .unwrap_or((0, String::new()))
+    let tuple = (&"".to_string(), &(0 as i64, "".to_string()));// Implementation would go here
+    pestudio_strings.iter().find(|(&ref x,&ref y)| x.to_lowercase() == string.to_lowercase()).unwrap_or(tuple).1.clone()
 }
 
 pub fn get_opcode_string(opcode: &mut TokenInfo) {
@@ -131,6 +121,7 @@ pub fn find_combinations(
 
     Ok((combinations, max_combi_count))
 }
+
 pub fn extract_stats_by_file<'a>(
     stats: &HashMap<String, TokenInfo>,
     outer_dict: &'a mut HashMap<String, Vec<TokenInfo>>,
@@ -225,6 +216,7 @@ impl ScoringEngine {
             // PEStudio String Blacklist Evaluation
             let (pescore, type_str) = get_pestudio_score(&token.reprz, &self.pestudio_strings);
             if !type_str.is_empty() {
+                warn!("PESTUDIO_STR: {}-{}-{}", &token.reprz, pescore, type_str);
                 self.pestudio_marker.insert(token.reprz.clone(), type_str);
                 token.from_pestudio = true;
                 if goodstring {
@@ -390,7 +382,7 @@ impl ScoringEngine {
                         "[-] Adding Super Rule with {} strings.",
                         combo.strings.len()
                     );
-                    let mut new_combo = combo.clone();
+                    let new_combo = combo.clone();
                     // Store the filtered strings - you might need to adjust this based on your data structure
                     super_rules.push(new_combo);
                 }

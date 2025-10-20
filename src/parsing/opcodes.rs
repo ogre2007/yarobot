@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{TokenInfo, TokenType};
 use goblin::{elf, pe, Object};
+use log::debug;
 use pyo3::{exceptions::PyException, prelude::*};
 use regex::bytes::Regex;
 
@@ -14,7 +15,7 @@ fn extract_elf_opcodes(elf: elf::Elf, file_data: &[u8]) -> HashMap<String, Token
         let va_end = va_start + section.sh_size;
 
         if va_start <= entry_point && entry_point < va_end {
-            println!(
+            debug!(
                 "EP is located at {} section",
                 elf.shdr_strtab.get_at(section.sh_name).unwrap_or("unknown")
             );
@@ -44,7 +45,7 @@ fn extract_pe_opcodes(pe: pe::PE, file_data: &[u8]) -> HashMap<String, TokenInfo
         let va_end = va_start + section.virtual_size as u64;
 
         if va_start <= entry_va && entry_va < va_end {
-            println!(
+            debug!(
                 "EP is located at {} section",
                 String::from_utf8_lossy(&section.name).trim_end_matches('\0')
             );
@@ -78,14 +79,14 @@ pub fn extract_opcodes(file_data: Vec<u8>) -> PyResult<HashMap<String, TokenInfo
         }
         Object::Mach(_) => {
             // Mach-O support can be added here
-            println!("Mach-O parsing not yet implemented"); // TODO:
+            debug!("Mach-O parsing not yet implemented"); // TODO:
         }
         Object::Archive(_) => {
             // Archive support can be added here
-            println!("Archive parsing not yet implemented"); // TODO: 
+            debug!("Archive parsing not yet implemented"); // TODO:
         }
         _ => {
-            println!("Unknown binary format");
+            debug!("Unknown binary format");
         }
     }
 

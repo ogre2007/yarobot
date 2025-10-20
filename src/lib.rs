@@ -31,6 +31,7 @@ fn process_malware(
     good_opcodes_db: HashMap<String, usize>,
     good_imphashes_db: HashMap<String, usize>,
     good_exports_db: HashMap<String, usize>,
+    pestudio_strings: HashMap<String, (i64, String)>,
 ) -> PyResult<(
     HashMap<String, Combination>,
     Vec<Combination>,
@@ -60,7 +61,7 @@ fn process_malware(
         good_imphashes_db,
         good_exports_db,
         utf16strings,
-        pestudio_strings: Default::default(),
+        pestudio_strings,
         pestudio_marker: Default::default(),
         base64strings: Default::default(),
         hex_enc_strings: Default::default(),
