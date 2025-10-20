@@ -123,23 +123,32 @@ def generate_general_condition(file_info, nofilesize, filesize_multiplier):
 
     return condition_string, pe_module_neccessary
 
+class RuleGenerator:
+    def __init__(self, args):
+        self.prefix = args.prefix
+        self.author = args.author
+        self.ref = args.ref
 
-def generate_meta(rule_name, file, prefix, author, ref, hashes):
-    # Print rule title
-    rule = "rule %s {\n" % rule_name
-    # Meta data -----------------------------------------------
-    rule += "   meta:\n"
-    rule += '      description = "%s - file %s"\n' % (
-        prefix,
-        file,
-    )
-    rule += '      author = "%s"\n' % author
-    rule += '      reference = "%s"\n' % ref
-    rule += '      date = "%s"\n' % get_timestamp_basic()
-    for i, hash in enumerate(hashes):
-        rule += '      hash%d = "%s"\n' % (i+1, hash)
-
-    return rule
+    def generate_rule(self, rule_name, file, hashes, rule_strings, rule_opcodes, conditions):
+        # Print rule title
+        rule = (
+            f"rule {rule_name} {{\n"
+            f"\tmeta:\n"
+            f'\t\tdescription = "{self.prefix} - file {file}"\n'
+            f'\t\tauthor = "{self.author}"\n'
+            f'\t\treference = "{self.ref}"\n'
+            f'\t\tdate = "{get_timestamp_basic()}"\n'
+        )
+        for i, hash in enumerate(hashes):
+            rule += f'\t\thash{i + 1} = "{hash}"\n'
+        rule += "\tstrings:\n"
+        rule += "\n".join(rule_strings)
+        rule += "\n"
+        rule += "\n".join(rule_opcodes)
+        rule += "\tcondition:\n"
+        rule += "\t\t%s\n" % conditions
+        rule += "}\n\n"
+        return rule 
 
 
 def add_conditions(conditions, subconditions, rule_strings, rule_opcodes, high_scoring_strings, pe_conditions_add):
@@ -183,7 +192,7 @@ def add_conditions(conditions, subconditions, rule_strings, rule_opcodes, high_s
         subconditions.append(cond_combined)
 
 
-def generate_simple_rule(printed_rules, args, scoring_engine: ScoringEngine, strings: List[TokenInfo], opcodes, info, fname) -> str:
+def generate_simple_rule(rg: RuleGenerator, printed_rules, args, scoring_engine: ScoringEngine, strings: List[TokenInfo], opcodes, info, fname) -> str:
     # Skip if there is nothing to do
     if not strings:
         logging.getLogger("yarobot").warning(
@@ -208,26 +217,7 @@ def generate_simple_rule(printed_rules, args, scoring_engine: ScoringEngine, str
         cleanedName = cleanedName + "_" + str(printed_rules[cleanedName])
     else:
         printed_rules[cleanedName] = 1
-
-    rule = generate_meta(cleanedName, file, args.prefix, args.author, args.ref, [info.sha256])
-
-    rule += "   strings:\n"
-    # Get the strings -----------------------------------------
-    # Rule String generation
-    (
-        rule_strings,
-        high_scoring_strings,
-    ) = generate_rule_strings(
-        scoring_engine,
-        args,
-        strings,
-    )
-
-    rule += "\n".join(rule_strings)
-    rule_opcodes = generate_rule_opcodes(opcodes, args.opcode_num)
-    rule += "\n"
-    rule += "\n".join(rule_opcodes)
-
+ 
     # Condition -----------------------------------------------
     # Conditions list (will later be joined with 'or')
     conditions = []  # AND connected
@@ -282,15 +272,27 @@ def generate_simple_rule(printed_rules, args, scoring_engine: ScoringEngine, str
         if len(condition_pe_part1) == 1:
             condition_pe.append(condition_pe_part1[0])
         elif len(condition_pe_part1) > 1:
-            condition_pe.append("( %s )" % " or ".join(condition_pe_part1))
+            condition_pe.append(f"( {' or '.join(condition_pe_part1)} )")
         if len(condition_pe_part2) == 1:
             condition_pe.append(condition_pe_part2[0])
         elif len(condition_pe_part2) > 1:
-            condition_pe.append("( %s )" % " and ".join(condition_pe_part2))
+            condition_pe.append(f"({' and '.join(condition_pe_part2)} )")
         # Marker that PE conditions have been added
         pe_conditions_add = True
         # Add to sub condition
         subconditions.append(" and ".join(condition_pe))
+ 
+    # Rule String generation
+    (
+        rule_strings,
+        high_scoring_strings,
+    ) = generate_rule_strings(
+        scoring_engine,
+        args,
+        strings,
+    )
+
+    rule_opcodes = generate_rule_opcodes(opcodes, args.opcode_num)
 
     add_conditions(conditions, subconditions, rule_strings, rule_opcodes, high_scoring_strings, pe_conditions_add)
 
@@ -303,15 +305,11 @@ def generate_simple_rule(printed_rules, args, scoring_engine: ScoringEngine, str
     # Create condition string
     condition_string = " and\n      ".join(conditions)
 
-    rule += "   condition:\n"
-    rule += "      %s\n" % condition_string
-    rule += "}\n\n"
-
-    return rule
-
-
-def generate_super_rule(super_rule, infos, args, scoring_engine, printed_rules, super_rule_names, printed_combi, super_rule_count, opcodes):
+    return rg.generate_rule(cleanedName, file, [info.sha256], rule_strings, rule_opcodes, condition_string)
  
+
+
+def generate_super_rule(rg: RuleGenerator, super_rule, infos, args, scoring_engine, printed_rules, super_rule_names, printed_combi, super_rule_count, opcodes):
     # Prepare Name
     rule_name = ""
     file_list = []
@@ -356,10 +354,7 @@ def generate_super_rule(super_rule, infos, args, scoring_engine, printed_rules, 
     else:
         printed_combi[rule_name] = 1
 
-    rule = generate_meta(rule_name, ", ".join(file_list), args.prefix, args.author, args.ref, hashes)
-
-    rule += "   strings:\n"
-
+ 
     tmp_file_opcodes = opcodes
     (
         rule_strings,
@@ -371,11 +366,7 @@ def generate_super_rule(super_rule, infos, args, scoring_engine, printed_rules, 
     )
 
     rule_opcodes = generate_rule_opcodes(tmp_file_opcodes, args.opcode_num)
-
-    rule += "\n".join(rule_strings)
-    rule += "\n"
-    rule += "\n".join(rule_opcodes)
-    rule += "\n"
+ 
     # Condition -----------------------------------------------
     # Conditions list (will later be joined with 'or')
     conditions = []
@@ -401,25 +392,20 @@ def generate_super_rule(super_rule, infos, args, scoring_engine, printed_rules, 
     # Create condition string
     condition_string = "\n      ) or ( ".join(conditions)
 
-    rule += "   condition:\n"
-    rule += f"      {condition_string}\n"
-    rule += "}\n\n"
-
-    # print rule
-    # Add to rules string
-    return rule
+  
+    return rg.generate_rule(rule_name, ", ".join(file_list), hashes, rule_strings, rule_opcodes, condition_string)
 
 
 def generate_top_info(author, identifier, ref, license):
     # General Info
     general_info = "/*\n"
     general_info += "   YARA Rule Set\n"
-    general_info += "   Author: {0}\n".format(author)
-    general_info += "   Date: {0}\n".format(get_timestamp_basic())
-    general_info += "   Identifier: {0}\n".format(identifier)
-    general_info += "   Reference: {0}\n".format(ref)
+    general_info += f"   Author: {author}\n"
+    general_info += f"   Date: {get_timestamp_basic()}\n"
+    general_info += f"   Identifier: {identifier}\n"
+    general_info += f"   Reference: {ref}\n"
     if license != "":
-        general_info += "   License: {0}\n".format(license)
+        general_info += f"   License: {license}\n"
     general_info += "*/\n\n"
     return general_info
 
@@ -441,12 +427,13 @@ def generate_rules(
 
             # Global Rule
             if condition != "":
-                global_rule = "/* Global Rule -------------------------------------------------------------- */\n"
-                global_rule += "/* Will be evaluated first, speeds up scanning process, remove at will */\n\n"
-                global_rule += "global private rule gen_characteristics {\n"
-                global_rule += "   condition:\n"
-                global_rule += "      {0}\n".format(condition)
-                global_rule += "}\n\n"
+                global_rule = (
+                    "/* Global Rule -------------------------------------------------------------- */\n"
+                    "/* Will be evaluated first, speeds up scanning process, remove at will */\n\n"
+                    "global private rule gen_characteristics {\n"
+                    "\tcondition:\n"
+                    f"\t\t{condition}\n}}\n\n"
+                )
 
                 fh.write(global_rule)
 
@@ -465,7 +452,7 @@ def generate_rules(
         fh.write("/* Rule Set ----------------------------------------------------------------- */\n\n")
 
         for filePath, strings in file_strings.items():
-            if rule := generate_simple_rule(printed_rules, args, scoring_engine,  strings, file_opcodes, file_info[filePath], filePath):
+            if rule := generate_simple_rule(printed_rules, args, scoring_engine, strings, file_opcodes, file_info[filePath], filePath):
                 rules += rule
                 rule_count += 1
 
@@ -494,12 +481,12 @@ def generate_rules(
 
 
 def generate_string_repr(is_super_string, i, stringe):
-    return f'\t${"x" if is_super_string else "s"}{i + 1} = "{stringe.reprz.replace("\\", "\\\\")}" {"wide" if stringe.typ == TokenType.UTF16LE else "ascii"}\
+    return f'\t\t${"x" if is_super_string else "s"}{i + 1} = "{stringe.reprz.replace("\\", "\\\\")}" {"wide" if stringe.typ == TokenType.UTF16LE else "ascii"}\
  {"fullword" if stringe.fullword else ""} /*{stringe.notes}*/'
 
 
 def generate_opcode_repr(i, opcode):
-    return f"\t$op{i} = {{{opcode}}}\n"
+    return f"\t\t$op{i} = {{{opcode}}}\n"
 
 
 def generate_rule_opcodes(opcode_elements, opcodes_per_rule):
@@ -554,7 +541,7 @@ def generate_rule_strings(scoring_engine, args, string_elements):
 
         # If too many string definitions found - cut it at the
         # count defined via command line param -rc
-        if (i + 1) >= args.strings_per_rule: 
+        if (i + 1) >= args.strings_per_rule:
             break
 
     else:

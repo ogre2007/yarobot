@@ -43,7 +43,7 @@ from lxml import etree
 from app.config import DB_PATH, PE_STRINGS_FILE
 
 
-from app.rule_generator import generate_rules
+from app.rule_generator import RuleGenerator, generate_rules
 
 # from app.scoring import extract_stats_by_file, sample_string_evaluation
 from app.config import RELEVANT_EXTENSIONS
@@ -133,11 +133,10 @@ def emptyFolder(dir):
                 os.unlink(filePath)
         except Exception as e:
             print(e)
- 
 
 
 def initialize_pestudio_strings():
-    #if not os.path.isfile(get_abs_path(PE_STRINGS_FILE)):
+    # if not os.path.isfile(get_abs_path(PE_STRINGS_FILE)):
     #    return None
     print("[+] Processing PEStudio strings ...")
 
@@ -158,12 +157,11 @@ def initialize_pestudio_strings():
     pestudio_strings["priv"] = tree.findall(".//priv")
     for category, elements in pestudio_strings.items():
         for elem in elements:
-            processed_strings[elem.text] = (5, category)   
+            processed_strings[elem.text] = (5, category)
     return processed_strings
 
 
-def load_db(file, local_counter ):
- 
+def load_db(file, local_counter):
     filePath = os.path.join(DB_PATH, file)
     print("[+] Loading %s ..." % filePath)
     before = len(local_counter)
@@ -171,21 +169,21 @@ def load_db(file, local_counter ):
     local_counter.update(js)
     added = len(local_counter) - before
     print("[+] Total: %s / Added %d entries" % (len(local_counter), added))
- 
+
     return len(local_counter)
+
 
 def load_databases():
     good_strings_db = Counter()
     good_opcodes_db = Counter()
     good_imphashes_db = Counter()
-    good_exports_db = Counter() 
+    good_exports_db = Counter()
 
     # Initialize all databases
     for file in os.listdir(get_abs_path(DB_PATH)):
-
         if not file.endswith(".db"):
             continue  # String databases
-        match '-'.join(file.split("-")[:2]):
+        match "-".join(file.split("-")[:2]):
             case "good-strings":
                 load_db(file, good_strings_db)
             case "good-opcodes":
@@ -211,7 +209,7 @@ def process_folder(args, folder, good_strings_db, good_opcodes_db, good_imphashe
     # Deactivate super rule generation if there's only a single file in the folder
     if len(os.listdir(args.malware_path)) < 2:
         args.nosuper = True
-    
+
     # Scan malware files
     logging.getLogger("yarobot").info(f"[+] Generating YARA rules from {args.malware_path}")
     (combinations, super_rules, file_strings, file_opcodes, file_utf16strings, file_info, scoring_engine) = yarobot_rs.process_malware(
@@ -230,7 +228,7 @@ def process_folder(args, folder, good_strings_db, good_opcodes_db, good_imphashe
         good_opcodes_db,
         good_imphashes_db,
         good_exports_db,
-        pestudio_strings
+        pestudio_strings,
     )
     # Apply intelligent filters
     logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
@@ -238,8 +236,10 @@ def process_folder(args, folder, good_strings_db, good_opcodes_db, good_imphashe
     file_opcodes = {fpath: scoring_engine.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()}
 
     # Create Rule Files
+    rg = RuleGenerator(args)
     (rule_count, super_rule_count) = generate_rules(
-        scoring_engine, 
+        rg,
+        scoring_engine,
         args,
         file_strings,
         file_opcodes,
@@ -251,6 +251,7 @@ def process_folder(args, folder, good_strings_db, good_opcodes_db, good_imphashe
     if not args.nosuper:
         print("[=] Generated %s SUPER rules." % str(super_rule_count))
     print("[=] All rules written to %s" % args.output_rule_file)
+
 
 @click.group()
 def cli():
@@ -455,7 +456,7 @@ def generate(**kwargs):
 def database(**kwargs):
     """Manage goodware databases"""
     args = type("Args", (), kwargs)()
-    print("[+] Processing goodware files ...") 
+    print("[+] Processing goodware files ...")
     good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = parse_good_dir(args.g)
 
     # Update existing databases

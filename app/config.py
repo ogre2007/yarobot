@@ -5,7 +5,6 @@ _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 DB_PATH = os.path.normpath(os.path.join(_ROOT, "dbs"))
 
 
-
 PE_STRINGS_FILE = os.path.normpath(os.path.join(_ROOT, "3rdparty", "strings.xml"))
 
 "../3rdparty/strings.xml"

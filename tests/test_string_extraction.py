@@ -53,7 +53,7 @@ def test_parse_good_dir_aggregates_counts(tmp_path):
     f2 = tmp_path / "b.dll"
     f1.write_bytes(b"alpha\0beta\0alpha\0gamma")
     f2.write_bytes(b"alpha\0delta\0beta")
- 
+
     args = SimpleNamespace(
         fs=1,
         debug=False,
@@ -64,7 +64,7 @@ def test_parse_good_dir_aggregates_counts(tmp_path):
         ref="",
         R=True,
         oe=False,
-    ) 
+    )
 
     all_strings, all_opcodes, all_imphashes, all_exports = parse_good_dir(args, str(tmp_path))
     print(all_strings)
