@@ -2,6 +2,8 @@ from collections import Counter
 import datetime
 from typing import Any, List
 
+from typing import Tuple
+
 from app.config import KNOWN_IMPHASHES
 
 # from app.scoring import filter_opcode_set, filter_string_set
@@ -72,7 +74,7 @@ def get_file_range(size, fm_size):
     return size_string
 
 
-def generate_general_condition(file_info, nofilesize, filesize_multiplier):
+def generate_general_condition(file_info, nofilesize, filesize_multiplier, args):
     """
     Generates a general condition for a set of files
     :param file_info:
@@ -114,7 +116,7 @@ def generate_general_condition(file_info, nofilesize, filesize_multiplier):
         conditions.append(get_file_range(max(file_sizes), filesize_multiplier))
 
     # If different magic headers are less than 5
-    if len(imphashes) == 1:
+    if len(imphashes) == 1 and not args.noextras:
         conditions.append('pe.imphash() == "{0}"'.format(imphashes[0]))
         pe_module_neccessary = True
 
@@ -122,6 +124,7 @@ def generate_general_condition(file_info, nofilesize, filesize_multiplier):
     condition_string = " and ".join(conditions)
 
     return condition_string, pe_module_neccessary
+
 
 class RuleGenerator:
     def __init__(self, args):
@@ -145,10 +148,10 @@ class RuleGenerator:
         rule += "\n".join(rule_strings)
         rule += "\n"
         rule += "\n".join(rule_opcodes)
-        rule += "\tcondition:\n"
+        rule += "\n\tcondition:\n"
         rule += "\t\t%s\n" % conditions
         rule += "}\n\n"
-        return rule 
+        return rule
 
 
 def add_conditions(conditions, subconditions, rule_strings, rule_opcodes, high_scoring_strings, pe_conditions_add):
@@ -192,20 +195,41 @@ def add_conditions(conditions, subconditions, rule_strings, rule_opcodes, high_s
         subconditions.append(cond_combined)
 
 
-def generate_simple_rule(rg: RuleGenerator, printed_rules, args, scoring_engine: ScoringEngine, strings: List[TokenInfo], opcodes, info, fname) -> str:
+def generate_rule_tokens(scoring_engine, args, strings, utf16strings, opcodes, opcode_num) -> Tuple[List[str], int, List[str]]:
+    # Rule String generation
+    (
+        rule_strings,
+        high_scoring_strings,
+    ) = generate_rule_strings(
+        scoring_engine,
+        args,
+        (strings or []) + (utf16strings or []),
+    ) 
+    rule_opcodes = []
+    if opcodes:
+        rule_opcodes = generate_rule_opcodes(opcodes, opcode_num)
+    return rule_strings, high_scoring_strings, rule_opcodes
+
+
+def generate_simple_rule(
+    rg: RuleGenerator,
+    printed_rules,
+    args,
+    scoring_engine: ScoringEngine,
+    strings: List[TokenInfo] | None,
+    opcodes: List[TokenInfo] | None,
+    utf16strings: List[TokenInfo] | None,
+    info,
+    fname,
+) -> str:
     # Skip if there is nothing to do
-    if not strings:
+    logging.getLogger("yarobot").info("[+] Generating rule for %s, %d strings, %d opcodes, %d utf16strs", fname, len(strings), len(opcodes), len(utf16strings))
+    if not strings and not opcodes and not utf16strings:
         logging.getLogger("yarobot").warning(
             "[W] Not enough high scoring strings to create a rule. (Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s",
             fname,
         )
-        return False
-    elif not opcodes:
-        logging.getLogger("yarobot").warning(
-            "[W] Not enough high scoring strings and opcodes to create a rule. (Try -z 0 to reduce the min score) FILE: %s",
-            fname,
-        )
-
+        return False 
     # Print rule title ----------------------------------------
 
     (path, file) = os.path.split(fname)
@@ -217,7 +241,7 @@ def generate_simple_rule(rg: RuleGenerator, printed_rules, args, scoring_engine:
         cleanedName = cleanedName + "_" + str(printed_rules[cleanedName])
     else:
         printed_rules[cleanedName] = 1
- 
+
     # Condition -----------------------------------------------
     # Conditions list (will later be joined with 'or')
     conditions = []  # AND connected
@@ -281,19 +305,10 @@ def generate_simple_rule(rg: RuleGenerator, printed_rules, args, scoring_engine:
         pe_conditions_add = True
         # Add to sub condition
         subconditions.append(" and ".join(condition_pe))
- 
-    # Rule String generation
-    (
-        rule_strings,
-        high_scoring_strings,
-    ) = generate_rule_strings(
-        scoring_engine,
-        args,
-        strings,
+
+    rule_strings, high_scoring_strings,  rule_opcodes = generate_rule_tokens(
+        scoring_engine, args, strings, utf16strings, opcodes, args.opcode_num
     )
-
-    rule_opcodes = generate_rule_opcodes(opcodes, args.opcode_num)
-
     add_conditions(conditions, subconditions, rule_strings, rule_opcodes, high_scoring_strings, pe_conditions_add)
 
     # Now add string condition to the conditions
@@ -306,10 +321,20 @@ def generate_simple_rule(rg: RuleGenerator, printed_rules, args, scoring_engine:
     condition_string = " and\n      ".join(conditions)
 
     return rg.generate_rule(cleanedName, file, [info.sha256], rule_strings, rule_opcodes, condition_string)
- 
 
 
-def generate_super_rule(rg: RuleGenerator, super_rule, infos, args, scoring_engine, printed_rules, super_rule_names, printed_combi, super_rule_count, opcodes):
+def generate_super_rule(
+    rg: RuleGenerator,
+    super_rule,
+    infos,
+    args,
+    scoring_engine,
+    printed_rules,
+    super_rule_names,
+    printed_combi,
+    super_rule_count,
+    opcodes,
+):
     # Prepare Name
     rule_name = ""
     file_list = []
@@ -354,19 +379,10 @@ def generate_super_rule(rg: RuleGenerator, super_rule, infos, args, scoring_engi
     else:
         printed_combi[rule_name] = 1
 
- 
-    tmp_file_opcodes = opcodes
-    (
-        rule_strings,
-        high_scoring_strings,
-    ) = generate_rule_strings(
-        scoring_engine,
-        args,
-        super_rule.strings,
+    rule_strings, high_scoring_strings, rule_opcodes = generate_rule_tokens(
+        scoring_engine, args, super_rule.strings, [], opcodes, args.opcode_num
     )
 
-    rule_opcodes = generate_rule_opcodes(tmp_file_opcodes, args.opcode_num)
- 
     # Condition -----------------------------------------------
     # Conditions list (will later be joined with 'or')
     conditions = []
@@ -377,7 +393,9 @@ def generate_super_rule(rg: RuleGenerator, super_rule, infos, args, scoring_engi
     pe_module_necessary = False
     for filePath in super_rule.files:
         file_info_super[filePath] = infos[filePath]
-    condition_strings, pe_module_necessary_gen = generate_general_condition(infos, args.nofilesize, args.filesize_multiplier)
+    condition_strings, pe_module_necessary_gen = generate_general_condition(
+        infos, args.nofilesize, args.filesize_multiplier, args
+    )
     if pe_module_necessary_gen:
         pe_module_necessary = True
 
@@ -392,7 +410,6 @@ def generate_super_rule(rg: RuleGenerator, super_rule, infos, args, scoring_engi
     # Create condition string
     condition_string = "\n      ) or ( ".join(conditions)
 
-  
     return rg.generate_rule(rule_name, ", ".join(file_list), hashes, rule_strings, rule_opcodes, condition_string)
 
 
@@ -411,19 +428,26 @@ def generate_top_info(author, identifier, ref, license):
 
 
 def generate_rules(
+    rg: RuleGenerator,
     scoring_engine,
     args,
     file_strings,
     file_opcodes,
+    file_utf16strings,
     super_rules,
+    opcode_super_rules,
+    utf16_super_rules,
     file_info,
-):
+):  
+    fdata = ""
     with open(args.output_rule_file, "w") as fh:
-        fh.write(generate_top_info(args.author, args.identifier, args.ref, args.license))
+        fdata = generate_top_info(args.author, args.identifier, args.ref, args.license)
 
         # GLOBAL RULES ----------------------------------------------------
         if args.globalrule:
-            condition, pe_module_necessary = generate_general_condition(file_info, args.nofilesize, args.filesize_multiplier)
+            condition, pe_module_necessary = generate_general_condition(
+                file_info, args.nofilesize, args.filesize_multiplier, args
+            )
 
             # Global Rule
             if condition != "":
@@ -435,7 +459,7 @@ def generate_rules(
                     f"\t\t{condition}\n}}\n\n"
                 )
 
-                fh.write(global_rule)
+                fdata += global_rule
 
         # General vars
         rules = ""
@@ -449,10 +473,24 @@ def generate_rules(
         # logging.getLogger("yarobot").info(file_strings)
 
         # GENERATE SIMPLE RULES -------------------------------------------
-        fh.write("/* Rule Set ----------------------------------------------------------------- */\n\n")
+        fdata += ("/* Rule Set ----------------------------------------------------------------- */\n\n")
+        all_files_set = set(file_strings.keys())
+        all_files_set.update(file_opcodes.keys())
+        all_files_set.update(file_utf16strings.keys())
 
-        for filePath, strings in file_strings.items():
-            if rule := generate_simple_rule(printed_rules, args, scoring_engine, strings, file_opcodes, file_info[filePath], filePath):
+
+        for filePath in all_files_set:
+            if rule := generate_simple_rule(
+                rg,
+                printed_rules,
+                args,
+                scoring_engine,
+                file_strings[filePath] if filePath in file_strings.keys() else [],
+                file_opcodes[filePath] if filePath in file_opcodes.keys() else [],
+                file_utf16strings[filePath] if filePath in file_utf16strings.keys() else [],
+                file_info[filePath],
+                filePath,
+            ):
                 rules += rule
                 rule_count += 1
 
@@ -463,30 +501,43 @@ def generate_rules(
 
             print("[+] Generating Super Rules ...")
             printed_combi = {}
-            for super_rule in super_rules:
-                rules += generate_super_rule(super_rule, file_info, args, scoring_engine, printed_rules, super_rule_names, printed_combi, super_rule_count, file_opcodes)
+            for super_rule in super_rules + opcode_super_rules + utf16_super_rules:
+                rules += generate_super_rule(
+                    rg,
+                    super_rule,
+                    file_info,
+                    args,
+                    scoring_engine,
+                    printed_rules,
+                    super_rule_names,
+                    printed_combi,
+                    super_rule_count,
+                    None,
+                )
                 super_rule_count += 1
 
         # WRITING RULES TO FILE
         # PE Module -------------------------------------------------------
         if not args.noextras:
             if "pe." in rules:
-                fh.write('import "pe"\n\n')
+                fdata += 'import "pe"\n\n'
         # RULES ------------------------------
-        fh.write(rules)
+        fdata += rules
+        fh.write(fdata)
         # Print rules to command line -------------------------------------
         logging.getLogger("yarobot").debug(rules)
+        
 
-    return (rule_count, super_rule_count)
+    return (rule_count, super_rule_count, fdata)
 
 
 def generate_string_repr(is_super_string, i, stringe):
-    return f'\t\t${"x" if is_super_string else "s"}{i + 1} = "{stringe.reprz.replace("\\", "\\\\")}" {"wide" if stringe.typ == TokenType.UTF16LE else "ascii"}\
+    return f'\t\t${"x" if is_super_string else "s"}{i + 1} = "{stringe.reprz.replace("\\", "\\\\").replace('"', '\\"')}" {"wide" if stringe.typ == TokenType.UTF16LE else "ascii"}\
  {"fullword" if stringe.fullword else ""} /*{stringe.notes}*/'
 
 
 def generate_opcode_repr(i, opcode):
-    return f"\t\t$op{i} = {{{opcode}}}\n"
+    return f"\t\t$op{i} = {{{opcode.reprz}}}"
 
 
 def generate_rule_opcodes(opcode_elements, opcodes_per_rule):
@@ -499,7 +550,7 @@ def generate_rule_opcodes(opcode_elements, opcodes_per_rule):
     return rule_opcodes
 
 
-def generate_rule_strings(scoring_engine, args, string_elements):
+def generate_rule_strings(scoring_engine, args, string_elements) -> Tuple[List[str], int]:
     rule_strings = []
     # Adding the strings --------------------------------------
 
@@ -521,7 +572,9 @@ def generate_rule_strings(scoring_engine, args, string_elements):
         if stringe.b64:
             stringe.add_note(f" / base64 encoded string '{scoring_engine.base64strings[string]}' /")
         if stringe.hexed:
-            stringe.add_note(f" / hex encoded string '{yarobot_rs.remove_non_ascii_drop(scoring_engine.hex_enc_strings[string]).decode()}' /")
+            stringe.add_note(
+                f" / hex encoded string '{yarobot_rs.remove_non_ascii_drop(scoring_engine.hex_enc_strings[string]).decode()}' /"
+            )
         if stringe.from_pestudio and args.score:
             stringe.add_note(f" / PEStudio Blacklist: {args.pestudio_marker[string]} /")
         if stringe.reversed:

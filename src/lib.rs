@@ -35,13 +35,19 @@ fn process_malware(
 ) -> PyResult<(
     HashMap<String, Combination>,
     Vec<Combination>,
+    HashMap<String, Combination>,
+    Vec<Combination>,
+    HashMap<String, Combination>,
+    Vec<Combination>,
     HashMap<String, Vec<TokenInfo>>,
     HashMap<String, Vec<TokenInfo>>,
     HashMap<String, Vec<TokenInfo>>,
     HashMap<String, FileInfo>,
     ScoringEngine,
 )> {
+    //env_logger::init();
     // Check if we should disable super rules for single files
+    env_logger::init_from_env("RUST_LOG"); 
     let mut fp = FileProcessor::new(
         recursive,
         extensions,
@@ -73,11 +79,26 @@ fn process_malware(
         opcodes,
     };
 
-    let (combis, superrules, file_strings, file_opcodes, file_utf16strings) =
-        scoring_engine.sample_string_evaluation().unwrap();
+    let (string_combis, string_superrules, file_strings) = scoring_engine
+        .sample_string_evaluation(scoring_engine.string_scores.clone())
+        .unwrap();
+    let (utf16_combis, utf16_superrules, file_utf16strings) = scoring_engine
+        .sample_string_evaluation(scoring_engine.utf16strings.clone())
+        .unwrap();
+    let mut file_opcodes = Default::default();
+    let opcode_combis = Default::default();
+    let opcode_superrules = Default::default();
+    extract_stats_by_file(&scoring_engine.opcodes, &mut file_opcodes, None, None); 
+    /*let (opcode_combis, opcode_superrules, file_opcodes) = scoring_engine
+        .sample_string_evaluation(scoring_engine.opcodes.clone())
+        .unwrap();*/
     Ok((
-        combis,
-        superrules,
+        string_combis,
+        string_superrules,
+        utf16_combis,
+        utf16_superrules,
+        opcode_combis,
+        opcode_superrules,
         file_strings,
         file_opcodes,
         file_utf16strings,

@@ -195,25 +195,45 @@ def load_databases():
     return good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db
 
 
-def process_folder(args, folder, good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db, pestudio_strings):
+def process_folder(
+    args, folder, good_strings_db={}, good_opcodes_db={}, good_imphashes_db={}, good_exports_db={}, pestudio_strings={}
+):
     if args.opcodes and len(good_opcodes_db) < 1:
-        logging.getLogger("yarobot").warning("[E] Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set.")
+        logging.getLogger("yarobot").warning(
+            "[E] Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set."
+        )
         args.opcodes = False
 
     if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
-        logging.getLogger("yarobot").info("[E] Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set.")
+        logging.getLogger("yarobot").info(
+            "[E] Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set."
+        )
 
     if len(good_strings_db) < 1 and not args.c:
-        logging.getLogger("yarobot").error("[E] Error - no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set.")
-        sys.exit(1)
+        logging.getLogger("yarobot").warning(
+            "[E] Error - no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set."
+        )
+        #sys.exit(1)
     # Deactivate super rule generation if there's only a single file in the folder
-    if len(os.listdir(args.malware_path)) < 2:
+    if len(os.listdir(folder)) < 2:
         args.nosuper = True
 
     # Scan malware files
-    logging.getLogger("yarobot").info(f"[+] Generating YARA rules from {args.malware_path}")
-    (combinations, super_rules, file_strings, file_opcodes, file_utf16strings, file_info, scoring_engine) = yarobot_rs.process_malware(
-        args.malware_path,
+    logging.getLogger("yarobot").info(f"[+] Generating YARA rules from {folder}")
+    (
+        combinations,
+        super_rules,
+        utf16_combinations,
+        utf16_super_rules,
+        opcode_combinations,
+        opcode_super_rules,
+        file_strings,
+        file_opcodes,
+        file_utf16strings,
+        file_info,
+        scoring_engine,
+    ) = yarobot_rs.process_malware(
+        folder,
         args.recursive,
         RELEVANT_EXTENSIONS,
         args.min_size,
@@ -234,16 +254,22 @@ def process_folder(args, folder, good_strings_db, good_opcodes_db, good_imphashe
     logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
     file_strings = {fpath: scoring_engine.filter_string_set(strings) for fpath, strings in file_strings.items()}
     file_opcodes = {fpath: scoring_engine.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()}
+    file_utf16strings = {
+        fpath: scoring_engine.filter_string_set(utf16strings) for fpath, utf16strings in file_utf16strings.items()
+    }
 
     # Create Rule Files
     rg = RuleGenerator(args)
-    (rule_count, super_rule_count) = generate_rules(
+    (rule_count, super_rule_count, rules) = generate_rules(
         rg,
         scoring_engine,
         args,
         file_strings,
         file_opcodes,
+        file_utf16strings,
         super_rules,
+        opcode_super_rules,
+        utf16_super_rules,
         file_info,
     )
 
@@ -251,6 +277,7 @@ def process_folder(args, folder, good_strings_db, good_opcodes_db, good_imphashe
     if not args.nosuper:
         print("[=] Generated %s SUPER rules." % str(super_rule_count))
     print("[=] All rules written to %s" % args.output_rule_file)
+    return rules
 
 
 @click.group()
@@ -440,7 +467,9 @@ def generate(**kwargs):
     print("    (This could take some time and uses several Gigabytes of RAM depending on your db size)")
 
     good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = load_databases()
-    process_folder(args, args.malware_path, good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db, pestudio_strings)
+    process_folder(
+        args, args.malware_path, good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db, pestudio_strings
+    )
 
 
 @cli.command()

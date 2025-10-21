@@ -1,4 +1,4 @@
-use crate::{is_ascii_string, is_base_64, is_hex_encoded, score_with_regex, TokenInfo};
+use crate::{is_ascii_string, is_base_64, is_hex_encoded, score_with_regex, TokenInfo, TokenType};
 use base64;
 use log::{debug, info, warn};
 use pyo3::prelude::*;
@@ -336,28 +336,25 @@ impl ScoringEngine {
     }
 
     pub fn sample_string_evaluation(
-        &mut self,
+        &mut self, token_stats: HashMap<String, TokenInfo>,
     ) -> PyResult<(
         HashMap<String, Combination>,
         Vec<Combination>,
-        HashMap<String, Vec<TokenInfo>>,
-        HashMap<String, Vec<TokenInfo>>,
-        HashMap<String, Vec<TokenInfo>>,
+        HashMap<String, Vec<TokenInfo>>, 
     )> {
         info!("[+] Generating statistical data ...");
-        info!("\t[INPUT] Strings: {}", self.string_scores.len());
-        let mut file_strings = HashMap::new();
-        let mut file_utf16strings = HashMap::new();
+        info!("\t[INPUT] Strings: {}", token_stats.len());
+        let mut file_tokens = HashMap::new(); 
+        let mut min = Some(0);
+        let mut max = Some(20);
+        if token_stats.len()>0 && token_stats.iter().next().unwrap().1.typ == TokenType::BINARY {
+            min = None;
+            max = None;
+        }
+        extract_stats_by_file(&token_stats, &mut file_tokens, min, max); 
 
-        let mut file_opcodes = HashMap::new();
-
-        extract_stats_by_file(&self.string_scores, &mut file_strings, Some(0), Some(10));
-
-        //STRING EVALUATION -------------------------------------------------------
-        extract_stats_by_file(&self.opcodes, &mut file_opcodes, None, None);
-
-        extract_stats_by_file(&self.utf16strings, &mut file_utf16strings, None, None);
-        let (mut combinations, max_combi_count) = find_combinations(&self.string_scores).unwrap();
+        let (mut combinations, max_combi_count) = find_combinations(&token_stats).unwrap();
+         
 
         info!("[+] Generating Super Rules ... (a lot of magic)");
         let mut super_rules = Vec::new();
@@ -369,12 +366,19 @@ impl ScoringEngine {
                     // Convert FileStats to Tokens for filtering
                     let tokens: Vec<TokenInfo> = combo.strings.clone();
                     debug!("calling filter with combo strings...");
-                    let filtered_strings = self.filter_string_set(tokens)?;
+
+                    let filtered_strings = match tokens[0].typ {
+                        TokenType::ASCII => self.filter_string_set(tokens)?,
+                        TokenType::UTF16LE => self.filter_string_set(tokens)?,
+                        TokenType::BINARY => self.filter_opcode_set(tokens)?,
+                    };
+
+
                     combo.strings = filtered_strings;
                     if combo.strings.len() >= min_strings {
                         // Remove files from file_strings if provided
                         for file in &combo.files {
-                            file_strings.remove(&file.clone());
+                            file_tokens.remove(&file.clone());
                         }
                     }
 
@@ -392,10 +396,8 @@ impl ScoringEngine {
 
         Ok((
             combinations,
-            super_rules,
-            file_strings,
-            file_opcodes,
-            file_utf16strings,
+            super_rules, 
+            file_tokens,
         ))
     }
 }

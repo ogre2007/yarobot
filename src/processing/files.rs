@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     extract_and_count_ascii_strings, extract_and_count_utf16_strings, extract_opcodes,
-    get_file_info, FileInfo, TokenInfo,
+    get_file_info, FileInfo, TokenInfo, TokenType,
 };
 
 use log::debug;
@@ -17,6 +17,9 @@ use walkdir::WalkDir;
 
 pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, TokenInfo>) {
     for (tok, info) in new.into_iter() {
+        if info.typ == TokenType::BINARY {
+            //println!("{:?}", info);
+        }
         if stats.len() > 0 {
             //println!("{:?}", &info);
             //assert_eq!(stats.iter().nth(0).unwrap().1.typ, info.typ);
@@ -155,14 +158,16 @@ impl FileProcessor {
         merge_stats(strings, &mut self.strings);
         merge_stats(utf16strings, &mut self.utf16strings);
         merge_stats(opcodes, &mut self.opcodes);
-        debug!(
-            "[+] Processed {} Size: {} Strings: {} Utf16Strings: {}  OpCodes: {}",
+            if self.debug {
+        println!(
+            "[+] Processed {} Size: {} Strings: {} Utf16Strings: {} OpCodes: {}",
             file_path,
             meta.len(),
             self.strings.len(),
-            self.utf16strings.len(),
+            self.utf16strings.len(), 
             self.opcodes.len()
         );
+    }
         true
     }
 
@@ -180,11 +185,12 @@ impl FileProcessor {
         let mut buffer = Vec::new();
         let _ = limited_reader.read_to_end(&mut buffer);
 
-        let fi = get_file_info(&buffer).unwrap();
+        let fi: FileInfo = get_file_info(&buffer).unwrap();
         let (mut strings, mut utf16strings) = (
             extract_and_count_ascii_strings(&buffer, self.minssize, self.maxssize),
             extract_and_count_utf16_strings(&buffer, self.minssize, self.maxssize),
         );
+        
         for (_, ti) in strings.iter_mut() {
             ti.files.insert(file_path.clone());
         }

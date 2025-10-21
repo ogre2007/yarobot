@@ -1,8 +1,8 @@
 from pathlib import Path
 from types import SimpleNamespace
-from app.main import parse_good_dir
+from app.main import process_folder
 import yarobot_rs
-
+import yara
 
 def test_string_extraction():
     strings, utf16strs = yarobot_rs.extract_strings(b"string1\0string2\nmultilinestring\n1\0string1", 5, 128)
@@ -45,38 +45,46 @@ def test_get_pe_info_fast_rejects():
     fi = yarobot_rs.get_file_info(bytes(fake_mz))
     assert fi.imphash == ""
     assert fi.exports == []
-
-
-def test_parse_good_dir_aggregates_counts(tmp_path):
-    # Create temp files with overlapping strings
-    f1 = tmp_path / "a.exe"
-    f2 = tmp_path / "b.dll"
-    f1.write_bytes(b"alpha\0beta\0alpha\0gamma")
-    f2.write_bytes(b"alpha\0delta\0beta")
-
-    args = SimpleNamespace(
-        fs=1,
-        debug=False,
-        s=128,
-        y=4,
-        opcodes=False,
-        b="",
-        ref="",
-        R=True,
-        oe=False,
-    )
-
-    all_strings, all_opcodes, all_imphashes, all_exports = parse_good_dir(args, str(tmp_path))
-    print(all_strings)
-    # alpha appears 3 times across files
-    assert all_strings["alpha"].count == 3
-    # beta appears 2 times
-    assert all_strings["beta"].count == 2
-    # gamma and delta once each
-    assert all_strings["gamma"].count == 1
-    assert all_strings["delta"].count == 1
-
-
+ 
 def test_create_rust_struc():
     x = yarobot_rs.TokenInfo("wasd", 16, yarobot_rs.TokenType.BINARY, {"file", "file2"}, "")
     print(str(x))
+
+
+def test_parse_dir(shared_datadir):
+    args = SimpleNamespace(
+        max_file_size=3,
+        debug=False,
+        max_size=128,
+        min_size=4,
+        opcodes=False,
+        b="", 
+        recursive=True,
+        oe=False,
+        c=False,
+        excludegood=False,
+        min_score=1,
+        superrule_overlap=5,
+        prefix="test",
+        author="test",
+        ref="test",
+        output_rule_file="test.yar",
+        identifier="test",
+        license="test",
+        globalrule=True,
+        nofilesize=False,
+        filesize_multiplier=3,
+        noextras=True,
+        opcode_num=3,
+        score=1,
+        high_scoring=10,
+        strings_per_rule=10,
+    )
+    data = shared_datadir.joinpath("binary").read_bytes()[: 1024 * 1024 *2]
+    
+    rules = process_folder(args, str(shared_datadir))
+    r = yara.compile(source=rules)
+    m = r.match(data=data)
+    assert len(m) > 0
+    print(m)
+    

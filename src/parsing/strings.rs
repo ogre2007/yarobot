@@ -79,22 +79,25 @@ pub fn extract_and_count_utf16_strings(
         match code_unit {
             // Printable ASCII range
             0x0020..=0x007E => {
-                if let Some(ch) = char::from_u32(code_unit as u32) {
+                if let Some(ch) = char::from_u32(code_unit as u32) { 
                     current_string.push(ch);
+                } else {
+                    if current_string.len() >= min_len {
+                        println!("UTF16LE: {}", current_string);
+
+                        stats
+                            .entry(current_string.clone())
+                            .or_insert(TokenInfo::new(
+                                current_string.clone(),
+                                0,
+                                TokenType::UTF16LE,
+                                HashSet::new(),
+                                None,
+                            ))
+                            .count += 1;
+                    }
+                    current_string.clear();
                 }
-                if current_string.len() == max_len {
-                    stats
-                        .entry(current_string.clone())
-                        .or_insert(TokenInfo::new(
-                            current_string.clone(),
-                            0,
-                            TokenType::UTF16LE,
-                            HashSet::new(),
-                            None,
-                        ))
-                        .count += 1;
-                }
-                current_string.clear();
             }
             // Null character or other control characters - end of string
             _ => {

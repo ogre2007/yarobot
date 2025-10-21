@@ -76,12 +76,14 @@ impl TokenInfo {
         )
     }
 
-    pub fn merge(&mut self, value: &Self) {
+    pub fn merge(&mut self, value: &Self) { 
         self.count += value.count;
         self.files.extend(value.files.clone());
         self.reprz = value.reprz.clone();
         self.notes += &value.notes;
         self.score += value.score;
+        self.typ = value.typ;
+        self.fullword = value.fullword;
     }
 
     pub fn add_file(&mut self, value: String) {
