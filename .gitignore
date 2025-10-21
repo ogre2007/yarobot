@@ -20,3 +20,4 @@ out.log
 target/
 *.lock
 dist/* 
+test.yar

@@ -79,7 +79,7 @@ pub fn extract_and_count_utf16_strings(
         match code_unit {
             // Printable ASCII range
             0x0020..=0x007E => {
-                if let Some(ch) = char::from_u32(code_unit as u32) { 
+                if let Some(ch) = char::from_u32(code_unit as u32) {
                     current_string.push(ch);
                 } else {
                     if current_string.len() >= min_len {

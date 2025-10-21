@@ -195,7 +195,13 @@ def load_databases():
 
 
 def process_folder(
-    args, folder, good_strings_db={}, good_opcodes_db={}, good_imphashes_db={}, good_exports_db={}, pestudio_strings={}
+    args,
+    folder,
+    good_strings_db={},
+    good_opcodes_db={},
+    good_imphashes_db={},
+    good_exports_db={},
+    pestudio_strings={},
 ):
     if args.opcodes and len(good_opcodes_db) < 1:
         logging.getLogger("yarobot").warning(
@@ -212,7 +218,7 @@ def process_folder(
         logging.getLogger("yarobot").warning(
             "[E] Error - no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set."
         )
-        #sys.exit(1)
+        # sys.exit(1)
     # Deactivate super rule generation if there's only a single file in the folder
     if len(os.listdir(folder)) < 2:
         args.nosuper = True
@@ -250,11 +256,20 @@ def process_folder(
         pestudio_strings,
     )
     # Apply intelligent filters
-    logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
-    file_strings = {fpath: scoring_engine.filter_string_set(strings) for fpath, strings in file_strings.items()}
-    file_opcodes = {fpath: scoring_engine.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()}
+    logging.getLogger("yarobot").info(
+        "[-] Applying intelligent filters to string findings ..."
+    )
+    file_strings = {
+        fpath: scoring_engine.filter_string_set(strings)
+        for fpath, strings in file_strings.items()
+    }
+    file_opcodes = {
+        fpath: scoring_engine.filter_opcode_set(opcodes)
+        for fpath, opcodes in file_opcodes.items()
+    }
     file_utf16strings = {
-        fpath: scoring_engine.filter_string_set(utf16strings) for fpath, utf16strings in file_utf16strings.items()
+        fpath: scoring_engine.filter_string_set(utf16strings)
+        for fpath, utf16strings in file_utf16strings.items()
     }
 
     # Create Rule Files
@@ -335,8 +350,12 @@ def cli():
     is_flag=True,
     default=False,
 )
-@click.option("-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar")
-@click.option("-e", "--output-dir-strings", help="Output directory for string exports", default="")
+@click.option(
+    "-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar"
+)
+@click.option(
+    "-e", "--output-dir-strings", help="Output directory for string exports", default=""
+)
 @click.option("-a", "--author", help="Author Name", default="yarobot Rule Generator")
 @click.option(
     "--ref",
@@ -463,17 +482,29 @@ def generate(**kwargs):
 
     pestudio_strings = initialize_pestudio_strings()
     print("[+] Reading goodware strings from database 'good-strings.db' ...")
-    print("    (This could take some time and uses several Gigabytes of RAM depending on your db size)")
+    print(
+        "    (This could take some time and uses several Gigabytes of RAM depending on your db size)"
+    )
 
-    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = load_databases()
+    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
+        load_databases()
+    )
     process_folder(
-        args, args.malware_path, good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db, pestudio_strings
+        args,
+        args.malware_path,
+        good_strings_db,
+        good_opcodes_db,
+        good_imphashes_db,
+        good_exports_db,
+        pestudio_strings,
     )
 
 
 @cli.command()
 @click.option("-g", "--goodware-path", required=True, help="Path to scan for goodware")
-@click.option("-i", "--identifier", help="Identifier for the database files", required=True)
+@click.option(
+    "-i", "--identifier", help="Identifier for the database files", required=True
+)
 @click.option(
     "--update",
     help="Update existing database with new goodware samples",
@@ -485,7 +516,9 @@ def database(**kwargs):
     """Manage goodware databases"""
     args = type("Args", (), kwargs)()
     print("[+] Processing goodware files ...")
-    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = parse_good_dir(args.g)
+    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
+        parse_good_dir(args.g)
+    )
 
     # Update existing databases
     if args.update:
@@ -533,7 +566,9 @@ def database(**kwargs):
         save(good_exports_pickle, exports_db)
 
     if args.update:
-        click.echo(f"[+] Updating goodware database with samples from {args.goodware_path}")
+        click.echo(
+            f"[+] Updating goodware database with samples from {args.goodware_path}"
+        )
         # from app.dbs import update_goodware_db
         # update_goodware_db(args)
     else:
@@ -548,14 +583,26 @@ def database(**kwargs):
         exports_db = "./dbs/good-exports%s.db" % db_identifier
 
         # Creating the databases
-        click.echo("[+] Using '%s' as filename for newly created strings database" % strings_db)
-        click.echo("[+] Using '%s' as filename for newly created opcodes database" % opcodes_db)
-        click.echo("[+] Using '%s' as filename for newly created opcodes database" % imphashes_db)
-        click.echo("[+] Using '%s' as filename for newly created opcodes database" % exports_db)
+        click.echo(
+            "[+] Using '%s' as filename for newly created strings database" % strings_db
+        )
+        click.echo(
+            "[+] Using '%s' as filename for newly created opcodes database" % opcodes_db
+        )
+        click.echo(
+            "[+] Using '%s' as filename for newly created opcodes database"
+            % imphashes_db
+        )
+        click.echo(
+            "[+] Using '%s' as filename for newly created opcodes database" % exports_db
+        )
 
         for file in [strings_db, opcodes_db, imphashes_db, exports_db]:
             if os.path.isfile(file):
-                input("File %s alread exists. Press enter to proceed or CTRL+C to exit." % file)
+                input(
+                    "File %s alread exists. Press enter to proceed or CTRL+C to exit."
+                    % file
+                )
                 os.remove(file)
 
         # Strings
@@ -594,7 +641,9 @@ def update():
 
 
 @cli.command()
-@click.option("-m", "--malware-path", required=True, help="Path to monitor for malware samples")
+@click.option(
+    "-m", "--malware-path", required=True, help="Path to monitor for malware samples"
+)
 @click.option(
     "-y",
     "--min-size",
@@ -609,7 +658,9 @@ def update():
     type=int,
     default=5,
 )
-@click.option("-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar")
+@click.option(
+    "-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar"
+)
 @click.option("-a", "--author", help="Author Name", default="yarobot Rule Generator")
 @click.option("--opcodes", help="Use the OpCode feature", is_flag=True, default=False)
 @click.option("--debug", help="Debug output", is_flag=True, default=False)

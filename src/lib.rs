@@ -47,7 +47,7 @@ fn process_malware(
 )> {
     //env_logger::init();
     // Check if we should disable super rules for single files
-    env_logger::init_from_env("RUST_LOG"); 
+    env_logger::init_from_env("RUST_LOG");
     let mut fp = FileProcessor::new(
         recursive,
         extensions,
@@ -88,10 +88,10 @@ fn process_malware(
     let mut file_opcodes = Default::default();
     let opcode_combis = Default::default();
     let opcode_superrules = Default::default();
-    extract_stats_by_file(&scoring_engine.opcodes, &mut file_opcodes, None, None); 
+    extract_stats_by_file(&scoring_engine.opcodes, &mut file_opcodes, None, None);
     /*let (opcode_combis, opcode_superrules, file_opcodes) = scoring_engine
-        .sample_string_evaluation(scoring_engine.opcodes.clone())
-        .unwrap();*/
+    .sample_string_evaluation(scoring_engine.opcodes.clone())
+    .unwrap();*/
     Ok((
         string_combis,
         string_superrules,

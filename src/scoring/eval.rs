@@ -1,11 +1,12 @@
 use crate::{is_ascii_string, is_base_64, is_hex_encoded, score_with_regex, TokenInfo, TokenType};
 use base64;
+use core::error;
 use log::{debug, info, warn};
 use pyo3::prelude::*;
 use regex::Regex;
-use core::error;
 use std::{
-    collections::{HashMap, HashSet},  usize
+    collections::{HashMap, HashSet},
+    usize,
 };
 
 #[pyclass]
@@ -59,8 +60,13 @@ pub fn get_pestudio_score(
     string: &str,
     pestudio_strings: &HashMap<String, (i64, String)>,
 ) -> (i64, String) {
-    let tuple = (&"".to_string(), &(0 as i64, "".to_string()));// Implementation would go here
-    pestudio_strings.iter().find(|(&ref x,&ref y)| x.to_lowercase() == string.to_lowercase()).unwrap_or(tuple).1.clone()
+    let tuple = (&"".to_string(), &(0 as i64, "".to_string())); // Implementation would go here
+    pestudio_strings
+        .iter()
+        .find(|(&ref x, &ref y)| x.to_lowercase() == string.to_lowercase())
+        .unwrap_or(tuple)
+        .1
+        .clone()
 }
 
 pub fn get_opcode_string(opcode: &mut TokenInfo) {
@@ -336,25 +342,25 @@ impl ScoringEngine {
     }
 
     pub fn sample_string_evaluation(
-        &mut self, token_stats: HashMap<String, TokenInfo>,
+        &mut self,
+        token_stats: HashMap<String, TokenInfo>,
     ) -> PyResult<(
         HashMap<String, Combination>,
         Vec<Combination>,
-        HashMap<String, Vec<TokenInfo>>, 
+        HashMap<String, Vec<TokenInfo>>,
     )> {
         info!("[+] Generating statistical data ...");
         info!("\t[INPUT] Strings: {}", token_stats.len());
-        let mut file_tokens = HashMap::new(); 
+        let mut file_tokens = HashMap::new();
         let mut min = Some(0);
         let mut max = Some(20);
-        if token_stats.len()>0 && token_stats.iter().next().unwrap().1.typ == TokenType::BINARY {
+        if token_stats.len() > 0 && token_stats.iter().next().unwrap().1.typ == TokenType::BINARY {
             min = None;
             max = None;
         }
-        extract_stats_by_file(&token_stats, &mut file_tokens, min, max); 
+        extract_stats_by_file(&token_stats, &mut file_tokens, min, max);
 
         let (mut combinations, max_combi_count) = find_combinations(&token_stats).unwrap();
-         
 
         info!("[+] Generating Super Rules ... (a lot of magic)");
         let mut super_rules = Vec::new();
@@ -372,7 +378,6 @@ impl ScoringEngine {
                         TokenType::UTF16LE => self.filter_string_set(tokens)?,
                         TokenType::BINARY => self.filter_opcode_set(tokens)?,
                     };
-
 
                     combo.strings = filtered_strings;
                     if combo.strings.len() >= min_strings {
@@ -394,10 +399,6 @@ impl ScoringEngine {
         }
         info!("OUTPUT: {} super rules", super_rules.len());
 
-        Ok((
-            combinations,
-            super_rules, 
-            file_tokens,
-        ))
+        Ok((combinations, super_rules, file_tokens))
     }
 }

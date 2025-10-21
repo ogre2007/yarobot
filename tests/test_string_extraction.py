@@ -4,8 +4,11 @@ from app.main import process_folder
 import yarobot_rs
 import yara
 
+
 def test_string_extraction():
-    strings, utf16strs = yarobot_rs.extract_strings(b"string1\0string2\nmultilinestring\n1\0string1", 5, 128)
+    strings, utf16strs = yarobot_rs.extract_strings(
+        b"string1\0string2\nmultilinestring\n1\0string1", 5, 128
+    )
     print(strings)
     assert strings["string1"].count == 2
     assert strings["string2"].count == 1
@@ -45,9 +48,12 @@ def test_get_pe_info_fast_rejects():
     fi = yarobot_rs.get_file_info(bytes(fake_mz))
     assert fi.imphash == ""
     assert fi.exports == []
- 
+
+
 def test_create_rust_struc():
-    x = yarobot_rs.TokenInfo("wasd", 16, yarobot_rs.TokenType.BINARY, {"file", "file2"}, "")
+    x = yarobot_rs.TokenInfo(
+        "wasd", 16, yarobot_rs.TokenType.BINARY, {"file", "file2"}, ""
+    )
     print(str(x))
 
 
@@ -58,7 +64,7 @@ def test_parse_dir(shared_datadir):
         max_size=128,
         min_size=4,
         opcodes=False,
-        b="", 
+        b="",
         recursive=True,
         oe=False,
         c=False,
@@ -80,11 +86,10 @@ def test_parse_dir(shared_datadir):
         high_scoring=10,
         strings_per_rule=10,
     )
-    data = shared_datadir.joinpath("binary").read_bytes()[: 1024 * 1024 *2]
-    
+    data = shared_datadir.joinpath("binary").read_bytes()[: 1024 * 1024 * 2]
+
     rules = process_folder(args, str(shared_datadir))
     r = yara.compile(source=rules)
     m = r.match(data=data)
     assert len(m) > 0
     print(m)
-    

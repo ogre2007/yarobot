@@ -33,7 +33,7 @@ rule data_binary {
 		$x6 = "is_nonoverlapping: `size_of::<T>() * count` overflows a usizeC:\\Users\\User\\.cargo\\registry\\src\\index.crates.io-6f17d22bba15001f" ascii  /*, signing_certificates, drive, system_keywords, credentials, missed_user_profiles, drives, suspicious_words2, directory, , ,  / score: 21 /*/
 		$x7 = "is_nonoverlapping: `size_of::<T>() * count` overflows a usizeconsole is detachedC:\\Users\\User\\.cargo\\registry\\src\\index.crates.i" ascii  /*, signing_certificates, drive, system_keywords, credentials, missed_user_profiles, drives, suspicious_words2, directory, , ,  / score: 21 /*/
 		$x8 = "unsafe precondition(s) violated: slice::get_unchecked requires that the index is within the sliceC:\\Users\\User\\.cargo\\registry\\s" ascii  /*, drive, system_keywords, credentials, missed_user_profiles, drives, directory, protocol_keywords, , ,  / score: 20 /*/
-		$x9 = "C:\\Users\\User\\.cargo\\registry\\src\\index.crates.io-6f17d22bba15001f\\clap_builder-4.5.42\\src\\output\\usage.rs" ascii fullword /*, drive, system_keywords, credentials, missed_user_profiles, drives, special_strings, directory, , ,  / score: 20 /*/
+		$x9 = "C:\\Users\\User\v\.cargo\\registry\\src\\index.crates.io-6f17d22bba15001f\\clap_builder-4.5.42\\src\\output\\usage.rs" ascii fullword /*, drive, system_keywords, credentials, missed_user_profiles, drives, special_strings, directory, , ,  / score: 20 /*/
 		$x10 = "internal error: entered unreachable codeC:\\Users\\User\\.cargo\\registry\\src\\index.crates.io-6f17d22bba15001f\\clap_builder-4.5.42\\s" ascii  /*, signing_certificates, drive, connection_keywords, system_keywords, credentials, missed_user_profiles, drives, directory, , ,  / score: 20 /*/
 
 	condition:

@@ -158,16 +158,16 @@ impl FileProcessor {
         merge_stats(strings, &mut self.strings);
         merge_stats(utf16strings, &mut self.utf16strings);
         merge_stats(opcodes, &mut self.opcodes);
-            if self.debug {
-        println!(
-            "[+] Processed {} Size: {} Strings: {} Utf16Strings: {} OpCodes: {}",
-            file_path,
-            meta.len(),
-            self.strings.len(),
-            self.utf16strings.len(), 
-            self.opcodes.len()
-        );
-    }
+        if self.debug {
+            println!(
+                "[+] Processed {} Size: {} Strings: {} Utf16Strings: {} OpCodes: {}",
+                file_path,
+                meta.len(),
+                self.strings.len(),
+                self.utf16strings.len(),
+                self.opcodes.len()
+            );
+        }
         true
     }
 
@@ -190,7 +190,7 @@ impl FileProcessor {
             extract_and_count_ascii_strings(&buffer, self.minssize, self.maxssize),
             extract_and_count_utf16_strings(&buffer, self.minssize, self.maxssize),
         );
-        
+
         for (_, ti) in strings.iter_mut() {
             ti.files.insert(file_path.clone());
         }

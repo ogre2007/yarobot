@@ -76,7 +76,7 @@ impl TokenInfo {
         )
     }
 
-    pub fn merge(&mut self, value: &Self) { 
+    pub fn merge(&mut self, value: &Self) {
         self.count += value.count;
         self.files.extend(value.files.clone());
         self.reprz = value.reprz.clone();
