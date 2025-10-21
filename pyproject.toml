@@ -21,13 +21,6 @@ dependencies = [
     "orjson>=3.11",
 ]
 
-test = [
-    "pytest",
-    "pytest-cov",
-    "pytest-datadir>=1.8.0",
-    "yara-python"
-]
-
 [project.urls]
 Homepage = "https://github.com/ogre2007/yarobot"
 Issues = "https://github.com/ogre2007/issues"
@@ -45,3 +38,10 @@ addopts = [
   "--import-mode=importlib"
 ]
 pythonpath = ["."]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-datadir>=1.8.0",
+    "yara-python>=4.5.4",
+]
