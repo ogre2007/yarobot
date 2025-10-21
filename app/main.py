@@ -33,7 +33,6 @@ import os
 import sys
 import logging
 
-import traceback
 import time
 from collections import Counter
 import signal as signal_module
