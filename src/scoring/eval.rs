@@ -455,15 +455,16 @@ impl ScoringEngine {
                         for file in &combo.files {
                             file_tokens.remove(&file.clone());
                         }
-                    }
-
-                    info!(
+                                            info!(
                         "[-] Adding Super Rule with {} strings.",
                         combo.strings.len()
                     );
                     let new_combo = combo.clone();
                     // Store the filtered strings - you might need to adjust this based on your data structure
                     super_rules.push(new_combo);
+                    }
+
+
                 }
             }
         }

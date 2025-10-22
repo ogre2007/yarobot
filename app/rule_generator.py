@@ -376,6 +376,7 @@ def generate_super_rule(
     file_list = []
     hashes = []
     # Loop through files
+    print("Generating super rule for %s" % super_rule)
     imphashes = Counter()
     for filePath in super_rule.files:
         (path, file) = os.path.split(filePath)

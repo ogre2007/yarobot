@@ -221,9 +221,6 @@ def process_folder(
             "[E] Error - no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set."
         )
         # sys.exit(1)
-    # Deactivate super rule generation if there's only a single file in the folder
-    if len(os.listdir(folder)) < 2:
-        args.nosuper = True
 
     # Scan malware files
     logging.getLogger("yarobot").info(f"[+] Generating YARA rules from {folder}")
