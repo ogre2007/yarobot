@@ -3,6 +3,9 @@ from types import SimpleNamespace
 from app.main import process_folder
 import yarobot_rs
 import yara
+import pstats
+
+import cProfile
 
 
 def test_string_extraction():
@@ -57,9 +60,12 @@ def test_create_rust_struc():
     print(str(x))
 
 
-def test_parse_dir(shared_datadir):
+def test_integration(shared_datadir):
+    pr = cProfile.Profile()
+    pr.enable()
+
     args = SimpleNamespace(
-        max_file_size=3,
+        max_file_size=2,
         debug=False,
         max_size=128,
         min_size=4,
@@ -82,14 +88,21 @@ def test_parse_dir(shared_datadir):
         filesize_multiplier=3,
         noextras=True,
         opcode_num=3,
-        score=1,
+        score=True,
         high_scoring=10,
         strings_per_rule=10,
     )
-    data = shared_datadir.joinpath("binary").read_bytes()[: 1024 * 1024 * 2]
+    data = shared_datadir.joinpath("binary").read_bytes()[
+        : 1024 * 1024 * args.max_file_size
+    ]
 
     rules = process_folder(args, str(shared_datadir))
+    pr.disable()
+
+    stats = pstats.Stats(pr)
+    stats.sort_stats("time").print_stats(10)  # Sort by cumulative time and print top 10
     r = yara.compile(source=rules)
     m = r.match(data=data)
+
     assert len(m) > 0
     print(m)

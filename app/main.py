@@ -41,7 +41,9 @@ from lxml import etree
 
 from app.config import DB_PATH, PE_STRINGS_FILE
 
+import pstats
 
+import cProfile
 from app.rule_generator import RuleGenerator, generate_rules
 
 # from app.scoring import extract_stats_by_file, sample_string_evaluation
@@ -263,10 +265,12 @@ def process_folder(
         fpath: scoring_engine.filter_string_set(strings)
         for fpath, strings in file_strings.items()
     }
+
     file_opcodes = {
         fpath: scoring_engine.filter_opcode_set(opcodes)
         for fpath, opcodes in file_opcodes.items()
     }
+
     file_utf16strings = {
         fpath: scoring_engine.filter_string_set(utf16strings)
         for fpath, utf16strings in file_utf16strings.items()
@@ -301,7 +305,7 @@ def cli():
 
 
 @cli.command()
-@click.option("-m", "--malware-path", required=True, help="Path to scan for malware")
+@click.argument("malware_path", type=click.Path(exists=True))
 @click.option(
     "-y",
     "--min-size",
@@ -340,9 +344,9 @@ def cli():
 @click.option(
     "-rc",
     "--strings-per-rule",
-    help="Maximum number of strings per rule (default=20, intelligent filtering will be applied)",
+    help="Maximum number of strings per rule (default=15, intelligent filtering will be applied)",
     type=int,
-    default=20,
+    default=15,
 )
 @click.option(
     "--excludegood",
@@ -402,9 +406,9 @@ def cli():
 @click.option(
     "-fm",
     "--filesize-multiplier",
-    help="Multiplier for the maximum 'filesize' condition value (default: 3)",
+    help="Multiplier for the maximum 'filesize' condition value (default: 2)",
     type=int,
-    default=3,
+    default=2,
 )
 @click.option(
     "--globalrule",
@@ -435,9 +439,9 @@ def cli():
 @click.option(
     "-fs",
     "--max-file-size",
-    help="Max file size in MB to analyze (default=10)",
+    help="Max file size in MB to analyze (default=2)",
     type=int,
-    default=10,
+    default=2,
 )
 @click.option(
     "--noextras",
@@ -460,15 +464,17 @@ def cli():
     type=int,
     default=3,
 )
-def generate(**kwargs):
+def generate(malware_path, **kwargs):
+    pr = cProfile.Profile()
+    pr.enable()
     """Generate YARA rules from malware samples"""
     args = type("Args", (), kwargs)()
 
     # Validate input
-    if args.malware_path and os.path.isfile(args.malware_path):
+    if malware_path and os.path.isfile(malware_path):
         click.echo("[E] Input is a file, please use a directory instead (-m path)")
         sys.exit(0)
-    sourcepath = args.malware_path
+    sourcepath = malware_path
     args.identifier = getIdentifier(args.identifier, sourcepath)
     print("[+] Using identifier '%s'" % args.identifier)
 
@@ -491,17 +497,23 @@ def generate(**kwargs):
     )
     process_folder(
         args,
-        args.malware_path,
+        malware_path,
         good_strings_db,
         good_opcodes_db,
         good_imphashes_db,
         good_exports_db,
         pestudio_strings,
     )
+    pr.disable()
+
+    stats = pstats.Stats(pr)
+    stats.sort_stats("cumulative").print_stats(
+        10
+    )  # Sort by cumulative time and print top 10
 
 
 @cli.command()
-@click.option("-g", "--goodware-path", required=True, help="Path to scan for goodware")
+@click.argument("goodware_path", type=click.Path(exists=True), required=True)
 @click.option(
     "-i", "--identifier", help="Identifier for the database files", required=True
 )
@@ -512,12 +524,12 @@ def generate(**kwargs):
     default=False,
 )
 @click.option("--debug", help="Debug output", is_flag=True, default=False)
-def database(**kwargs):
+def database(goodware_path, **kwargs):
     """Manage goodware databases"""
     args = type("Args", (), kwargs)()
     print("[+] Processing goodware files ...")
     good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
-        parse_good_dir(args.g)
+        parse_good_dir(goodware_path)
     )
 
     # Update existing databases
@@ -566,9 +578,7 @@ def database(**kwargs):
         save(good_exports_pickle, exports_db)
 
     if args.update:
-        click.echo(
-            f"[+] Updating goodware database with samples from {args.goodware_path}"
-        )
+        click.echo(f"[+] Updating goodware database with samples from {goodware_path}")
         # from app.dbs import update_goodware_db
         # update_goodware_db(args)
     else:
@@ -641,9 +651,7 @@ def update():
 
 
 @cli.command()
-@click.option(
-    "-m", "--malware-path", required=True, help="Path to monitor for malware samples"
-)
+@click.argument("malware_path", type=click.Path(exists=True))
 @click.option(
     "-y",
     "--min-size",
@@ -664,30 +672,30 @@ def update():
 @click.option("-a", "--author", help="Author Name", default="yarobot Rule Generator")
 @click.option("--opcodes", help="Use the OpCode feature", is_flag=True, default=False)
 @click.option("--debug", help="Debug output", is_flag=True, default=False)
-def dropzone(**kwargs):
+def dropzone(malware_path, **kwargs):
     """Dropzone mode - monitor directory for new samples and generate rules automatically"""
     args = type("Args", (), kwargs)()
 
-    click.echo(f"[+] Starting dropzone mode, monitoring {args.malware_path}")
+    click.echo(f"[+] Starting dropzone mode, monitoring {malware_path}")
     click.echo("[!] WARNING: Processed files will be deleted!")
 
     while True:
-        if len(os.listdir(args.m)) > 0:
+        if len(os.listdir(malware_path)) > 0:
             # Deactivate super rule generation if there's only a single file in the folder
-            if len(os.listdir(args.m)) < 2:
+            if len(os.listdir(malware_path)) < 2:
                 args.nosuper = True
             else:
                 args.nosuper = False
             # Read a new identifier
-            identifier = getIdentifier(args.b, args.m)
+            identifier = getIdentifier(args.b, malware_path)
             # Read a new reference
             reference = getReference(args.ref)
             # Generate a new description prefix
             prefix = getPrefix(args.p, identifier)
             # Process the samples
-            processSampleDir(args.m)
+            processSampleDir(malware_path)
             # Delete all samples from the dropzone folder
-            emptyFolder(args.m)
+            emptyFolder(malware_path)
         time.sleep(1)
 
 

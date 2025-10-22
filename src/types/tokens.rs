@@ -75,7 +75,26 @@ impl TokenInfo {
             self.reprz, self.score, self.count, self.typ, self.files, self.fullword, self.b64, self.hexed, self.reversed, self.from_pestudio
         )
     }
+    pub fn generate_string_repr(&self, i: i32, is_super_string: bool) -> String {
+        let id = if is_super_string { "x" } else { "s" };
+        let repr = self.reprz.replace("\\", "\\\\").replace("\"", "\\\"");
+        let wideness = if self.typ == TokenType::UTF16LE {
+            "wide"
+        } else {
+            "ascii"
+        };
+        let full = if self.fullword { "fullword" } else { "" };
 
+        format!(
+            "\t\t${}{} = \"{}\" {} {} /*{}*/",
+            id,
+            i + 1,
+            repr,
+            wideness,
+            full,
+            self.notes
+        )
+    }
     pub fn merge(&mut self, value: &Self) {
         self.count += value.count;
         self.files.extend(value.files.clone());

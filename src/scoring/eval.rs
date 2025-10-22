@@ -1,4 +1,7 @@
-use crate::{is_ascii_string, is_base_64, is_hex_encoded, score_with_regex, TokenInfo, TokenType};
+use crate::{
+    is_ascii_string, is_base_64, is_hex_encoded, remove_non_ascii_drop, score_with_regex,
+    TokenInfo, TokenType,
+};
 use base64;
 use core::error;
 use log::{debug, info, warn};
@@ -91,7 +94,7 @@ pub fn find_combinations(
 
     for (token, info) in stats {
         if info.files.len() > 1 {
-            debug!(
+            /*debug!(
                 "OVERLAP Count: {}\nString: \"{}\"\nFILE: {}",
                 info.count,
                 token,
@@ -100,13 +103,13 @@ pub fn find_combinations(
                     .into_iter()
                     .collect::<Vec<String>>()
                     .join(", ")
-            );
+            );*/
 
             let mut sorted_files: Vec<String> = info.files.clone().into_iter().collect();
             sorted_files.sort();
             let combi = sorted_files.join(":");
 
-            debug!("COMBI: {}", combi);
+            //debug!("COMBI: {}", combi);
 
             let combo_entry = combinations
                 .entry(combi.clone())
@@ -137,12 +140,12 @@ pub fn extract_stats_by_file<'a>(
     for (token, value) in stats {
         let count = value.count;
         if count >= min.unwrap_or(0) && count < max.unwrap_or(usize::MAX) {
-            debug!(
+            /*debug!(
                 " [-] Adding {} ({:?}) to {} files.",
                 token,
                 value,
                 value.files.len()
-            );
+            );*/
             for file_path in &value.files {
                 outer_dict
                     .entry(file_path.to_string())
@@ -155,6 +158,77 @@ pub fn extract_stats_by_file<'a>(
 
 #[pymethods]
 impl ScoringEngine {
+    pub fn generate_rule_strings(
+        &self,
+        score: bool,
+        high_scoring: f64,
+        strings_per_rule: usize,
+        mut string_elements: Vec<TokenInfo>,
+    ) -> PyResult<(Vec<String>, usize)> {
+        let mut rule_strings = Vec::new();
+        string_elements.sort_by(|a, b| b.score.cmp(&a.score));
+
+        let mut high_scoring_strings = 0;
+        let mut i = 0;
+        for stringe in string_elements.iter_mut() {
+            let string = stringe.reprz.clone();
+            if self.good_strings_db.contains_key(&string) {
+                stringe.add_note(format!(
+                    "goodware string - occured {} times",
+                    self.good_strings_db[&string]
+                ));
+            }
+            if score {
+                stringe.add_note(format!(" / score: {} /", stringe.score));
+            } else {
+                //logging.getLogger("yarobot").debug("NO SCORE: %s", string)
+            }
+
+            if stringe.b64 {
+                stringe.add_note(format!(
+                    " / base64 encoded string '{}' /",
+                    self.base64strings[&string]
+                ));
+            }
+            if stringe.hexed {
+                stringe.add_note(format!(
+                    " / hex encoded string '{}' /",
+                    remove_non_ascii_drop(self.hex_enc_strings[&string].as_bytes()).unwrap()
+                ));
+            }
+            if stringe.from_pestudio && score {
+                stringe.add_note(format!(
+                    " / PEStudio Blacklist: {} /",
+                    self.pestudio_marker[&string]
+                ));
+            }
+            if stringe.reversed {
+                stringe.add_note(format!(
+                    " / reversed goodware string '{}' /",
+                    self.reversed_strings[&string]
+                ));
+            }
+
+            let is_super_string = stringe.score as f64 > high_scoring;
+            if is_super_string {
+                high_scoring_strings += 1;
+            }
+            rule_strings.push(stringe.generate_string_repr(i, is_super_string));
+
+            if i + 1 >= strings_per_rule.try_into().unwrap() {
+                break;
+            }
+            i += 1;
+        }
+        /*
+
+
+
+
+        */
+        Ok((rule_strings, high_scoring_strings))
+    }
+
     pub fn filter_opcode_set(&self, mut opcode_set: Vec<TokenInfo>) -> PyResult<Vec<TokenInfo>> {
         let pref_opcodes = vec![" 34 ", "ff ff ff "];
         let mut useful_set = Vec::new();
@@ -162,7 +236,7 @@ impl ScoringEngine {
 
         for opcode in opcode_set.iter_mut() {
             if self.good_opcodes_db.contains_key(&opcode.reprz) {
-                debug!("skipping {}", opcode.reprz);
+                //debug!("skipping {}", opcode.reprz);
 
                 continue;
             }
@@ -240,7 +314,7 @@ impl ScoringEngine {
                 // Encoding detections
                 if token.reprz.len() > 8 {
                     // Base64 detection
-                    debug!("Starting Base64 string analysis ...");
+                    //debug!("Starting Base64 string analysis ...");
                     let test_strings = vec![
                         token.reprz.clone(),
                         token.reprz[1..].to_string(),
@@ -266,7 +340,7 @@ impl ScoringEngine {
                     }
 
                     // Hex encoded string detection
-                    debug!("Starting Hex encoded string analysis ...");
+                    //debug!("Starting Hex encoded string analysis ...");
                     let cleaned_str = token
                         .reprz
                         .chars()
@@ -327,7 +401,7 @@ impl ScoringEngine {
         let mut result_set = Vec::new();
 
         for token in local_string_scores {
-            debug!("TOP STRINGS: {} {}", token.reprz, token.score);
+            //debug!("TOP STRINGS: {} {}", token.reprz, token.score);
 
             if token.score < threshold {
                 continue;
@@ -336,7 +410,7 @@ impl ScoringEngine {
             result_set.push(token);
         }
 
-        debug!("RESULT SET: {:?}", result_set);
+        //debug!("RESULT SET: {:?}", result_set);
 
         Ok(result_set)
     }
@@ -349,8 +423,8 @@ impl ScoringEngine {
         Vec<Combination>,
         HashMap<String, Vec<TokenInfo>>,
     )> {
-        info!("[+] Generating statistical data ...");
-        info!("\t[INPUT] Strings: {}", token_stats.len());
+        println!("[+] Generating statistical data ...");
+        println!("\t[INPUT] Strings: {}", token_stats.len());
         let mut file_tokens = HashMap::new();
         let mut min = Some(0);
         let mut max = Some(20);
@@ -371,7 +445,7 @@ impl ScoringEngine {
                 if combo.count == combi_count {
                     // Convert FileStats to Tokens for filtering
                     let tokens: Vec<TokenInfo> = combo.strings.clone();
-                    debug!("calling filter with combo strings...");
+                    //debug!("calling filter with combo strings...");
 
                     let filtered_strings = match tokens[0].typ {
                         TokenType::ASCII => self.filter_string_set(tokens)?,

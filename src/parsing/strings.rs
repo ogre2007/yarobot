@@ -151,11 +151,12 @@ pub fn extract_and_count_utf16_strings(
 
 /// Remove non-ASCII characters from bytes, keeping printable ASCII 0x20..0x7E
 #[pyfunction]
-pub fn remove_non_ascii_drop(data: &[u8]) -> PyResult<Vec<u8>> {
+pub fn remove_non_ascii_drop(data: &[u8]) -> PyResult<String> {
     Ok(data
         .iter()
         .filter(|&&b| b > 31 && b < 127)
         .cloned()
+        .map(|x| x.to_string())
         .collect())
 }
 

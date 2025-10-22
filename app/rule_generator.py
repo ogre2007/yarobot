@@ -6,7 +6,6 @@ from typing import Tuple
 
 from app.config import KNOWN_IMPHASHES
 
-# from app.scoring import filter_opcode_set, filter_string_set
 import yarobot_rs
 import os
 import re
@@ -215,11 +214,13 @@ def generate_rule_tokens(
     (
         rule_strings,
         high_scoring_strings,
-    ) = generate_rule_strings(
-        scoring_engine,
-        args,
+    ) = scoring_engine.generate_rule_strings(
+        args.score,
+        args.high_scoring,
+        args.strings_per_rule,
         (strings or []) + (utf16strings or []),
-    )
+    )  # generate_rule_strings(args,(strings or []) + (utf16strings or []),)
+
     rule_opcodes = []
     if opcodes:
         rule_opcodes = generate_rule_opcodes(opcodes, opcode_num)
@@ -237,6 +238,12 @@ def generate_simple_rule(
     info,
     fname,
 ) -> str:
+    if not strings and not utf16strings:
+        logging.getLogger("yarobot").warning(
+            "[W] Not enough high scoring strings to create a rule. (Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s",
+            fname,
+        )
+        return False
     # Skip if there is nothing to do
     logging.getLogger("yarobot").info(
         "[+] Generating rule for %s, %d strings, %d opcodes, %d utf16strs",
@@ -245,12 +252,7 @@ def generate_simple_rule(
         len(opcodes),
         len(utf16strings),
     )
-    if not strings and not opcodes and not utf16strings:
-        logging.getLogger("yarobot").warning(
-            "[W] Not enough high scoring strings to create a rule. (Try -z 0 to reduce the min score or --opcodes to include opcodes) FILE: %s",
-            fname,
-        )
-        return False
+
     # Print rule title ----------------------------------------
 
     (path, file) = os.path.split(fname)
@@ -604,7 +606,7 @@ def generate_rule_strings(
     rule_strings = []
     # Adding the strings --------------------------------------
 
-    string_elements = list(set(string_elements))
+    # string_elements = list(set(string_elements))
     string_elements = sorted(string_elements, key=lambda x: x.score, reverse=True)
     high_scoring_strings = 0
     for i, stringe in enumerate(string_elements):
@@ -635,13 +637,6 @@ def generate_rule_strings(
             stringe.add_note(
                 f" / reversed goodware string '{scoring_engine.reversed_strings[string]}' /"
             )
-
-        # Checking string length
-        if len(string) >= args.max_size:
-            # cut string
-            stringe.reprz = string[: args.max_size].rstrip("\\")
-            stringe.fullword = False
-        # Now compose the rule line
 
         is_super_string = float(stringe.score) > args.high_scoring
         if is_super_string:
