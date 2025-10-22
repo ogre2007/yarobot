@@ -5,7 +5,6 @@ edition = "2021"
 
 [lib]
 name = "yarobot_rs"
-crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { version = "0.25", features = ["extension-module"] }
@@ -27,3 +26,6 @@ env_logger = "0.11.8"
 
 [build-dependencies]
 pyo3-build-config = "0.25"
+
+[profile.bench]
+debug = true

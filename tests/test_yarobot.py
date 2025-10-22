@@ -100,7 +100,7 @@ def test_integration(shared_datadir):
     pr.disable()
 
     stats = pstats.Stats(pr)
-    stats.sort_stats("time").print_stats(10)  # Sort by cumulative time and print top 10
+    stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
     r = yara.compile(source=rules)
     m = r.match(data=data)
 

@@ -426,12 +426,8 @@ impl ScoringEngine {
         println!("[+] Generating statistical data ...");
         println!("\t[INPUT] Strings: {}", token_stats.len());
         let mut file_tokens = HashMap::new();
-        let mut min = Some(0);
-        let mut max = Some(20);
-        if token_stats.len() > 0 && token_stats.iter().next().unwrap().1.typ == TokenType::BINARY {
-            min = None;
-            max = None;
-        }
+        let   min = Some(0);
+        let   max = Some(20); 
         extract_stats_by_file(&token_stats, &mut file_tokens, min, max);
 
         let (mut combinations, max_combi_count) = find_combinations(&token_stats).unwrap();

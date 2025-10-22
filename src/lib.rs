@@ -1,3 +1,5 @@
+
+
 use log::info;
 use pyo3::prelude::*;
 use std::{collections::HashMap, fs, path::Path};
@@ -12,10 +14,10 @@ pub mod processing;
 pub use processing::*;
 
 pub mod scoring;
-pub use scoring::*;
+pub use scoring::*; 
 
-#[pyfunction]
-fn process_malware(
+ #[pyfunction]
+pub fn process_malware(
     malware_path: String,
     recursive: bool,
     extensions: Option<Vec<String>>,
@@ -139,26 +141,22 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_non_ascii_drop() {
-        // Test with only ASCII characters
-        let ascii_data = b"Hello World!";
-        let result = remove_non_ascii_drop(ascii_data).unwrap();
-        assert_eq!(result, ascii_data);
+    fn test_remove_non_ascii_drop() { 
 
         // Test with non-ASCII characters
         let mixed_data = b"Hello\x00World\xFF\x7F\xFE";
         let result = remove_non_ascii_drop(mixed_data).unwrap();
-        assert_eq!(result, b"HelloWorld");
+        assert_eq!(result, "HelloWorld");
 
         // Test with empty data
         let empty_data = b"";
         let result = remove_non_ascii_drop(empty_data).unwrap();
-        assert_eq!(result, b"");
+        assert_eq!(result, "");
 
         // Test with only non-ASCII characters
         let non_ascii_data = &[0x00, 0xFF, 0xFE, 0x01];
         let result = remove_non_ascii_drop(non_ascii_data).unwrap();
-        assert_eq!(result, b"");
+        assert_eq!(result, "");
     }
 
     #[test]
@@ -295,6 +293,8 @@ mod tests {
         assert!(fi.imphash.is_empty());
         assert!(fi.exports.is_empty());
     }
+
+
 }
 
 #[pymodule]

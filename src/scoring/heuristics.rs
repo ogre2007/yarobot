@@ -30,19 +30,13 @@ fn filter_rg(tok: &mut TokenInfo, regex_base: &RegexRules, ignore_case: bool) ->
     for (category, regexes) in regex_base {
         let mut found = false;
 
-        for (pattern, score) in regexes {
-            let regex = if ignore_case {
-                Regex::new(&format!("(?i){}", pattern))
-            } else {
-                Regex::new(pattern)
-            };
+        for (re, score) in regexes {
 
-            if let Ok(re) = regex {
-                if re.is_match(&tok.reprz) {
-                    score_local += score;
-                    found = true;
-                }
-            }
+ 
+            if re.is_match(&tok.reprz) {
+                score_local += score;
+                found = true;
+            } 
         }
 
         if found {

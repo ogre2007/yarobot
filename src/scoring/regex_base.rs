@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
+use regex::Regex;
 use std::collections::HashMap;
-pub type RegexRules = HashMap<&'static str, Vec<(&'static str, i64)>>;
+pub type RegexRules = HashMap<&'static str, Vec<(Regex, i64)>>;
 
 lazy_static! {
     pub static ref REGEX_INSENSITIVE: RegexRules = {
@@ -76,7 +77,7 @@ lazy_static! {
         );
         m.insert(
             "parameters1",
-            vec![(r"( \-[a-z]{,2}[\s]?[0-9]?| /[a-z]+[\s]?[\w]*)", 4)],
+            vec![(r"( \-[a-z]{0,2}[\s]?[0-9]?| /[a-z]+[\s]?[\w]*)", 4)],
         );
         m.insert("directory", vec![(r"([a-zA-Z]:|^|%)\\[A-Za-z]{4,30}\\", 4)]);
         m.insert(
@@ -288,14 +289,22 @@ lazy_static! {
         m.insert("uacme", vec![(r"(Elevation|pwnd|pawn|elevate to)", 3)]);
         m.insert("dots", vec![(r"(\.\.)", -5)]);
         m.insert("spaces", vec![(r"(  )", -5)]);
-        m
+        let mut compiled_m = HashMap::new();
+        for (key, patterns) in m {
+            let compiled_patterns: Vec<(Regex, i64)> = patterns
+                .into_iter()
+                .map(|(pattern, score)| (Regex::new(pattern).unwrap(), score))
+                .collect();
+            compiled_m.insert(key, compiled_patterns);
+        }
+        compiled_m
     };
     pub static ref REGEX_SENSITIVE: RegexRules = {
         let mut m = HashMap::new();
         m.insert("all_caps", vec![(r"^[A-Z]{6,}$", 3)]);
         m.insert("all_lower", vec![(r"^[a-z]{6,}$", 3)]);
         m.insert("all_lower_with_space", vec![(r"^[a-z\s]{6,}$", 2)]);
-        m.insert( "javascript", vec![(r"(new ActiveXObject(. WScript.Shell.\).Run|.Run\(.cmd.exe|.Run\(.%comspec%\)|.Run\(.c:\\Windows|.RegisterXLL\(\)", 3 )]);
+        m.insert( "javascript", vec![(r"\(new ActiveXObject\(. WScript.Shell.\).Run|.Run\(.cmd.exe|.Run\(.%comspec%\)|.Run\(.c:\\Windows|.RegisterXLL\(\)", 3 )]);
         m.insert(
             "ua_keywords",
             vec![(
@@ -305,8 +314,16 @@ lazy_static! {
         );
         m.insert("packers", vec![(r"(WinRAR\\SFX)", -4)]);
         m.insert("US_ASCII_char", vec![(r"\x1f", -4)]);
-        m.insert("repeated_chars", vec![(r"(?!.* ([A-Fa-f0-9])\1{8,})", -5)]);
+        m.insert("repeated_chars", vec![(r"(.* ([A-Fa-f0-9]){8,})", -5)]);
         m.insert("nulls", vec![(r"(00000000)", -5)]);
-        m
+        let mut compiled_m = HashMap::new();
+        for (key, patterns) in m {
+            let compiled_patterns: Vec<(Regex, i64)> = patterns
+                .into_iter()
+                .map(|(pattern, score)| (Regex::new(pattern).unwrap(), score))
+                .collect();
+            compiled_m.insert(key, compiled_patterns);
+        }
+        compiled_m
     };
 }
