@@ -382,10 +382,6 @@ impl ScoringEngine {
                 }
 
                 // Certain string reduce
-                let reduce_regex = Regex::new(r"(?i)(rundll32\.exe$|kernel\.dll$)").unwrap();
-                if reduce_regex.is_match(&token.reprz) {
-                    token.score -= 4;
-                }
             }
 
             self.string_scores
@@ -426,8 +422,8 @@ impl ScoringEngine {
         println!("[+] Generating statistical data ...");
         println!("\t[INPUT] Strings: {}", token_stats.len());
         let mut file_tokens = HashMap::new();
-        let   min = Some(0);
-        let   max = Some(20); 
+        let min = Some(0);
+        let max = Some(20);
         extract_stats_by_file(&token_stats, &mut file_tokens, min, max);
 
         let (mut combinations, max_combi_count) = find_combinations(&token_stats).unwrap();
@@ -455,16 +451,14 @@ impl ScoringEngine {
                         for file in &combo.files {
                             file_tokens.remove(&file.clone());
                         }
-                                            info!(
-                        "[-] Adding Super Rule with {} strings.",
-                        combo.strings.len()
-                    );
-                    let new_combo = combo.clone();
-                    // Store the filtered strings - you might need to adjust this based on your data structure
-                    super_rules.push(new_combo);
+                        info!(
+                            "[-] Adding Super Rule with {} strings.",
+                            combo.strings.len()
+                        );
+                        let new_combo = combo.clone();
+                        // Store the filtered strings - you might need to adjust this based on your data structure
+                        super_rules.push(new_combo);
                     }
-
-
                 }
             }
         }

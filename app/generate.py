@@ -28,17 +28,15 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-import gzip
 import os
 import sys
 import logging
 
 import time
 from collections import Counter
-import signal as signal_module
-import orjson as json
 from lxml import etree
 
+from app.common import get_abs_path, load, load_db
 from app.config import DB_PATH, PE_STRINGS_FILE
 
 import pstats
@@ -55,7 +53,7 @@ import click
 import os
 import sys
 
-from app import dbs
+from app import database
 
 
 def getPrefix(prefix, identifier):
@@ -87,23 +85,6 @@ def getIdentifier(id, path):
         identifier = open(id).read()
         print("[+] Read identifier from file %s > %s" % (id, identifier))
         return identifier
-
-
-def load(filename):
-    file = gzip.GzipFile(filename, "rb")
-    object = json.loads(file.read())
-    file.close()
-    return object
-
-
-def get_abs_path(filename):
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
-
-
-def save(object, filename):
-    file = gzip.GzipFile(filename, "wb")
-    file.write(bytes(json.dumps(object), "utf-8"))
-    file.close()
 
 
 def getReference(ref):
@@ -162,18 +143,6 @@ def initialize_pestudio_strings():
     return processed_strings
 
 
-def load_db(file, local_counter):
-    filePath = os.path.join(DB_PATH, file)
-    print("[+] Loading %s ..." % filePath)
-    before = len(local_counter)
-    js = load(get_abs_path(filePath))
-    local_counter.update(js)
-    added = len(local_counter) - before
-    print("[+] Total: %s / Added %d entries" % (len(local_counter), added))
-
-    return len(local_counter)
-
-
 def load_databases():
     good_strings_db = Counter()
     good_opcodes_db = Counter()
@@ -182,17 +151,19 @@ def load_databases():
 
     # Initialize all databases
     for file in os.listdir(get_abs_path(DB_PATH)):
-        if not file.endswith(".db"):
-            continue  # String databases
-        match "-".join(file.split("-")[:2]):
-            case "good-strings":
-                load_db(file, good_strings_db)
-            case "good-opcodes":
-                load_db(file, good_opcodes_db)
-            case "good-imphashes":
-                load_db(file, good_imphashes_db)
-            case "good-exports":
-                load_db(file, good_exports_db)
+        if file.endswith(".db") or file.endswith(".json"):
+            if file.startswith("good-strings"):
+                load_db(
+                    file, good_strings_db, True if file.endswith(".json") else False
+                )
+            if file.startswith("good-opcodes"):
+                load_db(
+                    file, good_opcodes_db, True if file.endswith(".json") else False
+                )
+            if file.startswith("good-imphashes"):
+                pass  # load_db(file, good_imphashes_db, True if file.endswith(".json") else False) TODO
+            if file.startswith("good-exports"):
+                pass  # load_db(file, good_exports_db, True if file.endswith(".json") else False) TODO
     return good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db
 
 
@@ -207,18 +178,18 @@ def process_folder(
 ):
     if args.opcodes and len(good_opcodes_db) < 1:
         logging.getLogger("yarobot").warning(
-            "[E] Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set."
+            "Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set."
         )
         args.opcodes = False
 
     if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
-        logging.getLogger("yarobot").info(
-            "[E] Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set."
+        logging.getLogger("yarobot").warning(
+            "Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set."
         )
 
-    if len(good_strings_db) < 1 and not args.c:
+    if len(good_strings_db) < 1:
         logging.getLogger("yarobot").warning(
-            "[E] Error - no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set."
+            "no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set."
         )
         # sys.exit(1)
 
@@ -295,13 +266,7 @@ def process_folder(
     return rules
 
 
-@click.group()
-def cli():
-    """yarobot - YARA rule generator"""
-    pass
-
-
-@cli.command()
+@click.command()
 @click.argument("malware_path", type=click.Path(exists=True))
 @click.option(
     "-y",
@@ -492,6 +457,7 @@ def generate(malware_path, **kwargs):
     good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
         load_databases()
     )
+    # exit()
     process_folder(
         args,
         malware_path,
@@ -509,145 +475,7 @@ def generate(malware_path, **kwargs):
     )  # Sort by cumulative time and print top 10
 
 
-@cli.command()
-@click.argument("goodware_path", type=click.Path(exists=True), required=True)
-@click.option(
-    "-i", "--identifier", help="Identifier for the database files", required=True
-)
-@click.option(
-    "--update",
-    help="Update existing database with new goodware samples",
-    is_flag=True,
-    default=False,
-)
-@click.option("--debug", help="Debug output", is_flag=True, default=False)
-def database(goodware_path, **kwargs):
-    """Manage goodware databases"""
-    args = type("Args", (), kwargs)()
-    print("[+] Processing goodware files ...")
-    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
-        parse_good_dir(goodware_path)
-    )
-
-    # Update existing databases
-    if args.update:
-        print("[+] Updating databases ...")
-
-        # Evaluate the database identifiers
-        db_identifier = ""
-        if args.i != "":
-            db_identifier = "-%s" % args.i
-        strings_db = "./dbs/good-strings%s.db" % db_identifier
-        opcodes_db = "./dbs/good-opcodes%s.db" % db_identifier
-        imphashes_db = "./dbs/good-imphashes%s.db" % db_identifier
-        exports_db = "./dbs/good-exports%s.db" % db_identifier
-
-        # Strings -----------------------------------------------------
-        print("[+] Updating %s ..." % strings_db)
-        good_pickle = load(get_abs_path(strings_db))
-        print("Old string database entries: %s" % len(good_pickle))
-        good_pickle.update(good_strings_db)
-        print("New string database entries: %s" % len(good_pickle))
-        save(good_pickle, strings_db)
-
-        # Opcodes -----------------------------------------------------
-        print("[+] Updating %s ..." % opcodes_db)
-        good_opcode_pickle = load(get_abs_path(opcodes_db))
-        print("Old opcode database entries: %s" % len(good_opcode_pickle))
-        good_opcode_pickle.update(good_opcodes_db)
-        print("New opcode database entries: %s" % len(good_opcode_pickle))
-        save(good_opcode_pickle, opcodes_db)
-
-        # Imphashes ---------------------------------------------------
-        print("[+] Updating %s ..." % imphashes_db)
-        good_imphashes_pickle = load(get_abs_path(imphashes_db))
-        print("Old opcode database entries: %s" % len(good_imphashes_pickle))
-        good_imphashes_pickle.update(good_imphashes_db)
-        print("New opcode database entries: %s" % len(good_imphashes_pickle))
-        save(good_imphashes_pickle, imphashes_db)
-
-        # Exports -----------------------------------------------------
-        print("[+] Updating %s ..." % exports_db)
-        good_exports_pickle = load(get_abs_path(exports_db))
-        print("Old opcode database entries: %s" % len(good_exports_pickle))
-        good_exports_pickle.update(good_exports_db)
-        print("New opcode database entries: %s" % len(good_exports_pickle))
-        save(good_exports_pickle, exports_db)
-
-    if args.update:
-        click.echo(f"[+] Updating goodware database with samples from {goodware_path}")
-        # from app.dbs import update_goodware_db
-        # update_goodware_db(args)
-    else:
-        click.echo("[+] Creating local database ...")
-        # Evaluate the database identifiers
-        db_identifier = ""
-        if args.i != "":
-            db_identifier = "-%s" % args.i
-        strings_db = "./dbs/good-strings%s.db" % db_identifier
-        opcodes_db = "./dbs/good-opcodes%s.db" % db_identifier
-        imphashes_db = "./dbs/good-imphashes%s.db" % db_identifier
-        exports_db = "./dbs/good-exports%s.db" % db_identifier
-
-        # Creating the databases
-        click.echo(
-            "[+] Using '%s' as filename for newly created strings database" % strings_db
-        )
-        click.echo(
-            "[+] Using '%s' as filename for newly created opcodes database" % opcodes_db
-        )
-        click.echo(
-            "[+] Using '%s' as filename for newly created opcodes database"
-            % imphashes_db
-        )
-        click.echo(
-            "[+] Using '%s' as filename for newly created opcodes database" % exports_db
-        )
-
-        for file in [strings_db, opcodes_db, imphashes_db, exports_db]:
-            if os.path.isfile(file):
-                input(
-                    "File %s alread exists. Press enter to proceed or CTRL+C to exit."
-                    % file
-                )
-                os.remove(file)
-
-        # Strings
-        good_json = good_strings_db
-        # Opcodes
-        good_op_json = good_opcodes_db
-        # Imphashes
-        good_imphashes_json = good_imphashes_db
-        # Exports
-        good_exports_json = good_exports_db
-
-        # Save
-        save(good_json, strings_db)
-        save(good_op_json, opcodes_db)
-        save(good_imphashes_json, imphashes_db)
-        save(good_exports_json, exports_db)
-
-        click.echo(
-            "New database with %d string, %d opcode, %d imphash, %d export entries created. "
-            "(remember to use --opcodes to extract opcodes from the samples and create the opcode databases)"
-            % (
-                len(good_strings_db),
-                len(good_opcodes_db),
-                len(good_imphashes_db),
-                len(good_exports_db),
-            )
-        )
-
-
-@cli.command()
-def update():
-    """Update the local strings and opcodes databases from the online repository"""
-    args = type("Args", (), {})()
-    dbs.update_databases(args)
-    click.echo("[+] Updated databases - you can now start creating YARA rules")
-
-
-@cli.command()
+@click.command()
 @click.argument("malware_path", type=click.Path(exists=True))
 @click.option(
     "-y",
@@ -700,5 +528,5 @@ def dropzone(malware_path, **kwargs):
 if __name__ == "__main__":
     logging.basicConfig(level=os.environ.get("YAROBOT_LOG_LEVEL", "INFO"))
     logging.getLogger().setLevel(logging.DEBUG)
-    cli()
+    generate()
     # Identifier

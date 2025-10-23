@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{TokenInfo, TokenType};
+use anyhow::Result;
 use goblin::{elf, pe, Object};
-use log::debug;
+use log::{debug, error};
 use pyo3::{exceptions::PyException, prelude::*};
 use regex::bytes::Regex;
 
@@ -64,24 +65,23 @@ fn extract_pe_opcodes(pe: pe::PE, file_data: &[u8]) -> HashMap<String, TokenInfo
     opcodes
 }
 
-#[pyfunction]
-pub fn extract_opcodes(file_data: Vec<u8>) -> PyResult<HashMap<String, TokenInfo>> {
+pub fn extract_opcodes(file_data: Vec<u8>) -> Result<HashMap<String, TokenInfo>> {
     let mut opcodes = HashMap::new();
 
     match Object::parse(&file_data)
-        .map_err(|e| PyException::new_err(format!("Failed to parse binary: {}", e)))?
+        .map_err(|e| error!("{}", format!("Failed to parse binary: {}", e)))
     {
-        Object::Elf(elf) => {
+        Ok(Object::Elf(elf)) => {
             opcodes = extract_elf_opcodes(elf, &file_data);
         }
-        Object::PE(pe) => {
+        Ok(Object::PE(pe)) => {
             opcodes = extract_pe_opcodes(pe, &file_data);
         }
-        Object::Mach(_) => {
+        Ok(Object::Mach(_)) => {
             // Mach-O support can be added here
             debug!("Mach-O parsing not yet implemented"); // TODO:
         }
-        Object::Archive(_) => {
+        Ok(Object::Archive(_)) => {
             // Archive support can be added here
             debug!("Archive parsing not yet implemented"); // TODO:
         }

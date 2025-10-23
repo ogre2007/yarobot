@@ -301,6 +301,7 @@ lazy_static! {
     };
     pub static ref REGEX_SENSITIVE: RegexRules = {
         let mut m = HashMap::new();
+        m.insert("reduce", vec![(r"(?i)(rundll32\.exe$|kernel\.dll$)", -4)]);
         m.insert("all_caps", vec![(r"^[A-Z]{6,}$", 3)]);
         m.insert("all_lower", vec![(r"^[a-z]{6,}$", 3)]);
         m.insert("all_lower_with_space", vec![(r"^[a-z\s]{6,}$", 2)]);

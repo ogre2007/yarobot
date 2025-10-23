@@ -1,5 +1,3 @@
-
-
 use log::info;
 use pyo3::prelude::*;
 use std::{collections::HashMap, fs, path::Path};
@@ -14,9 +12,9 @@ pub mod processing;
 pub use processing::*;
 
 pub mod scoring;
-pub use scoring::*; 
+pub use scoring::*;
 
- #[pyfunction]
+#[pyfunction]
 pub fn process_malware(
     malware_path: String,
     recursive: bool,
@@ -141,8 +139,7 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_non_ascii_drop() { 
-
+    fn test_remove_non_ascii_drop() {
         // Test with non-ASCII characters
         let mixed_data = b"Hello\x00World\xFF\x7F\xFE";
         let result = remove_non_ascii_drop(mixed_data).unwrap();
@@ -293,13 +290,10 @@ mod tests {
         assert!(fi.imphash.is_empty());
         assert!(fi.exports.is_empty());
     }
-
-
 }
 
 #[pymodule]
 fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(extract_opcodes, m)?)?;
     m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
     m.add_function(wrap_pyfunction!(get_file_info, m)?)?;
     m.add_function(wrap_pyfunction!(process_malware, m)?)?;

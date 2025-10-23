@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    cmp::min,
+    collections::{HashMap, HashSet},
+};
 
 use pyo3::prelude::*;
 use regex::Regex;
@@ -123,7 +126,7 @@ pub fn extract_and_count_utf16_strings(
     // Final string
     if current_string.len() >= min_len {
         stats
-            .entry(current_string[0..max_len].to_owned())
+            .entry(current_string[..min(max_len, current_string.len())].to_owned())
             .or_insert(TokenInfo::new(
                 current_string.clone(),
                 0,
@@ -133,7 +136,7 @@ pub fn extract_and_count_utf16_strings(
             ))
             .count += 1;
 
-        if current_string.len() - max_len >= min_len {
+        if current_string.len() as i64 - max_len as i64 >= min_len as i64 {
             stats
                 .entry(current_string[max_len..].to_owned())
                 .or_insert(TokenInfo::new(

@@ -65,7 +65,7 @@ def test_integration(shared_datadir):
     pr.enable()
 
     args = SimpleNamespace(
-        max_file_size=2,
+        max_file_size=10,
         debug=False,
         max_size=128,
         min_size=4,
@@ -91,6 +91,7 @@ def test_integration(shared_datadir):
         score=True,
         high_scoring=10,
         strings_per_rule=10,
+        nosuper=False,
     )
     data = shared_datadir.joinpath("binary").read_bytes()[
         : 1024 * 1024 * args.max_file_size
@@ -100,7 +101,9 @@ def test_integration(shared_datadir):
     pr.disable()
 
     stats = pstats.Stats(pr)
-    stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
+    stats.sort_stats("cumulative").print_stats(
+        10
+    )  # Sort by cumulative time and print top 10
     r = yara.compile(source=rules)
     m = r.match(data=data)
 

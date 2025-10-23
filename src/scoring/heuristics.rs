@@ -31,12 +31,10 @@ fn filter_rg(tok: &mut TokenInfo, regex_base: &RegexRules, ignore_case: bool) ->
         let mut found = false;
 
         for (re, score) in regexes {
-
- 
             if re.is_match(&tok.reprz) {
                 score_local += score;
                 found = true;
-            } 
+            }
         }
 
         if found {
