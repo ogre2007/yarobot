@@ -13,8 +13,7 @@ authors = [
 requires-python = ">=3.11"
 description = "Yara generator inspired by yarGen"
 readme = "README.md"
-license = "GPLv3.0"
-
+license = { text = "GPL-3.0-only" }
 
 dependencies = [
     "click>=8.3.0",
