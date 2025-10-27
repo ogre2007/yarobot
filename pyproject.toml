@@ -46,6 +46,7 @@ pythonpath = ["."]
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "lxml>=4.9.0",
     "pytest-datadir>=1.8.0",
     "yara-python>=4.5.4",
 ]
