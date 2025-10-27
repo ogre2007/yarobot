@@ -49,4 +49,5 @@ dev = [
     "lxml>=4.9.0",
     "pytest-datadir>=1.8.0",
     "yara-python>=4.5.4",
+    "orjson>=3.11",
 ]
