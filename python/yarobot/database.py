@@ -32,10 +32,10 @@ import shutil
 import urllib.request
 
 import click
-import yarobot_rs
+from yarobot import yarobot_rs
 
-from app.common import get_abs_path, load, save
-from app.config import DB_PATH, RELEVANT_EXTENSIONS, REPO_URLS
+from  .common import get_abs_path, load, save
+from  .config import DB_PATH, RELEVANT_EXTENSIONS, REPO_URLS
 
 
 def process_goodware_folder(

@@ -1,19 +1,18 @@
-[build-system]
-requires = ["maturin>=1.0,<2.0"]
-build-backend = "maturin"
-
 [project]
 name = "yarobot"
-version = "0.2.0"
-
+version = "0.2.1" 
 authors = [
   { name="ogre2007", email="oogre@vk.com" },
 ]
 
-requires-python = ">=3.11"
-description = "Yara generator inspired by yarGen"
+requires-python = ">=3.10"
+description = "YARA generator inspired by yarGen"
 readme = "README.md"
 license = { text = "GPL-3.0-only" }
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
 
 dependencies = [
     "click>=8.3.0",
@@ -21,13 +20,17 @@ dependencies = [
     "orjson>=3.11",
 ]
 
+[project.scripts]
+yarobot = "yarobot.generate:generate" 
 
 [project.urls]
 Homepage = "https://github.com/ogre2007/yarobot"
 Issues = "https://github.com/ogre2007/issues"
 
 [tool.maturin]
+python-source = "python"
 features = ["pyo3/extension-module"]
+module-name = "yarobot.yarobot_rs"
 
 [tool.pytest.ini_options]
 minversion = "6.0"

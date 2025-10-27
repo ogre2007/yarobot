@@ -1,10 +1,11 @@
 [package]
 name = "yarobot-rs"
-version = "0.1.0"
+version = "0.2.1"
 edition = "2021"
 
 [lib]
 name = "yarobot_rs"
+crate-type = ["cdylib", "lib"]
 
 [dependencies]
 pyo3 = { version = "0.25", features = ["extension-module"] }

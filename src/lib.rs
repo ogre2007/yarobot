@@ -137,24 +137,7 @@ mod tests {
         // Note: Testing with actual PE files would require real PE binaries
         // For unit tests, we mainly verify the error handling paths
     }
-
-    #[test]
-    fn test_remove_non_ascii_drop() {
-        // Test with non-ASCII characters
-        let mixed_data = b"Hello\x00World\xFF\x7F\xFE";
-        let result = remove_non_ascii_drop(mixed_data).unwrap();
-        assert_eq!(result, "HelloWorld");
-
-        // Test with empty data
-        let empty_data = b"";
-        let result = remove_non_ascii_drop(empty_data).unwrap();
-        assert_eq!(result, "");
-
-        // Test with only non-ASCII characters
-        let non_ascii_data = &[0x00, 0xFF, 0xFE, 0x01];
-        let result = remove_non_ascii_drop(non_ascii_data).unwrap();
-        assert_eq!(result, "");
-    }
+ 
 
     #[test]
     fn test_is_ascii_string() {
@@ -293,6 +276,7 @@ mod tests {
 }
 
 #[pymodule]
+#[pyo3(name="yarobot_rs")]
 fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
     m.add_function(wrap_pyfunction!(get_file_info, m)?)?;

@@ -3,7 +3,7 @@ import os
 
 import orjson as json
 
-from app.config import DB_PATH
+from .config import DB_PATH
 
 
 def load(filename, just_json=False):

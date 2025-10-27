@@ -4,15 +4,15 @@ from typing import Any, List
 
 from typing import Tuple
 
-from app.config import KNOWN_IMPHASHES
+from .config import KNOWN_IMPHASHES
 
-import yarobot_rs
+#import yarobot_rs
 import os
 import re
 import logging
 
 
-from yarobot_rs import ScoringEngine, TokenInfo, TokenType
+from yarobot.yarobot_rs import ScoringEngine, TokenInfo, TokenType
 
 
 def get_uint_string(magic):

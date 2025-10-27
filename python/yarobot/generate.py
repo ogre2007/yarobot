@@ -36,24 +36,24 @@ import time
 from collections import Counter
 from lxml import etree
 
-from app.common import get_abs_path, load, load_db
-from app.config import DB_PATH, PE_STRINGS_FILE
+from .common import get_abs_path, load, load_db
+from .config import DB_PATH, PE_STRINGS_FILE
 
 import pstats
 
 import cProfile
-from app.rule_generator import RuleGenerator, generate_rules
+from .rule_generator import RuleGenerator, generate_rules
 
 # from app.scoring import extract_stats_by_file, sample_string_evaluation
-from app.config import RELEVANT_EXTENSIONS
+from .config import RELEVANT_EXTENSIONS
 
-import yarobot_rs
+from  yarobot import yarobot_rs
 
 import click
 import os
 import sys
 
-from app import database
+from . import database
 
 
 def getPrefix(prefix, identifier):
@@ -265,8 +265,11 @@ def process_folder(
     print("[=] All rules written to %s" % args.output_rule_file)
     return rules
 
+@click.group()
+def cli():
+    pass
 
-@click.command()
+@cli.command()
 @click.argument("malware_path", type=click.Path(exists=True))
 @click.option(
     "-y",
@@ -475,7 +478,7 @@ def generate(malware_path, **kwargs):
     )  # Sort by cumulative time and print top 10
 
 
-@click.command()
+@cli.command()
 @click.argument("malware_path", type=click.Path(exists=True))
 @click.option(
     "-y",

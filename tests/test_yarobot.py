@@ -1,7 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
-from app.generate import process_folder
-import yarobot_rs
+from yarobot.generate import process_folder
+from yarobot import yarobot_rs
 import yara
 import pstats
 

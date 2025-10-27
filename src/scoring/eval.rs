@@ -3,11 +3,9 @@ use crate::{
     TokenInfo, TokenType,
 };
 use base64;
-use core::error;
-use log::{debug, info, warn};
+ use log::{debug, info, warn};
 use pyo3::prelude::*;
-use regex::Regex;
-use std::{
+ use std::{
     collections::{HashMap, HashSet},
     usize,
 };
