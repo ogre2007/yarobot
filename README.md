@@ -30,7 +30,7 @@ pip install yarobot
 ```bash
 git clone https://github.com/ogre2007/yarobot
 cd yarobot
-pip install -e .
+pip install .
 ```
 
 ## 📖 Quick Start
@@ -44,13 +44,13 @@ yarobot update-remote # from yarGen project. Doenst work yet. Just go to ex. 3
 ### 2. Generate Rules from Malware Samples
 
 ```bash
-yarobot generate /path/to/malware/samples --output-rule-file my_rules.yar
+py -m yarobot.generate /path/to/malware/samples --output-rule-file my_rules.yar
 ```
 
 ### 3. Create Custom Goodware Database
 
 ```bash
-yarobot database create /path/to/goodware/files --recursive
+py -m yarobot.database create /path/to/goodware/files --recursive
 ```
 
 ## 🎯 Usage Examples
@@ -58,7 +58,7 @@ yarobot database create /path/to/goodware/files --recursive
 ### Basic Rule Generation
 
 ```bash
-yarobot generate /malware/samples \
+py -m yarobot.generate /malware/samples \
   --min-size 8 \
   --max-size 128 \
   --min-score 5 \
@@ -68,7 +68,7 @@ yarobot generate /malware/samples \
 ### Advanced Configuration
 
 ```bash
-yarobot generate /malware/samples \
+py -m yarobot.generate /malware/samples \
   --opcodes \
   --recursive \
   --author "My Security Team" \
@@ -81,10 +81,10 @@ yarobot generate /malware/samples \
 
 ```bash
 # Update existing database with new goodware samples
-(TODO) yarobot database update /path/to/new/goodware --identifier corporate 
+(TODO) py -m yarobot.database update /path/to/new/goodware --identifier corporate 
 
 # Create new database from scratch
-yarobot database create /path/to/goodware --opcodes
+py -m yarobot.database create /path/to/goodware --opcodes
 ```
 
 ## 🔧 Configuration Options
@@ -97,6 +97,8 @@ yarobot database create /path/to/goodware --opcodes
 - `--superrule-overlap`: Minimum overlapping strings for super rule creation
 - `--recursive`: Scan directories recursively
 - `--excludegood`: Force exclusion of all goodware strings
+- `--oe`: only executable extensions
+
 
 ### Database Options
 
@@ -146,12 +148,3 @@ This project is licensed under the GPLv3 License - see the [LICENSE](LICENSE) fi
 
 - **Issues**: [GitHub Issues](https://github.com/ogre2007/yarobot/issues) 
 
----
-
-<div align="center">
-  
-**Made with ❤️ for the security community**
-
-*Stay safe, automate responsibly*
-
-</div>
