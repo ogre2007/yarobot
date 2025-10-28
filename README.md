@@ -134,6 +134,14 @@ We welcome contributions!
 4. Add tests
 5. Submit a pull request
 
+## TODO
+- [] dropzone mode
+- [] http-service
+- [] fix/drop imphash/exports
+- [] default databases
+- [] rule generation rewriting
+- [] tokenizer code separated in different package
+
 ## 📄 License
 
 This project is licensed under the GPLv3 License - see the [LICENSE](LICENSE) file for details.

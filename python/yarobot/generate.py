@@ -47,7 +47,7 @@ from .rule_generator import RuleGenerator, generate_rules
 # from app.scoring import extract_stats_by_file, sample_string_evaluation
 from .config import RELEVANT_EXTENSIONS
 
-from  yarobot import yarobot_rs
+from yarobot import yarobot_rs
 
 import click
 import os
@@ -153,13 +153,9 @@ def load_databases():
     for file in os.listdir(get_abs_path(DB_PATH)):
         if file.endswith(".db") or file.endswith(".json"):
             if file.startswith("good-strings"):
-                load_db(
-                    file, good_strings_db, True if file.endswith(".json") else False
-                )
+                load_db(file, good_strings_db, True if file.endswith(".json") else False)
             if file.startswith("good-opcodes"):
-                load_db(
-                    file, good_opcodes_db, True if file.endswith(".json") else False
-                )
+                load_db(file, good_opcodes_db, True if file.endswith(".json") else False)
             if file.startswith("good-imphashes"):
                 pass  # load_db(file, good_imphashes_db, True if file.endswith(".json") else False) TODO
             if file.startswith("good-exports"):
@@ -177,20 +173,14 @@ def process_folder(
     pestudio_strings={},
 ):
     if args.opcodes and len(good_opcodes_db) < 1:
-        logging.getLogger("yarobot").warning(
-            "Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set."
-        )
+        logging.getLogger("yarobot").warning("Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set.")
         args.opcodes = False
 
     if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
-        logging.getLogger("yarobot").warning(
-            "Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set."
-        )
+        logging.getLogger("yarobot").warning("Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set.")
 
     if len(good_strings_db) < 1:
-        logging.getLogger("yarobot").warning(
-            "no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set."
-        )
+        logging.getLogger("yarobot").warning("no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set.")
         # sys.exit(1)
 
     # Scan malware files
@@ -226,30 +216,16 @@ def process_folder(
         pestudio_strings,
     )
     # Apply intelligent filters
-    logging.getLogger("yarobot").info(
-        "[-] Applying intelligent filters to string findings ..."
-    )
-    file_strings = {
-        fpath: scoring_engine.filter_string_set(strings)
-        for fpath, strings in file_strings.items()
-    }
+    logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
+    file_strings = {fpath: scoring_engine.filter_string_set(strings) for fpath, strings in file_strings.items()}
 
-    file_opcodes = {
-        fpath: scoring_engine.filter_opcode_set(opcodes)
-        for fpath, opcodes in file_opcodes.items()
-    }
+    file_opcodes = {fpath: scoring_engine.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()}
 
-    file_utf16strings = {
-        fpath: scoring_engine.filter_string_set(utf16strings)
-        for fpath, utf16strings in file_utf16strings.items()
-    }
+    file_utf16strings = {fpath: scoring_engine.filter_string_set(utf16strings) for fpath, utf16strings in file_utf16strings.items()}
 
     # Create Rule Files
-    rg = RuleGenerator(args)
-    (rule_count, super_rule_count, rules) = generate_rules(
-        rg,
-        scoring_engine,
-        args,
+    rg = RuleGenerator(args, scoring_engine)
+    (rule_count, super_rule_count, rules) = rg.generate_rules( 
         file_strings,
         file_opcodes,
         file_utf16strings,
@@ -265,9 +241,11 @@ def process_folder(
     print("[=] All rules written to %s" % args.output_rule_file)
     return rules
 
+
 @click.group()
 def cli():
     pass
+
 
 @cli.command()
 @click.argument("malware_path", type=click.Path(exists=True))
@@ -319,12 +297,8 @@ def cli():
     is_flag=True,
     default=False,
 )
-@click.option(
-    "-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar"
-)
-@click.option(
-    "-e", "--output-dir-strings", help="Output directory for string exports", default=""
-)
+@click.option("-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar")
+@click.option("-e", "--output-dir-strings", help="Output directory for string exports", default="")
 @click.option("-a", "--author", help="Author Name", default="yarobot Rule Generator")
 @click.option(
     "--ref",
@@ -435,12 +409,7 @@ def generate(malware_path, **kwargs):
     """Generate YARA rules from malware samples"""
     args = type("Args", (), kwargs)()
 
-    # Validate input
-    if malware_path and os.path.isfile(malware_path):
-        click.echo("[E] Input is a file, please use a directory instead (-m path)")
-        sys.exit(0)
-    sourcepath = malware_path
-    args.identifier = getIdentifier(args.identifier, sourcepath)
+    args.identifier = getIdentifier(args.identifier, malware_path)
     print("[+] Using identifier '%s'" % args.identifier)
 
     # Reference
@@ -453,13 +422,9 @@ def generate(malware_path, **kwargs):
 
     pestudio_strings = initialize_pestudio_strings()
     print("[+] Reading goodware strings from database 'good-strings.db' ...")
-    print(
-        "    (This could take some time and uses several Gigabytes of RAM depending on your db size)"
-    )
+    print("    (This could take some time and uses several Gigabytes of RAM depending on your db size)")
 
-    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
-        load_databases()
-    )
+    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = load_databases()
     # exit()
     process_folder(
         args,
@@ -473,9 +438,7 @@ def generate(malware_path, **kwargs):
     pr.disable()
 
     stats = pstats.Stats(pr)
-    stats.sort_stats("cumulative").print_stats(
-        10
-    )  # Sort by cumulative time and print top 10
+    stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
 
 
 @cli.command()
@@ -494,9 +457,7 @@ def generate(malware_path, **kwargs):
     type=int,
     default=5,
 )
-@click.option(
-    "-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar"
-)
+@click.option("-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar")
 @click.option("-a", "--author", help="Author Name", default="yarobot Rule Generator")
 @click.option("--opcodes", help="Use the OpCode feature", is_flag=True, default=False)
 @click.option("--debug", help="Debug output", is_flag=True, default=False)

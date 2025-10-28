@@ -1,3 +1,4 @@
+//use anyhow::Ok;
 use log::info;
 use pyo3::prelude::*;
 use std::{collections::HashMap, fs, path::Path};
@@ -15,8 +16,7 @@ pub mod scoring;
 pub use scoring::*;
 
 #[pyfunction]
-pub fn process_malware(
-    malware_path: String,
+pub fn init_analysis(
     recursive: bool,
     extensions: Option<Vec<String>>,
     minssize: usize,
@@ -32,6 +32,62 @@ pub fn process_malware(
     good_imphashes_db: HashMap<String, usize>,
     good_exports_db: HashMap<String, usize>,
     pestudio_strings: HashMap<String, (i64, String)>,
+) -> PyResult<(FileProcessor, ScoringEngine)> {
+    let mut fp = FileProcessor::new(
+        recursive,
+        extensions,
+        minssize,
+        maxssize,
+        fsize,
+        get_opcodes,
+        debug,
+    );
+    let mut scoring_engine = ScoringEngine {
+        good_strings_db,
+        good_opcodes_db,
+        good_imphashes_db,
+        good_exports_db,
+        pestudio_strings,
+        pestudio_marker: Default::default(),
+        base64strings: Default::default(),
+        hex_enc_strings: Default::default(),
+        reversed_strings: Default::default(),
+        excludegood,
+        min_score,
+        superrule_overlap,
+        string_scores: Default::default(),
+    };
+    Ok((fp, scoring_engine))
+}
+
+#[pyfunction]
+pub fn process_file(
+    malware_path: String,
+    mut fp: FileProcessor,
+    mut scoring_engine: ScoringEngine,
+) -> PyResult<(
+    Vec<tokens::TokenInfo>,
+    Vec<tokens::TokenInfo>,
+    Vec<tokens::TokenInfo>,
+    HashMap<String, file_info::FileInfo>,
+)> {
+    info!("Processing malware file...");
+    fp.process_file_with_checks(malware_path);
+    let (string_stats, opcodes, utf16strings, file_infos) =
+        (fp.strings, fp.opcodes, fp.utf16strings, fp.file_infos);
+    let string_stats =
+        scoring_engine.filter_string_set(string_stats.into_values().collect())?;
+    let opcodes = scoring_engine.filter_opcode_set(opcodes.into_values().collect())?;
+        let utf16strings =
+        scoring_engine.filter_string_set(utf16strings.into_values().collect())?;
+    Ok((string_stats, opcodes, utf16strings, file_infos))
+}
+
+#[pyfunction]
+pub fn process_malware(
+    malware_path: String,
+    mut fp: FileProcessor,
+    mut scoring_engine: ScoringEngine,
 ) -> PyResult<(
     HashMap<String, Combination>,
     Vec<Combination>,
@@ -43,52 +99,25 @@ pub fn process_malware(
     HashMap<String, Vec<TokenInfo>>,
     HashMap<String, Vec<TokenInfo>>,
     HashMap<String, FileInfo>,
-    ScoringEngine,
 )> {
     //env_logger::init();
     // Check if we should disable super rules for single files
     env_logger::init_from_env("RUST_LOG");
-    let mut fp = FileProcessor::new(
-        recursive,
-        extensions,
-        minssize,
-        maxssize,
-        fsize,
-        get_opcodes,
-        debug,
-    );
 
     info!("Processing malware files...");
-    let (string_scores, opcodes, utf16strings, file_infos) =
+    let (string_stats, opcodes, utf16strings, file_infos) =
         fp.parse_sample_dir(malware_path).unwrap();
-    let mut scoring_engine = ScoringEngine {
-        good_strings_db,
-        good_opcodes_db,
-        good_imphashes_db,
-        good_exports_db,
-        utf16strings,
-        pestudio_strings,
-        pestudio_marker: Default::default(),
-        base64strings: Default::default(),
-        hex_enc_strings: Default::default(),
-        reversed_strings: Default::default(),
-        string_scores,
-        excludegood,
-        min_score,
-        superrule_overlap,
-        opcodes,
-    };
 
     let (string_combis, string_superrules, file_strings) = scoring_engine
-        .sample_string_evaluation(scoring_engine.string_scores.clone())
+        .sample_string_evaluation(string_stats)
         .unwrap();
     let (utf16_combis, utf16_superrules, file_utf16strings) = scoring_engine
-        .sample_string_evaluation(scoring_engine.utf16strings.clone())
+        .sample_string_evaluation(utf16strings)
         .unwrap();
     let mut file_opcodes = Default::default();
     let opcode_combis = Default::default();
     let opcode_superrules = Default::default();
-    extract_stats_by_file(&scoring_engine.opcodes, &mut file_opcodes, None, None);
+    extract_stats_by_file(&opcodes, &mut file_opcodes, None, None);
     /*let (opcode_combis, opcode_superrules, file_opcodes) = scoring_engine
     .sample_string_evaluation(scoring_engine.opcodes.clone())
     .unwrap();*/
@@ -103,7 +132,6 @@ pub fn process_malware(
         file_opcodes,
         file_utf16strings,
         file_infos,
-        scoring_engine,
     ))
 }
 
@@ -137,7 +165,6 @@ mod tests {
         // Note: Testing with actual PE files would require real PE binaries
         // For unit tests, we mainly verify the error handling paths
     }
- 
 
     #[test]
     fn test_is_ascii_string() {
@@ -276,7 +303,7 @@ mod tests {
 }
 
 #[pymodule]
-#[pyo3(name="yarobot_rs")]
+#[pyo3(name = "yarobot_rs")]
 fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
     m.add_function(wrap_pyfunction!(get_file_info, m)?)?;
@@ -287,6 +314,7 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(is_ascii_string, m)?)?;
     m.add_function(wrap_pyfunction!(is_base_64, m)?)?;
     m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?;
+    m.add_function(wrap_pyfunction!(init_analysis, m)?)?;
 
     m.add_class::<types::TokenInfo>()?;
     m.add_class::<types::TokenType>()?;

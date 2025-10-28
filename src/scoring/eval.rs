@@ -3,15 +3,15 @@ use crate::{
     TokenInfo, TokenType,
 };
 use base64;
- use log::{debug, info, warn};
+use log::{debug, info, warn};
 use pyo3::prelude::*;
- use std::{
+use std::{
     collections::{HashMap, HashSet},
     usize,
 };
 
 #[pyclass]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ScoringEngine {
     #[pyo3(get, set)]
     pub good_strings_db: HashMap<String, usize>,
@@ -20,9 +20,10 @@ pub struct ScoringEngine {
     #[pyo3(get, set)]
     pub good_exports_db: HashMap<String, usize>,
     #[pyo3(get, set)]
-    pub good_opcodes_db: HashMap<String, usize>,
+    pub string_scores: HashMap<String, TokenInfo>,
+
     #[pyo3(get, set)]
-    pub utf16strings: HashMap<String, TokenInfo>,
+    pub good_opcodes_db: HashMap<String, usize>,
     #[pyo3(get, set)]
     pub pestudio_strings: HashMap<String, (i64, String)>,
     #[pyo3(get, set)]
@@ -33,10 +34,6 @@ pub struct ScoringEngine {
     pub hex_enc_strings: HashMap<String, String>,
     #[pyo3(get, set)]
     pub reversed_strings: HashMap<String, String>,
-    #[pyo3(get, set)]
-    pub string_scores: HashMap<String, TokenInfo>,
-    #[pyo3(get, set)]
-    pub opcodes: HashMap<String, TokenInfo>,
     #[pyo3(get, set)]
     pub excludegood: bool,
     #[pyo3(get, set)]
@@ -259,6 +256,17 @@ impl ScoringEngine {
         pref_set.append(&mut useful_set);
         Ok(pref_set)
     }
+
+    pub fn clear_context(&mut self) {
+        (
+            self.string_scores,
+            self.base64strings,
+            self.hex_enc_strings,
+            self.base64strings,
+            self.reversed_strings,
+        ) = Default::default();
+    }
+
     pub fn filter_string_set(&mut self, tokens: Vec<TokenInfo>) -> PyResult<Vec<TokenInfo>> {
         if tokens.is_empty() {
             panic!();

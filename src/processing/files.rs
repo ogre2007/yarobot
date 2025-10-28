@@ -40,10 +40,10 @@ pub struct FileProcessor {
     get_opcodes: bool,
     debug: bool,
 
-    strings: HashMap<String, TokenInfo>,
-    utf16strings: HashMap<String, TokenInfo>,
-    opcodes: HashMap<String, TokenInfo>,
-    file_infos: HashMap<String, FileInfo>,
+    pub strings: HashMap<String, TokenInfo>,
+    pub utf16strings: HashMap<String, TokenInfo>,
+    pub opcodes: HashMap<String, TokenInfo>,
+    pub file_infos: HashMap<String, FileInfo>,
 }
 
 #[pyfunction]
@@ -116,6 +116,15 @@ impl FileProcessor {
             self.utf16strings.clone(),
             self.file_infos.clone(),
         ))
+    }
+
+    pub fn clear_context(&mut self) {
+        (
+            self.strings,
+            self.opcodes,
+            self.utf16strings,
+            self.file_infos,
+        ) = Default::default();
     }
 
     pub fn process_file_with_checks(&mut self, file_path: String) -> bool {

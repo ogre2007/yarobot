@@ -9,9 +9,7 @@ import cProfile
 
 
 def test_string_extraction():
-    strings, utf16strs = yarobot_rs.extract_strings(
-        b"string1\0string2\nmultilinestring\n1\0string1", 5, 128
-    )
+    strings, utf16strs = yarobot_rs.extract_strings(b"string1\0string2\nmultilinestring\n1\0string1", 5, 128)
     print(strings)
     assert strings["string1"].count == 2
     assert strings["string2"].count == 1
@@ -54,9 +52,7 @@ def test_get_pe_info_fast_rejects():
 
 
 def test_create_rust_struc():
-    x = yarobot_rs.TokenInfo(
-        "wasd", 16, yarobot_rs.TokenType.BINARY, {"file", "file2"}, ""
-    )
+    x = yarobot_rs.TokenInfo("wasd", 16, yarobot_rs.TokenType.BINARY, {"file", "file2"}, "")
     print(str(x))
 
 
@@ -93,17 +89,13 @@ def test_integration(shared_datadir):
         strings_per_rule=10,
         nosuper=False,
     )
-    data = shared_datadir.joinpath("binary").read_bytes()[
-        : 1024 * 1024 * args.max_file_size
-    ]
+    data = shared_datadir.joinpath("binary").read_bytes()[: 1024 * 1024 * args.max_file_size]
 
     rules = process_folder(args, str(shared_datadir))
     pr.disable()
 
     stats = pstats.Stats(pr)
-    stats.sort_stats("cumulative").print_stats(
-        10
-    )  # Sort by cumulative time and print top 10
+    stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
     r = yara.compile(source=rules)
     m = r.match(data=data)
 
