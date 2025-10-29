@@ -96,7 +96,7 @@ def update(goodware_path, **kwargs):
     """Manage goodware databases"""
     args = type("Args", (), kwargs)()
     print("[+] Processing goodware files ...")
-    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = parse_good_dir(goodware_path)
+    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = process_goodware_folder(goodware_path)
 
     # Update existing databases
     if args.update:

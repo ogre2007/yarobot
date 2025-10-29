@@ -86,8 +86,8 @@ pub fn process_file(
 #[pyfunction]
 pub fn process_malware(
     malware_path: String,
-    mut fp: FileProcessor,
-    mut scoring_engine: ScoringEngine,
+    mut fp: PyRefMut<FileProcessor>,
+    mut scoring_engine: PyRefMut<ScoringEngine>,
 ) -> PyResult<(
     HashMap<String, Combination>,
     Vec<Combination>,
@@ -308,6 +308,7 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
     m.add_function(wrap_pyfunction!(get_file_info, m)?)?;
     m.add_function(wrap_pyfunction!(process_malware, m)?)?;
+    m.add_function(wrap_pyfunction!(process_file, m)?)?;
 
     m.add_function(wrap_pyfunction!(get_pe_info, m)?)?;
     m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?;

@@ -177,7 +177,7 @@ class RuleGenerator:
     def __init__(self, args, scoring_engine):
         self.prefix = args.prefix
         self.author = args.author
-        self.ref = args.ref 
+        self.ref = args.ref
         self.args = args
         self.scoring_engine = scoring_engine
 
@@ -295,7 +295,7 @@ class RuleGenerator:
 
     def generate_simple_rule(
         self,
-        printed_rules, 
+        printed_rules,
         strings: List[TokenInfo] | None,
         opcodes: List[TokenInfo] | None,
         utf16strings: List[TokenInfo] | None,

@@ -141,6 +141,7 @@ We welcome contributions!
 - [] default databases
 - [] rule generation rewriting
 - [] tokenizer code separated in different package
+- [] dex opcode extraction
 
 ## 📄 License
 

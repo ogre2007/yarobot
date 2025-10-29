@@ -98,6 +98,6 @@ def test_integration(shared_datadir):
     stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
     r = yara.compile(source=rules)
     m = r.match(data=data)
-
+    print(rules)
     assert len(m) > 0
     print(m)

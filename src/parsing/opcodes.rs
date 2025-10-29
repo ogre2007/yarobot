@@ -65,11 +65,44 @@ fn extract_pe_opcodes(pe: pe::PE, file_data: &[u8]) -> HashMap<String, TokenInfo
     opcodes
 }
 
+pub fn extract_dex_opcodes(file_data: Vec<u8>) -> Result<HashMap<String, TokenInfo>> {
+    let mut opcodes:HashMap<String, TokenInfo> = Default::default();
+    if let Ok(dex) = dex::DexReader::from_vec(&file_data) {
+        println!("{:?}", dex.header());
+        for result in dex.classes() {
+            match result {
+                Ok(clazz) => {
+                    for method in clazz.methods() {
+                        if let Some(code) = method.code() {
+                            for ins in code.insns(){
+                                let hex_string = hex::encode(ins.to_le_bytes());
+                                        opcodes
+                                        .entry(hex_string.clone())
+                                        .or_insert(TokenInfo::new(
+                                            hex_string.clone(),
+                                            0,
+                                            TokenType::BINARY,
+                                            HashSet::new(),
+                                            None,
+                                        ))
+                                        .count += 1;
+                            }
+                            
+                        }
+                    }
+                },
+                _ => {},
+            }
+        }
+    }
+    Ok(opcodes)
+}
+
 pub fn extract_opcodes(file_data: Vec<u8>) -> Result<HashMap<String, TokenInfo>> {
     let mut opcodes = HashMap::new();
 
     match Object::parse(&file_data)
-        .map_err(|e| error!("{}", format!("Failed to parse binary: {}", e)))
+        //.map_err(|e| error!("{}", format!("Failed to parse binary: {}", e)))
     {
         Ok(Object::Elf(elf)) => {
             opcodes = extract_elf_opcodes(elf, &file_data);
@@ -86,7 +119,8 @@ pub fn extract_opcodes(file_data: Vec<u8>) -> Result<HashMap<String, TokenInfo>>
             debug!("Archive parsing not yet implemented"); // TODO:
         }
         _ => {
-            debug!("Unknown binary format");
+            debug!("Unknown binary format. lets try dex");
+            opcodes = extract_dex_opcodes(file_data)?;
         }
     }
 
