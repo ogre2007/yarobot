@@ -135,13 +135,13 @@ We welcome contributions!
 5. Submit a pull request
 
 ## TODO
-- [] dropzone mode
-- [] http-service
-- [] fix/drop imphash/exports
-- [] default databases
-- [] rule generation rewriting
-- [] tokenizer code separated in different package
-- [] dex opcode extraction
+- [ ] dropzone mode
+- [ ] http-service
+- [ ] fix/drop imphash/exports
+- [ ] default databases
+- [ ] rule generation rewriting
+- [ ] tokenizer code separated in different package
+- [ ] dex opcode extraction
 
 ## 📄 License
 
