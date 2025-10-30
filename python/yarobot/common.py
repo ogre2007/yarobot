@@ -10,6 +10,7 @@ from .config import DB_PATH, PE_STRINGS_FILE
 
 from lxml import etree
 
+
 def getPrefix(prefix, identifier):
     """
     Get a prefix string for the rule description based on the identifier
@@ -117,7 +118,6 @@ def load_databases():
     return good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db
 
 
-
 def common_single_analysis_options(f):
     @click.option(
         "-y",
@@ -140,7 +140,6 @@ def common_single_analysis_options(f):
         type=int,
         default=30,
     )
-
     @click.option(
         "-s",
         "--max-size",
@@ -248,6 +247,7 @@ def common_single_analysis_options(f):
 
     return wrapper
 
+
 def common_multi_analysis_options(f):
     @click.option(
         "-w",
@@ -256,7 +256,6 @@ def common_multi_analysis_options(f):
         type=int,
         default=5,
     )
-
     @click.option(
         "--nosimple",
         help="Skip simple rule creation for files included in super rules",
@@ -285,7 +284,9 @@ def common_multi_analysis_options(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         return f(*args, **kwargs)
+
     return wrapper
+
 
 def load(filename, just_json=False):
     if just_json:

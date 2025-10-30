@@ -11,6 +11,7 @@ use crate::{
     get_file_info, FileInfo, TokenInfo, TokenType,
 };
 
+use anyhow::Result;
 use log::debug;
 use pyo3::prelude::*;
 use walkdir::WalkDir;
@@ -34,10 +35,10 @@ pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, 
 pub struct FileProcessor {
     recursive: bool,
     extensions: Option<Vec<String>>,
-    minssize: usize,
-    maxssize: usize,
-    fsize: usize,
-    get_opcodes: bool,
+    pub minssize: usize,
+    pub maxssize: usize,
+    pub fsize: usize,
+    pub  get_opcodes: bool,
     debug: bool,
 
     pub strings: HashMap<String, TokenInfo>,
@@ -72,6 +73,30 @@ pub fn get_files(folder: String, recursive: bool) -> PyResult<Vec<String>> {
     }
 
     Ok(files)
+}
+
+pub fn process_buffer_u8(
+    buffer: Vec<u8>,
+    minssize: usize,
+    maxssize: usize,
+    get_opcodes: bool,
+) -> Result<(
+    FileInfo,
+    HashMap<String, TokenInfo>,
+    HashMap<String, TokenInfo>,
+    HashMap<String, TokenInfo>,
+)> {
+    let fi: FileInfo = get_file_info(&buffer).unwrap();
+    let (mut strings, mut utf16strings) = (
+        extract_and_count_ascii_strings(&buffer, minssize, maxssize),
+        extract_and_count_utf16_strings(&buffer, minssize, maxssize),
+    );
+    let mut opcodes = Default::default();
+    if get_opcodes {
+        opcodes = extract_opcodes(buffer).unwrap();
+    }
+
+    Ok((fi, strings, utf16strings, opcodes))
 }
 
 #[pymethods]
@@ -194,24 +219,16 @@ impl FileProcessor {
         let mut buffer = Vec::new();
         let _ = limited_reader.read_to_end(&mut buffer);
 
-        let fi: FileInfo = get_file_info(&buffer).unwrap();
-        let (mut strings, mut utf16strings) = (
-            extract_and_count_ascii_strings(&buffer, self.minssize, self.maxssize),
-            extract_and_count_utf16_strings(&buffer, self.minssize, self.maxssize),
-        );
-
+        let (fi, mut strings, mut utf16strings, mut opcodes) =
+            process_buffer_u8(buffer, self.minssize, self.maxssize, self.get_opcodes).unwrap();
         for (_, ti) in strings.iter_mut() {
             ti.files.insert(file_path.clone());
         }
         for (_, ti) in utf16strings.iter_mut() {
             ti.files.insert(file_path.clone());
         }
-        let mut opcodes = Default::default();
-        if self.get_opcodes {
-            opcodes = extract_opcodes(buffer).unwrap();
-            for (_, ti) in opcodes.iter_mut() {
-                ti.files.insert(file_path.clone());
-            }
+        for (_, ti) in opcodes.iter_mut() {
+            ti.files.insert(file_path.clone());
         }
 
         Ok((fi, strings, utf16strings, opcodes))

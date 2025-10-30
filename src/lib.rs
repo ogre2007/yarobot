@@ -1,7 +1,7 @@
 //use anyhow::Ok;
 use log::info;
 use pyo3::prelude::*;
-use std::{collections::HashMap, fs, path::Path};
+use std::{cmp::{max, min}, collections::HashMap, fs, path::Path};
 
 pub mod types;
 pub use types::*;
@@ -61,6 +61,33 @@ pub fn init_analysis(
 }
 
 #[pyfunction]
+pub fn process_buffer(
+    buffer: Vec<u8>,
+    mut fp: PyRefMut<FileProcessor>,
+    mut scoring_engine: PyRefMut<ScoringEngine>,
+) -> PyResult<(
+    HashMap<String, FileInfo>,
+    HashMap<String, Vec<TokenInfo>>,
+    HashMap<String, Vec<TokenInfo>>,
+    HashMap<String, Vec<TokenInfo>>,
+)> { 
+    let file_name = "data";
+        let mut file_infos = HashMap::new();
+
+    let (fi, string_stats,utf16strings, opcodes ) =
+        processing::process_buffer_u8(buffer[..min(fp.fsize * 1024 * 1024, buffer.len())].to_vec(), fp.minssize, fp.maxssize, fp.get_opcodes).unwrap();
+    let mut file_strings = HashMap::new();
+    file_strings.insert(file_name.to_string(), scoring_engine.filter_string_set(string_stats.into_values().collect())?);
+
+    let mut file_utf16strings = HashMap::new();
+    file_utf16strings.insert(file_name.to_string(), scoring_engine.filter_string_set(utf16strings.into_values().collect())?);
+    let mut file_opcodes = HashMap::new();
+    file_opcodes.insert(file_name.to_string(), scoring_engine.filter_string_set(opcodes.into_values().collect())?);   
+         file_infos.insert(file_name.to_string(), fi);
+     Ok((file_infos, file_strings, file_opcodes, file_utf16strings))
+}
+
+#[pyfunction]
 pub fn process_file(
     malware_path: String,
     mut fp: FileProcessor,
@@ -75,11 +102,9 @@ pub fn process_file(
     fp.process_file_with_checks(malware_path);
     let (string_stats, opcodes, utf16strings, file_infos) =
         (fp.strings, fp.opcodes, fp.utf16strings, fp.file_infos);
-    let string_stats =
-        scoring_engine.filter_string_set(string_stats.into_values().collect())?;
+    let string_stats = scoring_engine.filter_string_set(string_stats.into_values().collect())?;
     let opcodes = scoring_engine.filter_opcode_set(opcodes.into_values().collect())?;
-        let utf16strings =
-        scoring_engine.filter_string_set(utf16strings.into_values().collect())?;
+    let utf16strings = scoring_engine.filter_string_set(utf16strings.into_values().collect())?;
     Ok((string_stats, opcodes, utf16strings, file_infos))
 }
 
@@ -316,7 +341,8 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(is_base_64, m)?)?;
     m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?;
     m.add_function(wrap_pyfunction!(init_analysis, m)?)?;
-
+    m.add_function(wrap_pyfunction!(process_buffer, m)?)?;
+ 
     m.add_class::<types::TokenInfo>()?;
     m.add_class::<types::TokenType>()?;
     m.add_class::<processing::FileProcessor>()?;

@@ -28,12 +28,23 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
-import os 
+import os
 import logging
 
-import time 
+import time
 
-from .common import emptyFolder, getIdentifier, getPrefix, getReference, initialize_pestudio_strings, load, load_databases, load_db, common_multi_analysis_options, common_single_analysis_options
+from .common import (
+    emptyFolder,
+    getIdentifier,
+    getPrefix,
+    getReference,
+    initialize_pestudio_strings,
+    load,
+    load_databases,
+    load_db,
+    common_multi_analysis_options,
+    common_single_analysis_options,
+)
 
 import pstats
 
@@ -46,7 +57,43 @@ from .config import RELEVANT_EXTENSIONS
 from yarobot import yarobot_rs
 
 import click
-import os 
+import os
+
+
+def process_bytes(fp, se, args, data, good_strings_db={}, good_opcodes_db={}, good_imphashes_db={}, good_exports_db={}, pestudio_strings={}):
+
+
+    logging.getLogger("yarobot").info(f"[+] Generating YARA rules from buffer len {len(data)}")
+    (
+        file_infos,
+        file_strings,
+        file_opcodes,
+        file_utf16strings,
+    ) = yarobot_rs.process_buffer(data, fp, se)
+    file_strings = {fpath: strings for fpath, strings in file_strings.items()}
+
+    file_opcodes = {fpath: opcodes for fpath, opcodes in file_opcodes.items()}
+
+    file_utf16strings = {fpath: utf16strings for fpath, utf16strings in file_utf16strings.items()}
+
+    # Create Rule Files
+    rg = RuleGenerator(args, se)
+    (rule_count, super_rule_count, rules) = rg.generate_rules(
+        file_strings,
+        file_opcodes,
+        file_utf16strings,
+        [],
+        [],
+        [],
+        file_infos,
+    )
+
+    print("[=] Generated %s SIMPLE rules." % str(rule_count))
+    if not args.nosuper:
+        print("[=] Generated %s SUPER rules." % str(super_rule_count))
+    print("[=] All rules written to %s" % args.output_rule_file)
+    return rules
+
 
 def process_folder(
     args,
