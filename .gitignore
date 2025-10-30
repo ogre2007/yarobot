@@ -15,7 +15,7 @@ __pycache__
 dbs/
 
 # YARA Rules
-yarobot_rules.yar
+*.yar
 out.log
 target/
 *.lock
