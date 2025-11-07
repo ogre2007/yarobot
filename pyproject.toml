@@ -35,12 +35,25 @@ module-name = "yarobot.yarobot_rs"
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
-python_files = "test_*.py"
-python_functions = "test_*"
+#python_files = "test_*.py" 
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 addopts = [
-  "-vv",				       
-  "--import-mode=importlib"
+    "--verbose",
+    "--strict-markers",
+    "--strict-config",
+    "--disable-warnings",
+    "--tb=short",
+    "--import-mode=importlib"
 ]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "http: HTTP service tests",
+]
+
+
 pythonpath = ["."]
 
 [dependency-groups]
@@ -51,4 +64,5 @@ dev = [
     "yara-python>=4.5.4",
     "orjson>=3.11",
     "click>=8.3.0",
+    "flask>=3.1.2",
 ]

@@ -33,7 +33,7 @@ pub fn init_analysis(
     good_exports_db: HashMap<String, usize>,
     pestudio_strings: HashMap<String, (i64, String)>,
 ) -> PyResult<(FileProcessor, ScoringEngine)> {
-    let mut fp = FileProcessor::new(
+    let fp = FileProcessor::new(
         recursive,
         extensions,
         minssize,
@@ -42,7 +42,7 @@ pub fn init_analysis(
         get_opcodes,
         debug,
     );
-    let mut scoring_engine = ScoringEngine {
+    let scoring_engine = ScoringEngine {
         good_strings_db,
         good_opcodes_db,
         good_imphashes_db,

@@ -9,7 +9,7 @@ import os
 import pstats
 import tempfile
 import uuid
-from flask import Flask, request, jsonify 
+from flask import Flask, request, jsonify
 from yarobot.config import RELEVANT_EXTENSIONS
 from werkzeug.utils import secure_filename
 import logging
@@ -32,6 +32,7 @@ PESTUDIO_STRINGS = None
 FP = None
 SE = None
 
+
 def initialize_databases():
     """Initialize databases on startup"""
     global DATABASES, PESTUDIO_STRINGS
@@ -45,10 +46,10 @@ def initialize_databases():
         raise
 
 
-def init_context():
+def init_context(dbs, pestudio):
     # Scan malware files
     global FP, SE
-    FP, SE = yarobot_rs.init_analysis(
+    fp, se = yarobot_rs.init_analysis(
         True,
         RELEVANT_EXTENSIONS,
         5,
@@ -59,16 +60,57 @@ def init_context():
         False,
         5,
         5,
-        *DATABASES, 
-        PESTUDIO_STRINGS,
+        *dbs,
+        pestudio,
     )
+    FP = fp
+    SE = se
+    return fp, se
+
 
 class AnalysisRequest:
     """Wrapper for analysis parameters"""
 
     def __init__(self, params: Dict):
+        for key in [
+            "min_size",
+            "min_score",
+            "high_scoring",
+            "max_size",
+            "strings_per_rule",
+            "filesize_multiplier",
+            "max_file_size",
+            "opcode_num",
+            "superrule_overlap",
+        ]:
+            if key in params:
+                try:
+                    params[key] = int(params[key])
+                except (ValueError, TypeError):
+                    raise Exception()
+
+        # Convert boolean parameters
+        for key in [
+            "excludegood",
+            "score",
+            "nomagic",
+            "nofilesize",
+            "only_executable",
+            "noextras",
+            "debug",
+            "trace",
+            "opcodes",
+            "nosimple",
+            "globalrule",
+            "nosuper",
+            "recursive",
+            "get_opcodes",
+        ]:
+            if key in params:
+                params[key] = params[key].lower() in ["true", "1", "yes", "on"]
+
         self.min_size = params.get("min_size", 8)
-        self.min_score = params.get("min_score", 5)
+        self.min_score = params.get("min_score", 0)
         self.high_scoring = params.get("high_scoring", 30)
         self.max_size = params.get("max_size", 128)
         self.strings_per_rule = params.get("strings_per_rule", 15)
@@ -121,92 +163,65 @@ def health_check():
 
 
 @app.route("/api/analyze", methods=["POST"])
-def analyze_files():
-    pr = cProfile.Profile()
-    pr.enable()
+def analyze():
+    # pr = cProfile.Profile()
+    # pr.enable()
     """
     Analyze uploaded files and generate YARA rules
     Accepts file uploads with analysis parameters
     """
+    # Check if files were uploaded
+    if "files" not in request.files:
+        return jsonify({"error": "No files provided"}), 400
+
+    files = request.files.getlist("files")
+    if not files or all(file.filename == "" for file in files):
+        return jsonify({"error": "No files selected"}), 400
+    print(f"fsize:{len(files)}")
+    # Get analysis parameters from form data
+    params = request.form.to_dict()
+
+    # Convert string parameters to appropriate types
+    if DATABASES == None:
+        initialize_databases()
+        init_context(DATABASES, PESTUDIO_STRINGS)
+    # Create analysis request
     try:
-        # Check if files were uploaded
-        if "files" not in request.files:
-            return jsonify({"error": "No files provided"}), 400
-
-        files = request.files.getlist("files")
-        if not files or all(file.filename == "" for file in files):
-            return jsonify({"error": "No files selected"}), 400
-        print(f"fsize:{len(files)}")
-        # Get analysis parameters from form data
-        params = request.form.to_dict()
-
-        # Convert string parameters to appropriate types
-        for key in ["min_size", "min_score", "high_scoring", "max_size", "strings_per_rule", "filesize_multiplier", "max_file_size", "opcode_num", "superrule_overlap"]:
-            if key in params:
-                try:
-                    params[key] = int(params[key])
-                except (ValueError, TypeError):
-                    return jsonify({"error": f"Invalid value for {key}"}), 400
-
-        # Convert boolean parameters
-        for key in [
-            "excludegood",
-            "score",
-            "nomagic",
-            "nofilesize",
-            "only_executable",
-            "noextras",
-            "debug",
-            "trace",
-            "opcodes",
-            "nosimple",
-            "globalrule",
-            "nosuper",
-            "recursive",
-            "get_opcodes",
-        ]:
-            if key in params:
-                params[key] = params[key].lower() in ["true", "1", "yes", "on"]
-
-        # Create analysis request
         args = AnalysisRequest(params)
-  
-        # Set identifier based on upload
-        if args.identifier == "not set":
-            args.identifier = f"upload_{uuid.uuid4().hex[:8]}"
+    except Exception as e:
+        return jsonify({"error": f"Invalid value forkey"}), 400
 
-        args.ref = getReference(args.ref)
-        args.prefix = getPrefix(args.prefix, args.identifier)
+    # Set identifier based on upload
+    if args.identifier == "not set":
+        args.identifier = f"upload_{uuid.uuid4().hex[:8]}"
 
-        logger.info(f"Starting analysis for {len(files)} files")
+    args.ref = getReference(args.ref)
+    args.prefix = getPrefix(args.prefix, args.identifier)
 
-        # Process files and generate rules
-        if len(files) == 1:
-            rules_content = process_bytes(FP, SE, args, files[0].read(), *DATABASES, PESTUDIO_STRINGS)
+    logger.info(f"Starting analysis for {len(files)} files")
 
-        else:
-            return jsonify({"error": "no many file analysis yet"}), 400
-        pr.disable()
+    # Process files and generate rules
+    if len(files) == 1:
+        rules_content = process_bytes(FP, SE, args, files[0].read(), *DATABASES, PESTUDIO_STRINGS)
 
-        stats = pstats.Stats(pr)
-        stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
-        #logger.error(f"Error during analysis: {e}")
-        # Return rules content directly
-        return jsonify(
-            {
-                "status": "success",
-                "rules_generated": True,
-                "rules_content": rules_content,
-                "rules_count": rules_content.count("rule ") if rules_content else 0,
-                "identifier": args.identifier,
-                "files_analyzed": len(files),
-            }
-        )
+    else:
+        return jsonify({"error": "no many file analysis yet"}), 400
+    # pr.disable()
 
-    
-    except ValueError as e:
-
-        return jsonify({"error": str(e)}), 500
+    # stats = pstats.Stats(pr)
+    # stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
+    # logger.error(f"Error during analysis: {e}")
+    # Return rules content directly
+    return jsonify(
+        {
+            "status": "success",
+            "rules_generated": True,
+            "rules_content": rules_content,
+            "rules_count": rules_content.count("rule ") if rules_content else 0,
+            "identifier": args.identifier,
+            "files_analyzed": len(files),
+        }
+    )
 
 
 @app.route("/api/status", methods=["GET"])
@@ -240,6 +255,10 @@ def internal_error(e):
 if __name__ == "__main__":
     # Initialize databases before starting the server
     initialize_databases()
-    init_context()
+    init_context(DATABASES, PESTUDIO_STRINGS)
     # Start Flask app
-    app.run(host=os.getenv("YAROBOT_HOST", "0.0.0.0"), port=int(os.getenv("YAROBOT_PORT", 5000)), debug=os.getenv("YAROBOT_DEBUG", "false").lower() == "true")
+    app.run(
+        host=os.getenv("YAROBOT_HOST", "0.0.0.0"),
+        port=int(os.getenv("YAROBOT_PORT", 5000)),
+        debug=os.getenv("YAROBOT_DEBUG", "false").lower() == "true",
+    )

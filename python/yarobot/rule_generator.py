@@ -197,7 +197,9 @@ class RuleGenerator:
 
             # GLOBAL RULES ----------------------------------------------------
             if self.args.globalrule:
-                condition, pe_module_necessary = _generate_general_condition(file_info, self.args.nofilesize, self.args.filesize_multiplier, self.args.noextras)
+                condition, pe_module_necessary = _generate_general_condition(
+                    file_info, self.args.nofilesize, self.args.filesize_multiplier, self.args.noextras
+                )
 
                 # Global Rule
                 if condition != "":
@@ -393,7 +395,9 @@ class RuleGenerator:
             # Add to sub condition
             subconditions.append(" and ".join(condition_pe))
 
-        rule_strings, high_scoring_strings, rule_opcodes = self._generate_rule_tokens(strings, utf16strings, opcodes, self.args.opcode_num)
+        rule_strings, high_scoring_strings, rule_opcodes = self._generate_rule_tokens(
+            strings, utf16strings, opcodes, self.args.opcode_num
+        )
         _add_conditions(
             conditions,
             subconditions,
@@ -410,7 +414,7 @@ class RuleGenerator:
             conditions.append("( %s )" % " or ".join(subconditions))
 
         # Create condition string
-        condition_string = " and\n      ".join(conditions)
+        condition_string = "\n\t\tand ".join(conditions)
 
         return self.format_rule(
             cleanedName,
@@ -493,7 +497,9 @@ class RuleGenerator:
         else:
             printed_combi[rule_name] = 1
 
-        rule_strings, high_scoring_strings, rule_opcodes = self._generate_rule_tokens(super_rule.strings, [], opcodes, self.args.opcode_num)
+        rule_strings, high_scoring_strings, rule_opcodes = self._generate_rule_tokens(
+            super_rule.strings, [], opcodes, self.args.opcode_num
+        )
 
         # Condition -----------------------------------------------
         # Conditions list (will later be joined with 'or')

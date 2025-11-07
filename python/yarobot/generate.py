@@ -60,16 +60,27 @@ import click
 import os
 
 
-def process_bytes(fp, se, args, data, good_strings_db={}, good_opcodes_db={}, good_imphashes_db={}, good_exports_db={}, pestudio_strings={}):
-
-
+def process_bytes(
+    fp: yarobot_rs.FileProcessor,
+    se: yarobot_rs.ScoringEngine,
+    args,
+    data: bytes,
+    good_strings_db={},
+    good_opcodes_db={},
+    good_imphashes_db={},
+    good_exports_db={},
+    pestudio_strings={},
+):
     logging.getLogger("yarobot").info(f"[+] Generating YARA rules from buffer len {len(data)}")
+    # print(fp, se)
+
     (
         file_infos,
         file_strings,
         file_opcodes,
         file_utf16strings,
     ) = yarobot_rs.process_buffer(data, fp, se)
+    # print(file_strings)
     file_strings = {fpath: strings for fpath, strings in file_strings.items()}
 
     file_opcodes = {fpath: opcodes for fpath, opcodes in file_opcodes.items()}
@@ -105,14 +116,20 @@ def process_folder(
     pestudio_strings={},
 ):
     if args.opcodes and len(good_opcodes_db) < 1:
-        logging.getLogger("yarobot").warning("Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set.")
+        logging.getLogger("yarobot").warning(
+            "Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set."
+        )
         args.opcodes = False
 
     if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
-        logging.getLogger("yarobot").warning("Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set.")
+        logging.getLogger("yarobot").warning(
+            "Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set."
+        )
 
     if len(good_strings_db) < 1:
-        logging.getLogger("yarobot").warning("no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set.")
+        logging.getLogger("yarobot").warning(
+            "no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set."
+        )
         # sys.exit(1)
 
     # Scan malware files

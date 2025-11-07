@@ -57,8 +57,8 @@ def test_create_rust_struc():
 
 
 def test_integration(shared_datadir):
-    pr = cProfile.Profile()
-    pr.enable()
+    # pr = cProfile.Profile()
+    # pr.enable()
 
     args = SimpleNamespace(
         max_file_size=10,
@@ -92,10 +92,10 @@ def test_integration(shared_datadir):
     data = shared_datadir.joinpath("binary").read_bytes()[: 1024 * 1024 * args.max_file_size]
 
     rules = process_folder(args, str(shared_datadir))
-    pr.disable()
+    # pr.disable()
 
-    stats = pstats.Stats(pr)
-    stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
+    # stats = pstats.Stats(pr)
+    # stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
     r = yara.compile(source=rules)
     m = r.match(data=data)
     print(rules)

@@ -269,7 +269,7 @@ impl ScoringEngine {
 
     pub fn filter_string_set(&mut self, tokens: Vec<TokenInfo>) -> PyResult<Vec<TokenInfo>> {
         if tokens.is_empty() {
-            panic!();
+            //panic!();
         }
 
         let mut local_string_scores = Vec::new();
