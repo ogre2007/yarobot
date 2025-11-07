@@ -1,6 +1,7 @@
 from collections import Counter
 import functools
 import gzip
+import logging
 import os
 
 import click
@@ -99,6 +100,9 @@ def initialize_pestudio_strings():
 
 
 def load_databases():
+    if not os.path.isdir(get_abs_path(DB_PATH)):
+        logging.getLogger("yarobot").error("Database directory not found")
+        return ({}, {}, {}, {})
     good_strings_db = Counter()
     good_opcodes_db = Counter()
     good_imphashes_db = Counter()

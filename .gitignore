@@ -12,8 +12,7 @@ __pycache__
 ._*
 
 # Prebuilt Database
-dbs/
-
+dbs/*
 # YARA Rules
 *.yar
 out.log
