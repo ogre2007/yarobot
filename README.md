@@ -65,6 +65,15 @@ py -m yarobot.generate /malware/samples \
   --output-rule-file detection_rules.yar
 ```
 
+### Start as service
+server-side:
+```bash
+py -m yarobot.service
+```
+client-side:
+```bash
+curl -X POST -F "files=@tests\\data\\binary" http://localhost:5000/api/analyze -F "min_score=5" -F "get_opcodes=true"
+```
 ### Advanced Configuration
 
 ```bash
@@ -136,7 +145,7 @@ We welcome contributions!
 
 ## TODO
 - [ ] dropzone mode
-- [ ] http-service
+- [x] http-service
 - [ ] fix/drop imphash/exports
 - [ ] default databases
 - [ ] rule generation rewriting
