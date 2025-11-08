@@ -62,7 +62,7 @@ py -m yarobot.generate /malware/samples \
 ```
 ### Start as web service
 ```bash
-py -m yarobot.service
+py -m yarobot.app
 app
 ```
 then locate http://localhost:5000

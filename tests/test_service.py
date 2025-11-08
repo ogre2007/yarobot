@@ -8,9 +8,9 @@ import io
 from werkzeug.datastructures import FileStorage
 
 # Import the app module
-from yarobot.service import app, initialize_databases, AnalysisRequest, save_uploaded_files
+from yarobot.app import app, initialize_databases, AnalysisRequest, save_uploaded_files
 
-from python.yarobot.service import init_context
+from yarobot.app import init_context
 
 
 @pytest.fixture
@@ -26,8 +26,8 @@ def client():
 @pytest.fixture
 def mock_databases():
     """Mock the database initialization"""
-    with patch("yarobot.service.DATABASES", ({}, {}, {}, {})):
-        with patch("yarobot.service.PESTUDIO_STRINGS", {}):
+    with patch("yarobot.app.DATABASES", ({}, {}, {}, {})):
+        with patch("yarobot.app.PESTUDIO_STRINGS", {}):
             yield
 
 
