@@ -13,5 +13,5 @@
     }
   ],
   "buildCommand": "pip install .",
-  "installCommand": "pip install ."
+  "installCommand": "pip install . -r requirements.txt || pip install ."
 }
