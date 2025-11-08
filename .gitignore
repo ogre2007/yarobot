@@ -21,3 +21,4 @@ target/
 dist/* 
 test.yar
 python/yarobot/yarobot_rs.cp313-win_amd64.pyd
+.vercel
