@@ -204,8 +204,8 @@ def generate(malware_path, **kwargs):
     pr = cProfile.Profile()
     pr.enable()
     """Generate YARA rules from malware samples"""
-    args = type("Args", (), kwargs)()
-
+    args = type("Args", (), kwargs)() 
+    args.goodware_dbs
     args.identifier = getIdentifier(args.identifier, malware_path)
     print("[+] Using identifier '%s'" % args.identifier)
 
@@ -221,7 +221,11 @@ def generate(malware_path, **kwargs):
     print("[+] Reading goodware strings from database 'good-strings.db' ...")
     print("    (This could take some time and uses several Gigabytes of RAM depending on your db size)")
 
-    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = load_databases()
+    if args.goodware_dbs:
+        good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = load_databases(args.goodware_dbs)
+    else:
+        logging.getLogger("yarobot").warning("No goodware databases found. Please create new databases.")
+        good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = {}, {}, {}, {}
     # exit()
     process_folder(
         args,
@@ -236,39 +240,7 @@ def generate(malware_path, **kwargs):
 
     stats = pstats.Stats(pr)
     stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
-
-
-@cli.command()
-@click.argument("malware_path", type=click.Path(exists=True))
-@common_single_analysis_options
-@common_multi_analysis_options
-def dropzone(malware_path, **kwargs):
-    """Dropzone mode - monitor directory for new samples and generate rules automatically"""
-    args = type("Args", (), kwargs)()
-
-    click.echo(f"[+] Starting dropzone mode, monitoring {malware_path}")
-    click.echo("[!] WARNING: Processed files will be deleted!")
-
-    while True:
-        if len(os.listdir(malware_path)) > 0:
-            # Deactivate super rule generation if there's only a single file in the folder
-            if len(os.listdir(malware_path)) < 2:
-                args.nosuper = True
-            else:
-                args.nosuper = False
-            # Read a new identifier
-            identifier = getIdentifier(args.b, malware_path)
-            # Read a new reference
-            reference = getReference(args.ref)
-            # Generate a new description prefix
-            prefix = getPrefix(args.p, identifier)
-            # Process the samples
-            processSampleDir(malware_path)
-            # Delete all samples from the dropzone folder
-            emptyFolder(malware_path)
-        time.sleep(1)
-
-
+ 
 # MAIN ################################################################
 if __name__ == "__main__":
     logging.basicConfig(level=os.environ.get("YAROBOT_LOG_LEVEL", "INFO"))

@@ -7,7 +7,7 @@ import os
 import click
 import orjson as json
 
-from .config import DB_PATH, PE_STRINGS_FILE
+from .config import PE_STRINGS_FILE
 
 from lxml import etree
 
@@ -80,7 +80,7 @@ def initialize_pestudio_strings():
 
     pestudio_strings = {}
 
-    tree = etree.parse(get_abs_path(PE_STRINGS_FILE))
+    tree = etree.parse(PE_STRINGS_FILE)
     processed_strings = {}
     pestudio_strings["strings"] = tree.findall(".//string")
     pestudio_strings["av"] = tree.findall(".//av")
@@ -99,9 +99,9 @@ def initialize_pestudio_strings():
     return processed_strings
 
 
-def load_databases():
-    if not os.path.isdir(get_abs_path(DB_PATH)):
-        logging.getLogger("yarobot").error("Database directory not found")
+def load_databases(db_path):
+    if not db_path or not os.path.isdir(db_path):
+        logging.getLogger("yarobot").error("Database directory not found %s", db_path)
         return ({}, {}, {}, {})
     good_strings_db = Counter()
     good_opcodes_db = Counter()
@@ -109,12 +109,12 @@ def load_databases():
     good_exports_db = Counter()
 
     # Initialize all databases
-    for file in os.listdir(get_abs_path(DB_PATH)):
+    for file in os.listdir(db_path):
         if file.endswith(".db") or file.endswith(".json"):
             if file.startswith("good-strings"):
-                load_db(file, good_strings_db, True if file.endswith(".json") else False)
+                load_db(db_path, file, good_strings_db, True if file.endswith(".json") else False)
             if file.startswith("good-opcodes"):
-                load_db(file, good_opcodes_db, True if file.endswith(".json") else False)
+                load_db(db_path, file, good_opcodes_db, True if file.endswith(".json") else False)
             if file.startswith("good-imphashes"):
                 pass  # load_db(file, good_imphashes_db, True if file.endswith(".json") else False) TODO
             if file.startswith("good-exports"):
@@ -123,6 +123,12 @@ def load_databases():
 
 
 def common_single_analysis_options(f):
+    @click.option(
+        "-g",
+        "--goodware-dbs",
+        help="Goodware databases",
+        type=click.Path(exists=True), 
+    )
     @click.option(
         "-y",
         "--min-size",
@@ -302,22 +308,19 @@ def load(filename, just_json=False):
         file.close()
         return object
 
+ 
 
-def get_abs_path(filename):
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
-
-
-def save(object, filename):
-    path = os.path.join(DB_PATH, filename)
+def save(db_path, object, filename):
+    path = os.path.join(db_path, filename)
     with open(path, "wb") as file:
         file.write(bytes(json.dumps(object)))
 
 
-def load_db(file, local_counter, just_json=False):
-    filePath = os.path.join(DB_PATH, file)
+def load_db(db_path, file, local_counter, just_json=False):
+    filePath = os.path.join(db_path, file)
     print("[+] Loading %s ..." % filePath)
     before = len(local_counter)
-    js = load(get_abs_path(filePath), just_json)
+    js = load(filePath, just_json)
     local_counter.update(js)
     added = len(local_counter) - before
     print("[+] Total: %s / Added %d entries" % (len(local_counter), added))

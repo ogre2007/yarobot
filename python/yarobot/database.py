@@ -28,14 +28,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from collections import Counter
 import logging
 import os
-import shutil
-import urllib.request
 
 import click
 from yarobot import yarobot_rs
 
 from .common import get_abs_path, load, save
-from .config import DB_PATH, RELEVANT_EXTENSIONS, REPO_URLS
+from .config import RELEVANT_EXTENSIONS
 
 
 def process_goodware_folder(goodware_path, extensions, recursive, minssize, maxssize, fsize, get_opcodes, debug):
@@ -206,23 +204,6 @@ def create(goodware_path, **kwargs):
         args.opcodes,
         args.debug,
     )
-
-
-@cli.command()
-def update_remote():
-    """Update the local strings and opcodes databases from the online repository"""
-    if not os.path.exists(DB_PATH):
-        os.makedirs(DB_PATH)
-
-    for filename, repo_url in REPO_URLS.items():
-        print("Downloading %s from %s ..." % (filename, repo_url))
-        with (
-            urllib.request.urlopen(repo_url) as response,
-            open("./dbs/%s" % filename, "wb") as out_file,
-        ):
-            shutil.copyfileobj(response, out_file)
-
-    click.echo("[+] Updated databases - you can now start creating YARA rules")
 
 
 if __name__ == "__main__":

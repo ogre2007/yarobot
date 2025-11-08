@@ -1,4 +1,4 @@
-from python.yarobot.service import *
+from yarobot.app import *
 
 if __name__ == '__main__':
     main()

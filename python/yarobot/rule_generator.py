@@ -4,8 +4,6 @@ from typing import Any, List
 
 from typing import Tuple
 
-from .config import KNOWN_IMPHASHES
-
 # import yarobot_rs
 import os
 import re
@@ -348,8 +346,6 @@ class RuleGenerator:
                 # Comment to imphash
                 imphash = info.imphash
                 comment = ""
-                if imphash in KNOWN_IMPHASHES:
-                    comment = " /* {0} */".format(KNOWN_IMPHASHES[imphash])
                 # Add imphash to condition
                 condition_pe_part1.append('pe.imphash() == "{0}"{1}'.format(imphash, comment))
                 pe_module_necessary = True

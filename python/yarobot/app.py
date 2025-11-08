@@ -4,12 +4,14 @@ HTTP Service for yarobot - YARA Rule Generator
 File upload only version
 """
 
+from argparse import ArgumentParser
 import cProfile
 import os
 import pstats
 import tempfile
 import time
 import uuid
+import click
 from flask import Flask, render_template, request, jsonify
 from yarobot.config import RELEVANT_EXTENSIONS
 from werkzeug.utils import secure_filename
@@ -38,17 +40,17 @@ DATABASES = None
 PESTUDIO_STRINGS = None
 FP = None
 SE = None
+DB_PATH = None
 
 
 
-
-def initialize_databases():
+def initialize_databases(db_path):
     """Initialize databases on startup"""
     global DATABASES, PESTUDIO_STRINGS
     try:
         logger.info("Initializing databases...")
         PESTUDIO_STRINGS = initialize_pestudio_strings()
-        DATABASES = load_databases()
+        DATABASES = load_databases(db_path)
         logger.info("Databases initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize databases: {e}")
@@ -197,7 +199,7 @@ def analyze():
 
     # Convert string parameters to appropriate types
     if DATABASES == None:
-        initialize_databases()
+        initialize_databases(DB_PATH)
         init_context(DATABASES, PESTUDIO_STRINGS)
     # Create analysis request
     try:
@@ -280,7 +282,8 @@ def create_template_directories():
 
 def main():
     # Initialize databases before starting the server
-    initialize_databases()
+    
+    initialize_databases(DB_PATH)
     init_context(DATABASES, PESTUDIO_STRINGS)
     # Create templates directory if it doesn't exist
     # Start Flask app
@@ -295,4 +298,8 @@ def main():
     )
 
 if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("-g", type=click.Path(exists=True))
+    args = parser.parse_args()
+    DB_PATH = args.g
     main()
