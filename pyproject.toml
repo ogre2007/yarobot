@@ -1,6 +1,6 @@
 [project]
 name = "yarobot"
-version = "0.3.0"
+version = "0.3.1"
 authors = [{ name = "ogre2007", email = "oogre@vk.com" }]
 
 requires-python = ">=3.10"
