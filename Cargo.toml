@@ -8,7 +8,7 @@ name = "yarobot_rs"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-pyo3 = { version = "0.25", features = ["extension-module", "auto-initialize"] }
+pyo3 = { version = "0.25", features = ["extension-module"] }
 regex = "1.0"
 lazy_static = "1.4" 
 memchr = "2.5" 
