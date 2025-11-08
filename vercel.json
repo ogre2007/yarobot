@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "python/yarobot/service.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/python/yarobot/service.py"
+    }
+  ],
+  "buildCommand": "pip install .",
+  "installCommand": "pip install ."
+}
