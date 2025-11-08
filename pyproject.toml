@@ -15,7 +15,9 @@ build-backend = "maturin"
 
 [project.scripts]
 yarobot = "yarobot.generate:generate"
-app = "yarobot.service:main"
+app = "app:main"
+yarobot-web = "yarobot.service:main"
+
 [project.urls]
 Homepage = "https://github.com/ogre2007/yarobot"
 Issues = "https://github.com/ogre2007/issues"
