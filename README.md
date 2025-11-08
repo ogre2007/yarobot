@@ -35,34 +35,21 @@ pip install .
 
 ## 📖 Quick Start
 
-### 1. Update Goodware Databases (skip for now)
-
-### 2. Generate Rules from Malware Samples (cli)
-
-```bash
-py -m yarobot.generate /path/to/malware/samples --output-rule-file my_rules.yar
-```
-
-### 3. Create Custom Goodware Database (if needed)
+### Create Custom Goodware Database (if needed)
 
 ```bash
 py -m yarobot.database create /path/to/goodware/files --recursive
 ```
 
-## 🎯 Usage Examples
-
-### Basic Rule Generation
+### Generate Rules from Malware Samples (cli)
 
 ```bash
-py -m yarobot.generate /malware/samples \
-  --min-size 8 \
-  --max-size 128 \
-  --min-score 5 \
-  --output-rule-file detection_rules.yar
+py -m yarobot.generate /path/to/malware/samples --output-rule-file my_rules.yar
 ```
+
 ### Start as web service
 ```bash
-py -m yarobot.app
+py -m yarobot.app [-g <goodware dbs path>]
 app
 ```
 then locate http://localhost:5000
@@ -74,7 +61,7 @@ curl -X POST -F "files=@tests\\data\\binary" http://localhost:5000/api/analyze -
 ### Advanced Configuration
 
 ```bash
-py -m yarobot.generate /malware/samples \
+py -m yarobot.generate /malware/samples -g <goodware dbs path> \
   --opcodes \
   --recursive \
   --author "My Security Team" \
