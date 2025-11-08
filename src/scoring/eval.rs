@@ -156,6 +156,7 @@ impl ScoringEngine {
     pub fn generate_rule_strings(
         &self,
         score: bool,
+        min_score: i64,
         high_scoring: f64,
         strings_per_rule: usize,
         mut string_elements: Vec<TokenInfo>,
@@ -166,6 +167,9 @@ impl ScoringEngine {
         let mut high_scoring_strings = 0;
         let mut i = 0;
         for stringe in string_elements.iter_mut() {
+            if score && min_score > stringe.score {
+                continue;
+            }
             let string = stringe.reprz.clone();
             if self.good_strings_db.contains_key(&string) {
                 stringe.add_note(format!(
@@ -333,7 +337,7 @@ impl ScoringEngine {
                     for test_str in test_strings {
                         if is_base_64(test_str.clone()).unwrap() {
                             if let Ok(decoded_bytes) = base64::decode(test_str.clone().as_bytes()) {
-                                if is_ascii_string(&decoded_bytes, true).unwrap() {
+                                if is_ascii_string(&decoded_bytes, true) {
                                     token.score += 10;
                                     self.base64strings.insert(
                                         token.reprz.clone(),
@@ -357,7 +361,7 @@ impl ScoringEngine {
                     for test_str in hex_test_strings {
                         if is_hex_encoded(test_str.clone(), true).unwrap() {
                             if let Ok(decoded_bytes) = hex::decode(&test_str) {
-                                if is_ascii_string(&decoded_bytes, true).unwrap() {
+                                if is_ascii_string(&decoded_bytes, true) {
                                     // Not too many 00s
                                     if test_str.contains("00") {
                                         let zero_ratio = test_str.len() as f64

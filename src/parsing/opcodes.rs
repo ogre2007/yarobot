@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{TokenInfo, TokenType};
+use crate::{TokenInfo, TokenType, is_ascii_string};
 use anyhow::Result;
 use goblin::{elf, pe, Object};
 use log::{debug, error};
@@ -143,17 +143,18 @@ fn process_section_data(section_data: &[u8], opcodes: &mut HashMap<String, Token
         } else {
             text_part
         };
-
-        let hex_string = hex::encode(chunk);
-        opcodes
-            .entry(hex_string.clone())
-            .or_insert(TokenInfo::new(
-                hex_string.clone(),
-                0,
-                TokenType::BINARY,
-                HashSet::new(),
-                None,
-            ))
-            .count += 1;
+        if !is_ascii_string(chunk, true) {
+            let hex_string = hex::encode(chunk);
+            opcodes
+                .entry(hex_string.clone())
+                .or_insert(TokenInfo::new(
+                    hex_string.clone(),
+                    0,
+                    TokenType::BINARY,
+                    HashSet::new(),
+                    None,
+                ))
+                .count += 1;
+        }
     }
 }

@@ -195,36 +195,36 @@ mod tests {
     fn test_is_ascii_string() {
         // Test with valid ASCII (no padding)
         let ascii_data = b"Hello World!";
-        let result = is_ascii_string(ascii_data, false).unwrap();
+        let result = is_ascii_string(ascii_data, false) ;
         assert!(result);
 
         // Test with valid ASCII (with padding allowed)
         let ascii_with_null = b"Hello\x00World";
-        let result = is_ascii_string(ascii_with_null, true).unwrap();
+        let result = is_ascii_string(ascii_with_null, true) ;
         assert!(result);
 
         // Test with non-ASCII (no padding)
         let non_ascii_data = b"Hello\xFFWorld";
-        let result = is_ascii_string(non_ascii_data, false).unwrap();
+        let result = is_ascii_string(non_ascii_data, false) ;
         assert!(!result);
 
         // Test with non-ASCII (with padding)
         let non_ascii_with_null = b"Hello\xFF\x00World";
-        let result = is_ascii_string(non_ascii_with_null, true).unwrap();
+        let result = is_ascii_string(non_ascii_with_null, true) ;
         assert!(!result);
 
         // Test with empty data
         let empty_data = b"";
-        let result = is_ascii_string(empty_data, false).unwrap();
+        let result = is_ascii_string(empty_data, false) ;
         assert!(result);
 
         // Test with only null bytes (padding allowed)
         let null_data = &[0x00, 0x00, 0x00];
-        let result = is_ascii_string(null_data, true).unwrap();
+        let result = is_ascii_string(null_data, true) ;
         assert!(result);
 
         // Test with only null bytes (padding not allowed)
-        let result = is_ascii_string(null_data, false).unwrap();
+        let result = is_ascii_string(null_data, false) ;
         assert!(!result);
     }
 
@@ -336,8 +336,7 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(process_file, m)?)?;
 
     m.add_function(wrap_pyfunction!(get_pe_info, m)?)?;
-    m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?;
-    m.add_function(wrap_pyfunction!(is_ascii_string, m)?)?;
+    m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?; 
     m.add_function(wrap_pyfunction!(is_base_64, m)?)?;
     m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?;
     m.add_function(wrap_pyfunction!(init_analysis, m)?)?;

@@ -225,14 +225,15 @@ class RuleGenerator:
             # GENERATE SIMPLE RULES -------------------------------------------
             fdata += "/* Rule Set ----------------------------------------------------------------- */\n\n"
             all_files_set = set(file_strings.keys())
-            all_files_set.update(file_opcodes.keys())
+            if self.args.get_opcodes:
+                all_files_set.update(file_opcodes.keys())
             all_files_set.update(file_utf16strings.keys())
 
             for filePath in all_files_set:
                 if rule := self.generate_simple_rule(
                     printed_rules,
                     file_strings[filePath] if filePath in file_strings.keys() else [],
-                    file_opcodes[filePath] if filePath in file_opcodes.keys() else [],
+                    file_opcodes[filePath] if self.args.get_opcodes and filePath in file_opcodes.keys() else [],
                     file_utf16strings[filePath] if filePath in file_utf16strings.keys() else [],
                     file_info[filePath],
                     filePath,
@@ -427,7 +428,8 @@ class RuleGenerator:
             rule_strings,
             high_scoring_strings,
         ) = self.scoring_engine.generate_rule_strings(
-            self.args.score,
+            True,#self.args.score,
+            self.args.min_score,
             self.args.high_scoring,
             self.args.strings_per_rule,
             (strings or []) + (utf16strings or []),

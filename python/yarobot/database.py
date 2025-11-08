@@ -201,7 +201,7 @@ def create(goodware_path, **kwargs):
         args.min_size,
         args.max_size,
         args.max_file_size,
-        args.opcodes,
+        args.get_opcodes,
         args.debug,
     )
 

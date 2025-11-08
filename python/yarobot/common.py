@@ -239,7 +239,7 @@ def common_single_analysis_options(f):
     @click.option("--debug", help="Debug output", is_flag=True, default=False)
     @click.option("--trace", help="Trace output", is_flag=True, default=False)
     @click.option(
-        "--opcodes",
+        "--get-opcodes",
         help="Do use the OpCode feature (use this if not enough high scoring strings can be found)",
         is_flag=True,
         default=False,

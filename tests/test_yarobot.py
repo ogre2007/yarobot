@@ -65,7 +65,7 @@ def test_integration(shared_datadir):
         debug=False,
         max_size=128,
         min_size=4,
-        opcodes=False,
+        get_opcodes=False,
         b="",
         recursive=True,
         oe=False,

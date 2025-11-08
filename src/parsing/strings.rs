@@ -164,22 +164,20 @@ pub fn remove_non_ascii_drop(data: &[u8]) -> PyResult<String> {
 }
 
 /// Gets the contents of a file (limited to 1024 characters)
-
-/// Check if data contains only ASCII characters
-#[pyfunction]
-pub fn is_ascii_string(data: &[u8], padding_allowed: bool) -> PyResult<bool> {
+ 
+pub fn is_ascii_string(data: &[u8], padding_allowed: bool) -> bool {
     for &b in data {
         if padding_allowed {
             if !((b > 31 && b < 127) || b == 0) {
-                return Ok(false);
+                return false;
             }
         } else {
             if !(b > 31 && b < 127) {
-                return Ok(false);
+                return false;
             }
         }
     }
-    Ok(true)
+    true
 }
 
 /// Check if string is valid base64

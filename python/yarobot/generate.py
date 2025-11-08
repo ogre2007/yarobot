@@ -115,11 +115,11 @@ def process_folder(
     good_exports_db={},
     pestudio_strings={},
 ):
-    if args.opcodes and len(good_opcodes_db) < 1:
+    if args.get_opcodes and len(good_opcodes_db) < 1:
         logging.getLogger("yarobot").warning(
             "Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set."
         )
-        args.opcodes = False
+        args.get_opcodes = False
 
     if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
         logging.getLogger("yarobot").warning(
@@ -139,7 +139,7 @@ def process_folder(
         args.min_size,
         args.max_size,
         args.max_file_size,
-        args.opcodes,
+        args.get_opcodes,
         args.debug,
         args.excludegood,
         args.min_score,

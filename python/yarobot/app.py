@@ -107,7 +107,6 @@ class AnalysisRequest:
             "noextras",
             "debug",
             "trace",
-            "opcodes",
             "nosimple",
             "globalrule",
             "nosuper",
@@ -137,7 +136,7 @@ class AnalysisRequest:
         self.noextras = params.get("no_extras", False)
         self.debug = params.get("debug", False)
         self.trace = params.get("trace", False)
-        self.opcodes = params.get("get_opcodes", False)
+        self.get_opcodes = params.get("get_opcodes", False) 
         self.opcode_num = params.get("opcode_num", 3)
         self.superrule_overlap = params.get("superrule_overlap", 5)
         self.nosimple = params.get("no_simple_rules", False)
@@ -204,7 +203,7 @@ def analyze():
     try:
         args = AnalysisRequest(params)
     except Exception as e:
-        return jsonify({"error": f"Invalid value forkey"}), 400
+        return jsonify({"error": f"Invalid value for key {e}"}), 400
 
     # Set identifier based on upload
     if args.identifier == "not set":
