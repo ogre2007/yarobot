@@ -1,28 +1,21 @@
 [project]
 name = "yarobot"
-version = "0.2.2" 
-authors = [
-  { name="ogre2007", email="oogre@vk.com" },
-]
+version = "0.3.0"
+authors = [{ name = "ogre2007", email = "oogre@vk.com" }]
 
 requires-python = ">=3.10"
 description = "YARA generator inspired by yarGen"
 readme = "README.md"
 license = { text = "GPL-3.0-only" }
-dependencies = [
-    "flask>=3.1.2",
-        "click>=8.3.0",
-    "lxml>=4.9.0",
-    "orjson>=3.11",
-]
+dependencies = ["flask>=3.1.2", "click>=8.3.0", "lxml>=4.9.0", "orjson>=3.11"]
 
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project.scripts]
-yarobot = "yarobot.generate:generate" 
-
+yarobot = "yarobot.generate:generate"
+app = "yarobot.service:main"
 [project.urls]
 Homepage = "https://github.com/ogre2007/yarobot"
 Issues = "https://github.com/ogre2007/issues"
@@ -45,7 +38,7 @@ addopts = [
     "--strict-config",
     "--disable-warnings",
     "--tb=short",
-    "--import-mode=importlib"
+    "--import-mode=importlib",
 ]
 markers = [
     "unit: Unit tests",
@@ -65,4 +58,5 @@ dev = [
     "orjson>=3.11",
     "click>=8.3.0",
     "flask>=3.1.2",
+    "Werkzeug>=2.3.0",
 ]
