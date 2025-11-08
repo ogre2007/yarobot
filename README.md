@@ -5,7 +5,7 @@
 [![Rust](https://img.shields.io/badge/rust-powered-orange.svg)](https://www.rust-lang.org/)
 
 **yarobot** is a high-performance YARA rule generator inspired by [yarGen](https://github.com/Neo23x0/yarGen), designed to automatically create quality YARA rules from malware samples while minimizing false positives through intelligent goodware database comparison.
-
+![screenshot](img/web.png)
 ## 🚀 Features
 
 - **Automated YARA Rule Generation**: Create both simple and super rules from malware samples
