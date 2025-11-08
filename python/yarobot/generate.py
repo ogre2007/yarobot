@@ -204,7 +204,7 @@ def generate(malware_path, **kwargs):
     pr = cProfile.Profile()
     pr.enable()
     """Generate YARA rules from malware samples"""
-    args = type("Args", (), kwargs)() 
+    args = type("Args", (), kwargs)()
     args.goodware_dbs
     args.identifier = getIdentifier(args.identifier, malware_path)
     print("[+] Using identifier '%s'" % args.identifier)
@@ -240,7 +240,8 @@ def generate(malware_path, **kwargs):
 
     stats = pstats.Stats(pr)
     stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
- 
+
+
 # MAIN ################################################################
 if __name__ == "__main__":
     logging.basicConfig(level=os.environ.get("YAROBOT_LOG_LEVEL", "INFO"))

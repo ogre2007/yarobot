@@ -127,7 +127,7 @@ def common_single_analysis_options(f):
         "-g",
         "--goodware-dbs",
         help="Goodware databases",
-        type=click.Path(exists=True), 
+        type=click.Path(exists=True),
     )
     @click.option(
         "-y",
@@ -308,7 +308,6 @@ def load(filename, just_json=False):
         file.close()
         return object
 
- 
 
 def save(db_path, object, filename):
     path = os.path.join(db_path, filename)

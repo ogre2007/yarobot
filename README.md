@@ -128,7 +128,6 @@ We welcome contributions!
 5. Submit a pull request
 
 ## TODO
-- [ ] dropzone mode
 - [x] http-service
 - [x] web interface
 - [ ] fix/drop imphash/exports

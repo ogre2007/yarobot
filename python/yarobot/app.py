@@ -27,12 +27,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("yarobot-service")
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-template_dir = os.path.join(current_dir, 'templates')
+template_dir = os.path.join(current_dir, "templates")
 
-app = Flask(__name__, 
-           template_folder=template_dir,
-           static_folder=os.path.join(current_dir, 'static'))
- 
+app = Flask(__name__, template_folder=template_dir, static_folder=os.path.join(current_dir, "static"))
+
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 100MB max file size
 
 # Global variables for databases (loaded once at startup)
@@ -41,7 +39,6 @@ PESTUDIO_STRINGS = None
 FP = None
 SE = None
 DB_PATH = None
-
 
 
 def initialize_databases(db_path):
@@ -166,11 +163,13 @@ def save_uploaded_files(files) -> str:
 
     return temp_dir
 
+
 # Web Routes
-@app.route('/')
+@app.route("/")
 def index():
     """Main web interface"""
-    return render_template('index.html')
+    return render_template("index.html")
+
 
 @app.route("/health", methods=["GET"])
 def health_check():
@@ -256,46 +255,51 @@ def get_status():
 
     return jsonify({"status": "running", "databases": db_info})
 
- 
+
 # Error handlers
 @app.errorhandler(413)
 def too_large(e):
-    return jsonify({'error': 'File too large'}), 413
+    return jsonify({"error": "File too large"}), 413
+
 
 @app.errorhandler(500)
 def internal_error(e):
-    return jsonify({'error': 'Internal server error'}), 500
+    return jsonify({"error": "Internal server error"}), 500
+
 
 @app.errorhandler(404)
 def not_found(e):
-    return render_template('index.html'), 404
+    return render_template("index.html"), 404
 
 
 def create_template_directories():
     """Create necessary directories for templates"""
     os.makedirs(template_dir, exist_ok=True)
-    
+
     # Create static directory if needed
-    static_dir = os.path.join(current_dir, 'static')
+    static_dir = os.path.join(current_dir, "static")
     os.makedirs(static_dir, exist_ok=True)
- 
+
 
 def main():
     # Initialize databases before starting the server
-    
+
     initialize_databases(DB_PATH)
     init_context(DATABASES, PESTUDIO_STRINGS)
     # Create templates directory if it doesn't exist
     # Start Flask app
     create_template_directories()
-    logger.info(f"Starting yarobot web interface on http://{os.getenv('YAROBOT_HOST', '0.0.0.0')}:{os.getenv('YAROBOT_PORT', 5000)}")
-    logger.info(f"Template directory: {template_dir}") 
+    logger.info(
+        f"Starting yarobot web interface on http://{os.getenv('YAROBOT_HOST', '0.0.0.0')}:{os.getenv('YAROBOT_PORT', 5000)}"
+    )
+    logger.info(f"Template directory: {template_dir}")
     # Start Flask app
     app.run(
         host=os.getenv("YAROBOT_HOST", "0.0.0.0"),
         port=int(os.getenv("YAROBOT_PORT", 5000)),
         debug=os.getenv("YAROBOT_DEBUG", "false").lower() == "true",
     )
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()
