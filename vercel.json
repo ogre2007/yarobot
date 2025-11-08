@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "python/yarobot/service.py",
+      "src": "app.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/python/yarobot/service.py"
+      "dest": "/app.py"
     }
   ],
   "buildCommand": "pip install .",
