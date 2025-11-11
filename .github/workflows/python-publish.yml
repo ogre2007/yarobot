@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.13", "3.12", "3.11"]
+        python-version: ["3.13"]
     steps:
       - uses: actions/checkout@v4
  
@@ -42,7 +42,6 @@ jobs:
           uv run auditwheel repair dist/*.whl
           rm dist/*
           mv wheelhouse/*.whl dist
-          uv build --sdist
 
 
       - name: Upload distributions

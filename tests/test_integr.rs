@@ -44,7 +44,7 @@ fn test_integr() {
         pestudio_strings,
     )
     .unwrap();
-
+    pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
         let result = process_malware(
             malware_path,

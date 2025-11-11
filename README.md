@@ -130,11 +130,11 @@ We welcome contributions!
 ## TODO
 - [x] http-service
 - [x] web interface
+- [ ] store regexps in config
 - [ ] fix/drop imphash/exports
 - [ ] default databases
 - [ ] rule generation rewriting
 - [ ] tokenizer code separated in different package
-- [ ] dex opcode extraction
 
 ## 📄 License
 

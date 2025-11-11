@@ -71,56 +71,6 @@ def _get_file_range(size, fm_size):
     return size_string
 
 
-def _generate_general_condition(file_info, nofilesize, filesize_multiplier, noextras):
-    """
-    Generates a general condition for a set of files
-    :param file_info:
-    :return:
-    """
-    conditions = []
-    pe_module_neccessary = False
-
-    # Different Magic Headers and File Sizes
-    magic_headers = []
-    file_sizes = []
-    imphashes = []
-
-    for filePath in file_info:
-        if not file_info[filePath].magic:
-            continue
-        magic = file_info[filePath].magic
-        size = file_info[filePath].size
-        imphash = file_info[filePath].imphash
-
-        # Add them to the lists
-        if magic not in magic_headers and magic != "":
-            magic_headers.append(magic)
-        if size not in file_sizes:
-            file_sizes.append(size)
-        if imphash not in imphashes and imphash != "":
-            imphashes.append(imphash)
-
-    # If different magic headers are less than 5
-    if len(magic_headers) <= 5:
-        magic_string = " or ".join(_get_uint_string(h) for h in magic_headers)
-        if " or " in magic_string:
-            conditions.append("( {0} )".format(magic_string))
-        else:
-            conditions.append("{0}".format(magic_string))
-
-    # Biggest size multiplied with maxsize_multiplier
-    if not nofilesize and len(file_sizes) > 0:
-        conditions.append(_get_file_range(max(file_sizes), filesize_multiplier))
-
-    # If different magic headers are less than 5
-    if len(imphashes) == 1 and not noextras:
-        conditions.append('pe.imphash() == "{0}"'.format(imphashes[0]))
-        pe_module_neccessary = True
-
-    # If enough attributes were special
-    condition_string = " and ".join(conditions)
-
-    return condition_string, pe_module_neccessary
 
 
 def _add_conditions(
@@ -179,6 +129,56 @@ class RuleGenerator:
         self.args = args
         self.scoring_engine = scoring_engine
 
+    def _generate_general_condition(self, file_info, nofilesize, filesize_multiplier, noextras):
+        """
+        Generates a general condition for a set of files
+        :param file_info:
+        :return:
+        """
+        conditions = [] 
+
+        # Different Magic Headers and File Sizes
+        magic_headers = []
+        file_sizes = []
+        imphashes = []
+
+        for filePath in file_info:
+            if not file_info[filePath].magic:
+                continue
+            magic = file_info[filePath].magic
+            size = file_info[filePath].size
+            imphash = file_info[filePath].imphash
+
+            # Add them to the lists
+            if magic not in magic_headers and magic != "":
+                magic_headers.append(magic)
+            if size not in file_sizes:
+                file_sizes.append(size)
+            if imphash not in imphashes and imphash != "":
+                imphashes.append(imphash)
+
+        # If different magic headers are less than 5
+        if len(magic_headers) <= 5:
+            magic_string = " or ".join(_get_uint_string(h) for h in magic_headers)
+            if " or " in magic_string:
+                conditions.append("( {0} )".format(magic_string))
+            else:
+                conditions.append("{0}".format(magic_string))
+
+        # Biggest size multiplied with maxsize_multiplier
+        if not nofilesize and len(file_sizes) > 0:
+            conditions.append(_get_file_range(max(file_sizes), filesize_multiplier))
+
+        # If different magic headers are less than 5
+        if len(imphashes) == 1 and not noextras:
+            conditions.append('pe.imphash() == "{0}"'.format(imphashes[0]))
+            self.pe_module_necessary = True
+
+        # If enough attributes were special
+        condition_string = " and ".join(conditions)
+
+        return condition_string
+
     def generate_rules(
         self,
         file_strings,
@@ -191,11 +191,21 @@ class RuleGenerator:
     ):
         fdata = ""
         with open(self.args.output_rule_file, "w") as fh:
-            fdata = _generate_top_info(self.args.author, self.args.identifier, self.args.ref, self.args.license)
+            # General Info
+            general_info = "/*\n"
+            general_info += "   YARA Rule Set\n"
+            general_info += f"   Author: {self.args.author}\n"
+            general_info += f"   Date: {_get_timestamp_basic()}\n"
+            general_info += f"   Identifier: {self.args.identifier}\n"
+            general_info += f"   Reference: {self.args.ref}\n"
+            if license != "":
+                general_info += f"   License: {self.args.license}\n"
+            general_info += "*/\n\n"
+            fdata += general_info
 
             # GLOBAL RULES ----------------------------------------------------
             if self.args.globalrule:
-                condition, pe_module_necessary = _generate_general_condition(
+                condition = self._generate_general_condition(
                     file_info, self.args.nofilesize, self.args.filesize_multiplier, self.args.noextras
                 )
 
@@ -349,14 +359,14 @@ class RuleGenerator:
                 comment = ""
                 # Add imphash to condition
                 condition_pe_part1.append('pe.imphash() == "{0}"{1}'.format(imphash, comment))
-                pe_module_necessary = True
+                self.pe_module_necessary = True
             if info.exports:
                 e_count = 0
                 for export in info.exports:
                     if export not in self.scoring_engine.good_exports_db:
                         condition_pe_part2.append('pe.exports("{0}")'.format(export))
                         e_count += 1
-                        pe_module_necessary = True
+                        self.pe_module_necessary = True
                     if e_count > 5:
                         break
 
@@ -505,18 +515,15 @@ class RuleGenerator:
         subconditions = []
         # 1st condition
         # Evaluate the general characteristics
-        file_info_super = {}
-        pe_module_necessary = False
+        file_info_super = {} 
         for filePath in super_rule.files:
             file_info_super[filePath] = infos[filePath]
-        condition_strings, pe_module_necessary_gen = _generate_general_condition(
+        condition_strings = self._generate_general_condition(
             infos,
             self.args.nofilesize,
             self.args.filesize_multiplier,
             self.args.noextras,
         )
-        if pe_module_necessary_gen:
-            pe_module_necessary = True
 
         # 2nd condition
         # String combinations
@@ -526,7 +533,7 @@ class RuleGenerator:
             rule_strings,
             rule_opcodes,
             high_scoring_strings,
-            pe_module_necessary,
+            self.pe_module_necessary,
         )
         # Now add string condition to the conditions
         if len(subconditions) == 1:
@@ -544,20 +551,6 @@ class RuleGenerator:
             rule_opcodes,
             condition_string,
         )
-
-
-def _generate_top_info(author, identifier, ref, license):
-    # General Info
-    general_info = "/*\n"
-    general_info += "   YARA Rule Set\n"
-    general_info += f"   Author: {author}\n"
-    general_info += f"   Date: {_get_timestamp_basic()}\n"
-    general_info += f"   Identifier: {identifier}\n"
-    general_info += f"   Reference: {ref}\n"
-    if license != "":
-        general_info += f"   License: {license}\n"
-    general_info += "*/\n\n"
-    return general_info
 
 
 def _generate_opcode_repr(i, opcode):
