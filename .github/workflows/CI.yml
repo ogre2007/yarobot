@@ -20,7 +20,7 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.13.9"
-  WORKING_DIR: "yarobot/python"
+  WORKING_DIR: "python"
 
 jobs:
   linux:
