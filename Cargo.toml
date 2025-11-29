@@ -57,5 +57,5 @@ pyo3-build-config = "0.25"
 debug = true
 
 [workspace.profile.release]
-lto = "fat"
+lto = true
 strup = true
