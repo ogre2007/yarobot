@@ -1,26 +1,7 @@
-use std::collections::HashMap;
-
 use crate::{
     regex_base::{RegexRules, REGEX_INSENSITIVE, REGEX_SENSITIVE},
     TokenInfo,
 };
-
-pub fn get_pestudio_score(
-    string: &str,
-    pestudio_strings: HashMap<String, (i64, String)>,
-) -> (i32, String) {
-    for (str, elem) in pestudio_strings {
-        // Exclude the "extension" black list for now
-        if elem.1 == "ext" {
-            continue;
-        }
-
-        if str.to_lowercase() == string.to_lowercase() {
-            return (5, elem.1.clone());
-        }
-    }
-    (0, String::new())
-}
 
 fn filter_rg(tok: &mut TokenInfo, regex_base: &RegexRules, _ignore_case: bool) -> (i64, String) {
     let mut score_local = 0;
