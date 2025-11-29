@@ -59,6 +59,6 @@ fn test_dex() {
     let fdata = fs::read("tests\\data\\classes.dex").unwrap();
     let opcodes = extract_dex_opcodes(fdata.clone()).unwrap();
     let strings = extract_and_count_ascii_strings(&fdata, 5, 128);
-    println!("{:?}", strings);
+    //println!("{:?}", strings);
     assert!(opcodes.iter().len() > 0);
 }

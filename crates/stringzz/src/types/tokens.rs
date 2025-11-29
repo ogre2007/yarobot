@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{cmp::max, collections::HashSet};
 
 use pyo3::prelude::*;
 
@@ -43,6 +43,8 @@ pub struct TokenInfo {
     pub reversed: bool,
     #[pyo3(get, set)]
     pub from_pestudio: bool,
+    #[pyo3(get, set)]
+    pub also_wide: bool,
 }
 
 #[pymethods]
@@ -69,6 +71,10 @@ impl TokenInfo {
         }
     }
 
+    pub fn contains(&self, right: &TokenInfo) -> bool {
+        self.reprz.contains(&right.reprz)
+    }
+
     pub fn __str__(&self) -> String {
         format!(
             "{:?}\t\t{{score={}, count={}, typ={:?}, files={:?}, fullword={}, b64={}, hexed={}, reversed={}, pestud={}}}",
@@ -80,9 +86,12 @@ impl TokenInfo {
         let repr = self.reprz.replace("\\", "\\\\").replace("\"", "\\\"");
         let wideness = if self.typ == TokenType::UTF16LE {
             "wide"
+        } else if self.also_wide {
+            "ascii wide"
         } else {
             "ascii"
         };
+
         let full = if self.fullword { "fullword" } else { "" };
 
         format!(
@@ -103,6 +112,20 @@ impl TokenInfo {
         self.score += value.score;
         self.typ = value.typ;
         self.fullword = value.fullword;
+    }
+
+    pub fn merge_existed(&mut self, value: &Self) {
+        self.count += value.count;
+        self.files.extend(value.files.clone()); 
+        self.notes += &value.notes;
+        self.score = max(value.score, self.score);
+        if !self.fullword {
+            self.fullword = value.fullword;
+        }
+        if !self.also_wide {
+            self.also_wide = value.also_wide;
+        }
+        
     }
 
     pub fn add_file(&mut self, value: String) {

@@ -131,11 +131,11 @@ We welcome contributions!
 - [x] http-service
 - [x] web interface
 - [ ] store regexps in config
-- [ ] token merging
+- [x] token merging
 - [ ] fix/drop imphash/exports
 - [ ] default databases
 - [ ] rule generation rewriting
-- [ ] tokenizer code separated in different package
+- [x] tokenizer code separated in different package
 
 ## 📄 License
 

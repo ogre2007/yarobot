@@ -544,7 +544,7 @@ class RuleGenerator:
         # Create condition string
         condition_string = "\n      ) or ( ".join(conditions)
 
-        return self.generate_rule(
+        return self.format_rule(
             rule_name,
             ", ".join(file_list),
             hashes,

@@ -11,7 +11,7 @@ use crate::{
     get_file_info, FileInfo, TokenInfo, TokenType,
 };
 
-use anyhow::Result;
+use anyhow::{Error, Result};
 use log::debug;
 use pyo3::prelude::*;
 use walkdir::WalkDir;
@@ -98,6 +98,7 @@ pub fn process_buffer_u8(
 
     Ok((fi, strings, utf16strings, opcodes))
 }
+  
 
 #[pymethods]
 impl FileProcessor {
@@ -192,6 +193,9 @@ impl FileProcessor {
         merge_stats(strings, &mut self.strings);
         merge_stats(utf16strings, &mut self.utf16strings);
         merge_stats(opcodes, &mut self.opcodes);
+        //let mut
+        self.deduplicate_strings();
+
         if self.debug {
             println!(
                 "[+] Processed {} Size: {} Strings: {} Utf16Strings: {} OpCodes: {}",
@@ -203,6 +207,45 @@ impl FileProcessor {
             );
         }
         true
+    }
+
+
+
+    pub fn deduplicate_strings(&mut self) {
+        let binding = self.utf16strings.clone();
+        let duplicates: Vec<&String> = binding
+            .keys()
+            .filter(|&x| self.strings.contains_key(x))
+            .collect();
+        for &d in duplicates.iter() {
+            self.strings.entry(d.to_string()).and_modify(|x| {
+                x.count += self.utf16strings[d].clone().count;
+                x.also_wide = true
+            });
+            self.utf16strings.remove(d);
+        }
+
+        let binding = self.strings.clone();
+        let mut keys = binding.keys();
+        let duplicates: Vec<(String, String)> = binding
+            .keys().fold(
+                Vec::new(), 
+                |mut tuples, key| {
+                    let m = keys.find(|x| key!=*x && key.contains(*x));
+                    if let Some(found) = m {
+                        tuples.push((key.clone(), found.clone()))
+                    }
+                    tuples
+                }
+            )
+            .into_iter().collect();
+        println!("found {} duplicate strings, shrinking", duplicates.len());
+        for (big, small) in duplicates {
+            println!("deduplicating {} into {}", big, small);
+            let bigti = &self.strings[&big].clone();
+            self.strings.get_mut(&small).unwrap().merge_existed(bigti);
+            self.strings.remove_entry(&big);
+        }
     }
 
     fn process_single_file(
