@@ -71,7 +71,7 @@ impl TokenInfo {
 
     pub fn __str__(&self) -> String {
         format!(
-            "TokenInfo: reprz={:?}, score={}, count={}, typ={:?}, files={:?}, fullword={}, b64={}, hexed={}, reversed={}, pestud={}",
+            "{:?}\t\t{{score={}, count={}, typ={:?}, files={:?}, fullword={}, b64={}, hexed={}, reversed={}, pestud={}}}",
             self.reprz, self.score, self.count, self.typ, self.files, self.fullword, self.b64, self.hexed, self.reversed, self.from_pestudio
         )
     }
