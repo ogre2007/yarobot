@@ -3,7 +3,6 @@ name = "yarobot-rs"
 description = "Core yarobot code ported to rust"
 
 homepage.workspace = true
-readme.workspace = true
 repository.workspace = true
 version.workspace = true
 keywords.workspace = true
