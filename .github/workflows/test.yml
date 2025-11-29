@@ -64,16 +64,10 @@ jobs:
       - name: Run Python tests
         run: |
           cd python
-          uv run pytest -v --cov --cov-report=xml
+          uv run coverage run -m pytest && uv run coverage report
 
       - name: Build Python package
         run: |
           cd python
           uv build
-
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
-        with:
-          file: python/coverage.xml
-          flags: unittests
-          name: codecov-umbrella
+ 
