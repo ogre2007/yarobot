@@ -13,9 +13,6 @@ use pyo3::{
     wrap_pyfunction, Bound, PyResult, Python,
 };
 
-
-
-
 #[pymodule]
 #[pyo3(name = "stringzz")]
 fn stringzz(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {

@@ -214,10 +214,10 @@ impl FileProcessor {
         HashMap<String, TokenInfo>,
         HashMap<String, TokenInfo>,
     )> {
-        let file = File::open(&file_path)?; 
+        let file = File::open(&file_path)?;
         let mut limited_reader = file.take((self.fsize * 1024 * 1024).try_into().unwrap());
         let mut buffer = Vec::new();
-        limited_reader.read_to_end(&mut buffer)?; 
+        limited_reader.read_to_end(&mut buffer)?;
 
         let (fi, mut strings, mut utf16strings, mut opcodes) =
             process_buffer_u8(buffer, self.minssize, self.maxssize, self.get_opcodes).unwrap();
