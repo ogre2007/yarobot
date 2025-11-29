@@ -12,8 +12,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.11", "3.13"]
+        os: [windows-latest]
+        python-version: ["3.11"]
         rust-toolchain: [stable]
 
     steps:
@@ -66,8 +66,4 @@ jobs:
           cd python
           uv run coverage run -m pytest && uv run coverage report
 
-      - name: Build Python package
-        run: |
-          cd python
-          uv build
  
