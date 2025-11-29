@@ -1,4 +1,4 @@
-# This workflow will upload a Python Package to PyPI when a release is created
+# This workflow will upload a Python Package to PyPI and Rust Packages to crates.io when a release is created
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
 
 # This workflow uses actions that are not certified by GitHub.
@@ -6,7 +6,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Upload Python Package
+name: Upload Packages
 
 on:
   release:
@@ -75,3 +75,14 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+
+  rust-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish crate
+        run: cargo publish --token ${{ secrets.CRATES_IO_KEY }}

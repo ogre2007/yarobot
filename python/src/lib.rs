@@ -3,11 +3,8 @@ use log::info;
 use pyo3::prelude::*;
 use std::{cmp::{max, min}, collections::HashMap, fs, path::Path};
 
-pub mod types;
-pub use types::*;
 
-pub mod parsing;
-pub use parsing::*;
+pub use stringzz::*; // re-exported from crates
 
 pub mod processing;
 pub use processing::*;

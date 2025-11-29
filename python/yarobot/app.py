@@ -13,14 +13,14 @@ import time
 import uuid
 import click
 from flask import Flask, render_template, request, jsonify
-from yarobot.config import RELEVANT_EXTENSIONS
+from .config import RELEVANT_EXTENSIONS
 from werkzeug.utils import secure_filename
 import logging
 from typing import Dict
 
-from yarobot.generate import process_folder, process_bytes
-from yarobot.common import load_databases, initialize_pestudio_strings, getIdentifier, getPrefix, getReference
-from yarobot import yarobot_rs
+from .generate import process_folder, process_bytes
+from .common import load_databases, initialize_pestudio_strings, getIdentifier, getPrefix, getReference
+from . import yarobot_rs
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

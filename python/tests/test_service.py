@@ -9,7 +9,6 @@ from werkzeug.datastructures import FileStorage
 
 # Import the app module
 from yarobot.app import app, initialize_databases, AnalysisRequest, save_uploaded_files
-
 from yarobot.app import init_context
 
 

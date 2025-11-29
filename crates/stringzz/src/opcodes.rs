@@ -3,8 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{TokenInfo, TokenType, is_ascii_string};
 use anyhow::Result;
 use goblin::{elf, pe, Object};
-use log::{debug, error};
-use pyo3::{exceptions::PyException, prelude::*};
+use log::{debug};
 use regex::bytes::Regex;
 
 fn extract_elf_opcodes(elf: elf::Elf, file_data: &[u8]) -> HashMap<String, TokenInfo> {

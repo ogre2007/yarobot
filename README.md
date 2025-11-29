@@ -131,6 +131,7 @@ We welcome contributions!
 - [x] http-service
 - [x] web interface
 - [ ] store regexps in config
+- [ ] token merging
 - [ ] fix/drop imphash/exports
 - [ ] default databases
 - [ ] rule generation rewriting

@@ -10,7 +10,7 @@ import re
 import logging
 
 
-from yarobot.yarobot_rs import ScoringEngine, TokenInfo, TokenType
+from .yarobot_rs import ScoringEngine, TokenInfo, TokenType
 
 
 def _get_uint_string(magic):

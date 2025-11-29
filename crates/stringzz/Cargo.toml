@@ -1,0 +1,24 @@
+[package]
+name = "stringzz"
+description = "A library and tool for strings and opcodes extraction from various file formats"
+
+homepage.workspace = true
+readme = "README.md"
+repository.workspace = true
+version.workspace = true
+keywords.workspace = true
+license.workspace = true
+authors.workspace = true
+edition.workspace = true
+
+
+[dependencies]
+hex.workspace = true
+sha2.workspace = true
+anyhow.workspace = true
+md5.workspace = true
+goblin.workspace = true
+pyo3.workspace = true
+dex.workspace = true
+log.workspace = true
+regex.workspace = true

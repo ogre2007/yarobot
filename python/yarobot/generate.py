@@ -54,7 +54,7 @@ from .rule_generator import RuleGenerator
 # from app.scoring import extract_stats_by_file, sample_string_evaluation
 from .config import RELEVANT_EXTENSIONS
 
-from yarobot import yarobot_rs
+from . import yarobot_rs
 
 import click
 import os
