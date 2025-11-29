@@ -164,7 +164,7 @@ pub fn remove_non_ascii_drop(data: &[u8]) -> PyResult<String> {
 }
 
 /// Gets the contents of a file (limited to 1024 characters)
- 
+
 pub fn is_ascii_string(data: &[u8], padding_allowed: bool) -> bool {
     for &b in data {
         if padding_allowed {

@@ -13,13 +13,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.9", "3.11", "3.13"]
-        rust-toolchain: [stable, nightly]
-        exclude:
-          - rust-toolchain: nightly
-            os: windows-latest
-          - rust-toolchain: nightly
-            os: macos-latest
+        python-version: ["3.11", "3.13"]
+        rust-toolchain: [stable]
 
     steps:
       - name: Checkout code

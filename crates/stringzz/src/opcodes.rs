@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{TokenInfo, TokenType, is_ascii_string};
+use crate::{is_ascii_string, TokenInfo, TokenType};
 use anyhow::Result;
 use goblin::{elf, pe, Object};
-use log::{debug};
+use log::debug;
 use regex::bytes::Regex;
 
 fn extract_elf_opcodes(elf: elf::Elf, file_data: &[u8]) -> HashMap<String, TokenInfo> {
@@ -65,7 +65,7 @@ fn extract_pe_opcodes(pe: pe::PE, file_data: &[u8]) -> HashMap<String, TokenInfo
 }
 
 pub fn extract_dex_opcodes(file_data: Vec<u8>) -> Result<HashMap<String, TokenInfo>> {
-    let mut opcodes:HashMap<String, TokenInfo> = Default::default();
+    let mut opcodes: HashMap<String, TokenInfo> = Default::default();
     if let Ok(dex) = dex::DexReader::from_vec(&file_data) {
         println!("{:?}", dex.header());
         for result in dex.classes() {
@@ -73,24 +73,23 @@ pub fn extract_dex_opcodes(file_data: Vec<u8>) -> Result<HashMap<String, TokenIn
                 Ok(clazz) => {
                     for method in clazz.methods() {
                         if let Some(code) = method.code() {
-                            for ins in code.insns(){
+                            for ins in code.insns() {
                                 let hex_string = hex::encode(ins.to_le_bytes());
-                                        opcodes
-                                        .entry(hex_string.clone())
-                                        .or_insert(TokenInfo::new(
-                                            hex_string.clone(),
-                                            0,
-                                            TokenType::BINARY,
-                                            HashSet::new(),
-                                            None,
-                                        ))
-                                        .count += 1;
+                                opcodes
+                                    .entry(hex_string.clone())
+                                    .or_insert(TokenInfo::new(
+                                        hex_string.clone(),
+                                        0,
+                                        TokenType::BINARY,
+                                        HashSet::new(),
+                                        None,
+                                    ))
+                                    .count += 1;
                             }
-                            
                         }
                     }
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
     }

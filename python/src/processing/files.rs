@@ -38,7 +38,7 @@ pub struct FileProcessor {
     pub minssize: usize,
     pub maxssize: usize,
     pub fsize: usize,
-    pub  get_opcodes: bool,
+    pub get_opcodes: bool,
     debug: bool,
 
     pub strings: HashMap<String, TokenInfo>,

@@ -61,7 +61,7 @@ pub fn get_pestudio_score(
     let tuple = (&"".to_string(), &(0 as i64, "".to_string())); // Implementation would go here
     pestudio_strings
         .iter()
-        .find(|(&ref x,  _)| x.to_lowercase() == string.to_lowercase())
+        .find(|(&ref x, _)| x.to_lowercase() == string.to_lowercase())
         .unwrap_or(tuple)
         .1
         .clone()

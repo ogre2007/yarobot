@@ -1,8 +1,7 @@
 //use anyhow::Ok;
 use log::info;
 use pyo3::prelude::*;
-use std::{cmp::{min}, collections::HashMap};
-
+use std::{cmp::min, collections::HashMap};
 
 pub use stringzz::*; // re-exported from crates
 
@@ -67,21 +66,35 @@ pub fn process_buffer(
     HashMap<String, Vec<TokenInfo>>,
     HashMap<String, Vec<TokenInfo>>,
     HashMap<String, Vec<TokenInfo>>,
-)> { 
+)> {
     let file_name = "data";
-        let mut file_infos = HashMap::new();
+    let mut file_infos = HashMap::new();
 
-    let (fi, string_stats,utf16strings, opcodes ) =
-        processing::process_buffer_u8(buffer[..min(fp.fsize * 1024 * 1024, buffer.len())].to_vec(), fp.minssize, fp.maxssize, fp.get_opcodes).unwrap();
+    let (fi, string_stats, utf16strings, opcodes) = processing::process_buffer_u8(
+        buffer[..min(fp.fsize * 1024 * 1024, buffer.len())].to_vec(),
+        fp.minssize,
+        fp.maxssize,
+        fp.get_opcodes,
+    )
+    .unwrap();
     let mut file_strings = HashMap::new();
-    file_strings.insert(file_name.to_string(), scoring_engine.filter_string_set(string_stats.into_values().collect())?);
+    file_strings.insert(
+        file_name.to_string(),
+        scoring_engine.filter_string_set(string_stats.into_values().collect())?,
+    );
 
     let mut file_utf16strings = HashMap::new();
-    file_utf16strings.insert(file_name.to_string(), scoring_engine.filter_string_set(utf16strings.into_values().collect())?);
+    file_utf16strings.insert(
+        file_name.to_string(),
+        scoring_engine.filter_string_set(utf16strings.into_values().collect())?,
+    );
     let mut file_opcodes = HashMap::new();
-    file_opcodes.insert(file_name.to_string(), scoring_engine.filter_string_set(opcodes.into_values().collect())?);   
-         file_infos.insert(file_name.to_string(), fi);
-     Ok((file_infos, file_strings, file_opcodes, file_utf16strings))
+    file_opcodes.insert(
+        file_name.to_string(),
+        scoring_engine.filter_string_set(opcodes.into_values().collect())?,
+    );
+    file_infos.insert(file_name.to_string(), fi);
+    Ok((file_infos, file_strings, file_opcodes, file_utf16strings))
 }
 
 #[pyfunction]
@@ -192,36 +205,36 @@ mod tests {
     fn test_is_ascii_string() {
         // Test with valid ASCII (no padding)
         let ascii_data = b"Hello World!";
-        let result = is_ascii_string(ascii_data, false) ;
+        let result = is_ascii_string(ascii_data, false);
         assert!(result);
 
         // Test with valid ASCII (with padding allowed)
         let ascii_with_null = b"Hello\x00World";
-        let result = is_ascii_string(ascii_with_null, true) ;
+        let result = is_ascii_string(ascii_with_null, true);
         assert!(result);
 
         // Test with non-ASCII (no padding)
         let non_ascii_data = b"Hello\xFFWorld";
-        let result = is_ascii_string(non_ascii_data, false) ;
+        let result = is_ascii_string(non_ascii_data, false);
         assert!(!result);
 
         // Test with non-ASCII (with padding)
         let non_ascii_with_null = b"Hello\xFF\x00World";
-        let result = is_ascii_string(non_ascii_with_null, true) ;
+        let result = is_ascii_string(non_ascii_with_null, true);
         assert!(!result);
 
         // Test with empty data
         let empty_data = b"";
-        let result = is_ascii_string(empty_data, false) ;
+        let result = is_ascii_string(empty_data, false);
         assert!(result);
 
         // Test with only null bytes (padding allowed)
         let null_data = &[0x00, 0x00, 0x00];
-        let result = is_ascii_string(null_data, true) ;
+        let result = is_ascii_string(null_data, true);
         assert!(result);
 
         // Test with only null bytes (padding not allowed)
-        let result = is_ascii_string(null_data, false) ;
+        let result = is_ascii_string(null_data, false);
         assert!(!result);
     }
 
@@ -333,12 +346,12 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(process_file, m)?)?;
 
     m.add_function(wrap_pyfunction!(get_pe_info, m)?)?;
-    m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?; 
+    m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?;
     m.add_function(wrap_pyfunction!(is_base_64, m)?)?;
     m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?;
     m.add_function(wrap_pyfunction!(init_analysis, m)?)?;
     m.add_function(wrap_pyfunction!(process_buffer, m)?)?;
- 
+
     m.add_class::<types::TokenInfo>()?;
     m.add_class::<types::TokenType>()?;
     m.add_class::<processing::FileProcessor>()?;
