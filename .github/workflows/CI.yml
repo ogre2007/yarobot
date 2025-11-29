@@ -21,6 +21,7 @@ permissions:
 env:
   PYTHON_VERSION: "3.13.9"
   WORKING_DIR: "python"
+  DIST_DIR: "python/dist"
 
 jobs:
   linux:
@@ -47,7 +48,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-linux-${{ matrix.platform.target }}
-          path: dist
+          path: ${{ env.DIST_DIR }}
 
   windows:
     runs-on: ${{ matrix.platform.runner }}
@@ -73,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-windows-${{ matrix.platform.target }}
-          path: dist
+          path: ${{ env.DIST_DIR }}
 
   macos:
     runs-on: ${{ matrix.platform.runner }}
@@ -98,7 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-macos-${{ matrix.platform.target }}
-          path: dist
+          path: ${{ env.DIST_DIR }}
 
   sdist:
     runs-on: ubuntu-latest
@@ -114,7 +115,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: wheels-sdist
-          path: dist
+          path: python/dist
 
   release:
     name: Release
