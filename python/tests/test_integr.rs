@@ -46,7 +46,7 @@ fn test_integr() {
     .unwrap();
     pyo3::prepare_freethreaded_python();
     Python::with_gil(|py| {
-        let result = process_malware(
+        let _ = process_malware(
             malware_path,
             Py::new(py, fp).unwrap().borrow_mut(py),
             Py::new(py, se).unwrap().borrow_mut(py),
