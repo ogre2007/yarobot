@@ -33,13 +33,13 @@ pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, 
 #[pyclass]
 #[derive(Debug, Clone, Default)]
 pub struct FileProcessor {
-    recursive: bool,
-    extensions: Option<Vec<String>>,
+    pub recursive: bool,
+    pub extensions: Option<Vec<String>>,
     pub minssize: usize,
     pub maxssize: usize,
     pub fsize: usize,
     pub get_opcodes: bool,
-    debug: bool,
+    pub debug: bool,
 
     pub strings: HashMap<String, TokenInfo>,
     pub utf16strings: HashMap<String, TokenInfo>,
@@ -111,6 +111,9 @@ impl FileProcessor {
         get_opcodes: bool,
         debug: bool,
     ) -> Self {
+        if fsize == 0 {
+            panic!()
+        }
         Self {
             recursive,
             extensions,
@@ -202,7 +205,7 @@ impl FileProcessor {
         true
     }
 
-    pub fn process_single_file(
+    fn process_single_file(
         &self,
         file_path: String,
     ) -> PyResult<(
@@ -214,7 +217,7 @@ impl FileProcessor {
         let file = File::open(&file_path)?;
         let mut limited_reader = file.take((self.fsize * 1024 * 1024).try_into().unwrap());
         let mut buffer = Vec::new();
-        let _ = limited_reader.read_to_end(&mut buffer);
+        limited_reader.read_to_end(&mut buffer)?;
 
         let (fi, mut strings, mut utf16strings, mut opcodes) =
             process_buffer_u8(buffer, self.minssize, self.maxssize, self.get_opcodes).unwrap();

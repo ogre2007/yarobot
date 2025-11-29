@@ -5,9 +5,6 @@ use std::{cmp::min, collections::HashMap};
 
 pub use stringzz::*; // re-exported from crates
 
-pub mod processing;
-pub use processing::*;
-
 pub mod scoring;
 pub use scoring::*;
 
@@ -340,21 +337,21 @@ mod tests {
 #[pymodule]
 #[pyo3(name = "yarobot_rs")]
 fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(extract_strings, m)?)?;
-    m.add_function(wrap_pyfunction!(get_file_info, m)?)?;
+    m.add_function(wrap_pyfunction!(stringzz::extract_strings, m)?)?;
+    m.add_function(wrap_pyfunction!(stringzz::get_file_info, m)?)?;
     m.add_function(wrap_pyfunction!(process_malware, m)?)?;
     m.add_function(wrap_pyfunction!(process_file, m)?)?;
 
-    m.add_function(wrap_pyfunction!(get_pe_info, m)?)?;
-    m.add_function(wrap_pyfunction!(remove_non_ascii_drop, m)?)?;
-    m.add_function(wrap_pyfunction!(is_base_64, m)?)?;
-    m.add_function(wrap_pyfunction!(is_hex_encoded, m)?)?;
+    m.add_function(wrap_pyfunction!(stringzz::get_pe_info, m)?)?;
+    m.add_function(wrap_pyfunction!(stringzz::remove_non_ascii_drop, m)?)?;
+    m.add_function(wrap_pyfunction!(stringzz::is_base_64, m)?)?;
+    m.add_function(wrap_pyfunction!(stringzz::is_hex_encoded, m)?)?;
     m.add_function(wrap_pyfunction!(init_analysis, m)?)?;
     m.add_function(wrap_pyfunction!(process_buffer, m)?)?;
 
-    m.add_class::<types::TokenInfo>()?;
-    m.add_class::<types::TokenType>()?;
-    m.add_class::<processing::FileProcessor>()?;
+    m.add_class::<stringzz::TokenInfo>()?;
+    m.add_class::<stringzz::TokenType>()?;
+    m.add_class::<stringzz::FileProcessor>()?;
     m.add_class::<ScoringEngine>()?;
 
     m.add_class::<Combination>()?;
