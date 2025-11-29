@@ -112,9 +112,19 @@ def load_databases(db_path):
     for file in os.listdir(db_path):
         if file.endswith(".db") or file.endswith(".json"):
             if file.startswith("good-strings"):
-                load_db(db_path, file, good_strings_db, True if file.endswith(".json") else False)
+                load_db(
+                    db_path,
+                    file,
+                    good_strings_db,
+                    True if file.endswith(".json") else False,
+                )
             if file.startswith("good-opcodes"):
-                load_db(db_path, file, good_opcodes_db, True if file.endswith(".json") else False)
+                load_db(
+                    db_path,
+                    file,
+                    good_opcodes_db,
+                    True if file.endswith(".json") else False,
+                )
             if file.startswith("good-imphashes"):
                 pass  # load_db(file, good_imphashes_db, True if file.endswith(".json") else False) TODO
             if file.startswith("good-exports"):
@@ -171,7 +181,12 @@ def common_single_analysis_options(f):
         default=False,
     )
     @click.option("-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar")
-    @click.option("-e", "--output-dir-strings", help="Output directory for string exports", default="")
+    @click.option(
+        "-e",
+        "--output-dir-strings",
+        help="Output directory for string exports",
+        default="",
+    )
     @click.option("-a", "--author", help="Author Name", default="yarobot Rule Generator")
     @click.option(
         "--ref",

@@ -225,7 +225,12 @@ def generate(malware_path, **kwargs):
         good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = load_databases(args.goodware_dbs)
     else:
         logging.getLogger("yarobot").warning("No goodware databases found. Please create new databases.")
-        good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = {}, {}, {}, {}
+        good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
+            {},
+            {},
+            {},
+            {},
+        )
     # exit()
     process_folder(
         args,

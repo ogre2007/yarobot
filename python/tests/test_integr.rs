@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs};
 
-use pyo3::{Py, PyRefMut, Python};
+use pyo3::{Py, Python};
 use yarobot_rs::{
     extract_and_count_ascii_strings, extract_dex_opcodes, init_analysis, process_malware,
 };
@@ -26,7 +26,7 @@ fn test_integr() {
     let good_imphashes_db: HashMap<String, usize> = HashMap::new();
     let good_exports_db: HashMap<String, usize> = HashMap::new();
     let pestudio_strings: HashMap<String, (i64, String)> = HashMap::new();
-    let (mut fp, mut se) = init_analysis(
+    let (fp, se) = init_analysis(
         recursive,
         extensions,
         minssize,
@@ -58,7 +58,7 @@ fn test_integr() {
 fn test_dex() {
     let fdata = fs::read("tests\\data\\classes.dex").unwrap();
     let opcodes = extract_dex_opcodes(fdata.clone()).unwrap();
-    let strings = extract_and_count_ascii_strings(&&fdata, 5, 128);
+    let strings = extract_and_count_ascii_strings(&fdata, 5, 128);
     println!("{:?}", strings);
     assert!(opcodes.iter().len() > 0);
 }

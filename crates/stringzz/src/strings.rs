@@ -60,7 +60,7 @@ pub fn extract_and_count_ascii_strings(
                 None,
             ))
             .count += 1;
-        assert!(stats.get(&current_string.clone()).unwrap().reprz.len() > 0);
+        assert!(!stats.get(&current_string.clone()).unwrap().reprz.is_empty());
     }
     stats.clone()
 }
@@ -171,10 +171,8 @@ pub fn is_ascii_string(data: &[u8], padding_allowed: bool) -> bool {
             if !((b > 31 && b < 127) || b == 0) {
                 return false;
             }
-        } else {
-            if !(b > 31 && b < 127) {
-                return false;
-            }
+        } else if !(b > 31 && b < 127) {
+            return false;
         }
     }
     true
@@ -183,7 +181,7 @@ pub fn is_ascii_string(data: &[u8], padding_allowed: bool) -> bool {
 /// Check if string is valid base64
 #[pyfunction]
 pub fn is_base_64(s: String) -> PyResult<bool> {
-    if s.len() % 4 != 0 {
+    if !s.len().is_multiple_of(4) {
         return Ok(false);
     }
 
@@ -194,7 +192,7 @@ pub fn is_base_64(s: String) -> PyResult<bool> {
 /// Check if string is hex encoded
 #[pyfunction]
 pub fn is_hex_encoded(s: String, check_length: bool) -> PyResult<bool> {
-    if s.len() == 0 {
+    if s.is_empty() {
         Ok(false)
     } else {
         let re = Regex::new(r"^[A-Fa-f0-9]+$").unwrap();
@@ -204,7 +202,7 @@ pub fn is_hex_encoded(s: String, check_length: bool) -> PyResult<bool> {
         }
 
         if check_length {
-            Ok(s.len() % 2 == 0)
+            Ok(s.len().is_multiple_of(2))
         } else {
             Ok(true)
         }

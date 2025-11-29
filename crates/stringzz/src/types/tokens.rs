@@ -55,7 +55,7 @@ impl TokenInfo {
         files: HashSet<String>,
         notes: Option<String>,
     ) -> Self {
-        if reprz.len() == 0 {
+        if reprz.is_empty() {
             panic!()
         }
         TokenInfo {

@@ -19,7 +19,13 @@ import logging
 from typing import Dict
 
 from .generate import process_folder, process_bytes
-from .common import load_databases, initialize_pestudio_strings, getIdentifier, getPrefix, getReference
+from .common import (
+    load_databases,
+    initialize_pestudio_strings,
+    getIdentifier,
+    getPrefix,
+    getReference,
+)
 from . import yarobot_rs
 
 # Configure logging
@@ -29,7 +35,11 @@ logger = logging.getLogger("yarobot-service")
 current_dir = os.path.dirname(os.path.abspath(__file__))
 template_dir = os.path.join(current_dir, "templates")
 
-app = Flask(__name__, template_folder=template_dir, static_folder=os.path.join(current_dir, "static"))
+app = Flask(
+    __name__,
+    template_folder=template_dir,
+    static_folder=os.path.join(current_dir, "static"),
+)
 
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 100MB max file size
 
@@ -136,7 +146,7 @@ class AnalysisRequest:
         self.noextras = params.get("no_extras", False)
         self.debug = params.get("debug", False)
         self.trace = params.get("trace", False)
-        self.get_opcodes = params.get("get_opcodes", False) 
+        self.get_opcodes = params.get("get_opcodes", False)
         self.opcode_num = params.get("opcode_num", 3)
         self.superrule_overlap = params.get("superrule_overlap", 5)
         self.nosimple = params.get("no_simple_rules", False)
@@ -173,7 +183,13 @@ def index():
 @app.route("/health", methods=["GET"])
 def health_check():
     """Health check endpoint"""
-    return jsonify({"status": "healthy", "service": "yarobot-http", "databases_loaded": DATABASES is not None})
+    return jsonify(
+        {
+            "status": "healthy",
+            "service": "yarobot-http",
+            "databases_loaded": DATABASES is not None,
+        }
+    )
 
 
 @app.route("/api/analyze", methods=["POST"])

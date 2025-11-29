@@ -156,7 +156,10 @@ class TestAnalyzeEndpoint:
     def test_invalid_parameter_types(self, mock_process, client, mock_databases, sample_file):
         """Test analysis with invalid parameter types"""
         with open(sample_file, "rb") as f:
-            response = client.post("/api/analyze", data={"files": (f, "test.exe"), "min_score": "invalid_number"})
+            response = client.post(
+                "/api/analyze",
+                data={"files": (f, "test.exe"), "min_score": "invalid_number"},
+            )
 
         assert response.status_code == 400
         data = json.loads(response.data)

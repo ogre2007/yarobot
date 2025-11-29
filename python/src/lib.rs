@@ -321,8 +321,8 @@ mod tests {
         // For now, we'll test that get_pe_info doesn't panic on various inputs
 
         // Test with empty data
-        let mut fi = &mut Default::default();
-        get_pe_info(&[], &mut fi);
+        let fi = &mut Default::default();
+        get_pe_info(&[], fi);
         assert!(fi.imphash.is_empty());
         assert!(fi.exports.is_empty());
 
@@ -330,8 +330,8 @@ mod tests {
         let mut mz_header = vec![0x4D, 0x5A]; // MZ
         mz_header.extend(vec![0u8; 60]); // padding to reach 0x3C
         mz_header.extend(vec![0x00, 0x00, 0x00, 0x00]); // e_lfanew = 0
-        let mut fi = &mut Default::default();
-        get_pe_info(&mz_header, &mut fi);
+        let fi = &mut Default::default();
+        get_pe_info(&mz_header, fi);
         assert!(fi.imphash.is_empty());
         assert!(fi.exports.is_empty());
     }

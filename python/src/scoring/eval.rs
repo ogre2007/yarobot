@@ -58,10 +58,10 @@ pub fn get_pestudio_score(
     string: &str,
     pestudio_strings: &HashMap<String, (i64, String)>,
 ) -> (i64, String) {
-    let tuple = (&"".to_string(), &(0 as i64, "".to_string())); // Implementation would go here
+    let tuple = (&"".to_string(), &(0_i64, "".to_string())); // Implementation would go here
     pestudio_strings
         .iter()
-        .find(|(&ref x, _)| x.to_lowercase() == string.to_lowercase())
+        .find(|(x, _)| x.to_lowercase() == string.to_lowercase())
         .unwrap_or(tuple)
         .1
         .clone()
@@ -87,7 +87,7 @@ pub fn find_combinations(
     let mut combinations = HashMap::new();
     let mut max_combi_count = 0;
 
-    for (_, info) in stats {
+    for info in stats.values() {
         if info.files.len() > 1 {
             /*debug!(
                 "OVERLAP Count: {}\nString: \"{}\"\nFILE: {}",
@@ -126,13 +126,13 @@ pub fn find_combinations(
     Ok((combinations, max_combi_count))
 }
 
-pub fn extract_stats_by_file<'a>(
+pub fn extract_stats_by_file(
     stats: &HashMap<String, TokenInfo>,
-    outer_dict: &'a mut HashMap<String, Vec<TokenInfo>>,
+    outer_dict: &mut HashMap<String, Vec<TokenInfo>>,
     min: Option<usize>,
     max: Option<usize>,
 ) {
-    for (_, value) in stats {
+    for value in stats.values() {
         let count = value.count;
         if count >= min.unwrap_or(0) && count < max.unwrap_or(usize::MAX) {
             /*debug!(
@@ -144,7 +144,7 @@ pub fn extract_stats_by_file<'a>(
             for file_path in &value.files {
                 outer_dict
                     .entry(file_path.to_string())
-                    .or_insert(Vec::new())
+                    .or_default()
                     .push(value.clone());
             }
         }
@@ -300,7 +300,7 @@ impl ScoringEngine {
 
             // Good string evaluation
             if goodstring {
-                token.score += (goodcount as i64 * -1) + 5;
+                token.score += -(goodcount as i64) + 5;
             }
 
             // PEStudio String Blacklist Evaluation

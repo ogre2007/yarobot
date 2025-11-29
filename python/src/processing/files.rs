@@ -21,11 +21,11 @@ pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, 
         if info.typ == TokenType::BINARY {
             //println!("{:?}", info);
         }
-        if stats.len() > 0 {
+        if !stats.is_empty() {
             //println!("{:?}", &info);
             //assert_eq!(stats.iter().nth(0).unwrap().1.typ, info.typ);
         }
-        let inf = stats.entry(tok).or_insert(Default::default());
+        let inf = stats.entry(tok).or_default();
         inf.merge(&info);
     }
 }
@@ -156,18 +156,15 @@ impl FileProcessor {
         let os_path = path::Path::new(&file_path);
 
         if let Some(extensions) = &self.extensions {
-            match os_path.extension().and_then(OsStr::to_str) {
-                Some(ext) => {
-                    if !extensions
-                        .iter()
-                        .any(|x| x.eq(&ext.to_owned().to_lowercase()))
-                    {
-                        debug!("[-] EXTENSION {} - Skipping file {}", ext, file_path);
+            if let Some(ext) = os_path.extension().and_then(OsStr::to_str) {
+                if !extensions
+                    .iter()
+                    .any(|x| x.eq(&ext.to_owned().to_lowercase()))
+                {
+                    debug!("[-] EXTENSION {} - Skipping file {}", ext, file_path);
 
-                        return false;
-                    }
+                    return false;
                 }
-                _ => {}
             }
         }
         let meta = fs::metadata(os_path).unwrap();

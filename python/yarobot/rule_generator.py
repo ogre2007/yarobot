@@ -71,8 +71,6 @@ def _get_file_range(size, fm_size):
     return size_string
 
 
-
-
 def _add_conditions(
     conditions,
     subconditions,
@@ -135,7 +133,7 @@ class RuleGenerator:
         :param file_info:
         :return:
         """
-        conditions = [] 
+        conditions = []
 
         # Different Magic Headers and File Sizes
         magic_headers = []
@@ -206,7 +204,10 @@ class RuleGenerator:
             # GLOBAL RULES ----------------------------------------------------
             if self.args.globalrule:
                 condition = self._generate_general_condition(
-                    file_info, self.args.nofilesize, self.args.filesize_multiplier, self.args.noextras
+                    file_info,
+                    self.args.nofilesize,
+                    self.args.filesize_multiplier,
+                    self.args.noextras,
                 )
 
                 # Global Rule
@@ -243,8 +244,8 @@ class RuleGenerator:
                 if rule := self.generate_simple_rule(
                     printed_rules,
                     file_strings[filePath] if filePath in file_strings.keys() else [],
-                    file_opcodes[filePath] if self.args.get_opcodes and filePath in file_opcodes.keys() else [],
-                    file_utf16strings[filePath] if filePath in file_utf16strings.keys() else [],
+                    (file_opcodes[filePath] if self.args.get_opcodes and filePath in file_opcodes.keys() else []),
+                    (file_utf16strings[filePath] if filePath in file_utf16strings.keys() else []),
                     file_info[filePath],
                     filePath,
                 ):
@@ -438,7 +439,7 @@ class RuleGenerator:
             rule_strings,
             high_scoring_strings,
         ) = self.scoring_engine.generate_rule_strings(
-            True,#self.args.score,
+            True,  # self.args.score,
             self.args.min_score,
             self.args.high_scoring,
             self.args.strings_per_rule,
@@ -515,7 +516,7 @@ class RuleGenerator:
         subconditions = []
         # 1st condition
         # Evaluate the general characteristics
-        file_info_super = {} 
+        file_info_super = {}
         for filePath in super_rule.files:
             file_info_super[filePath] = infos[filePath]
         condition_strings = self._generate_general_condition(

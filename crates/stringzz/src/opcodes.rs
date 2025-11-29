@@ -68,28 +68,23 @@ pub fn extract_dex_opcodes(file_data: Vec<u8>) -> Result<HashMap<String, TokenIn
     let mut opcodes: HashMap<String, TokenInfo> = Default::default();
     if let Ok(dex) = dex::DexReader::from_vec(&file_data) {
         println!("{:?}", dex.header());
-        for result in dex.classes() {
-            match result {
-                Ok(clazz) => {
-                    for method in clazz.methods() {
-                        if let Some(code) = method.code() {
-                            for ins in code.insns() {
-                                let hex_string = hex::encode(ins.to_le_bytes());
-                                opcodes
-                                    .entry(hex_string.clone())
-                                    .or_insert(TokenInfo::new(
-                                        hex_string.clone(),
-                                        0,
-                                        TokenType::BINARY,
-                                        HashSet::new(),
-                                        None,
-                                    ))
-                                    .count += 1;
-                            }
-                        }
+        for clazz in dex.classes().flatten() {
+            for method in clazz.methods() {
+                if let Some(code) = method.code() {
+                    for ins in code.insns() {
+                        let hex_string = hex::encode(ins.to_le_bytes());
+                        opcodes
+                            .entry(hex_string.clone())
+                            .or_insert(TokenInfo::new(
+                                hex_string.clone(),
+                                0,
+                                TokenType::BINARY,
+                                HashSet::new(),
+                                None,
+                            ))
+                            .count += 1;
                     }
                 }
-                _ => {}
             }
         }
     }
