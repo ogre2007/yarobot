@@ -9,6 +9,7 @@ keywords.workspace = true
 license.workspace = true
 authors.workspace = true
 edition.workspace = true
+publish = false
 
 [lib]
 name = "yarobot_rs"

@@ -9,7 +9,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.3.1"
+version = "0.3.3"
 edition = "2021"
 readme = "README.md"
 description = "YARA rules generator"
@@ -29,8 +29,8 @@ license = "GPL-3.0-only"
 
 
 [workspace.dependencies]
-stringzz = { path = "crates/stringzz", version = "0.3.1" }
-yarobot-rs = { path = "crates/yarobot-rs", version = "0.3.1" }
+stringzz = { path = "crates/stringzz", version = "0.3.3" }
+yarobot-rs = { path = "crates/yarobot-rs", version = "0.3.3" }
 
 pyo3 = { version = "0.25", features = ["extension-module"] }
 regex = "1.0"
