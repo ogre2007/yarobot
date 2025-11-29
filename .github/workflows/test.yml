@@ -28,11 +28,13 @@ jobs:
 
     - name: Install dependencies
       run: |
+        cd python
         uv sync # Install dependencies from pyproject.toml and uv.lock
         uv pip install pytest
         cargo build --verbose
 
     - name: Run tests with pytest
       run: |
+        cd python
         uv run pytest # Execute pytest within the uv-managed environment
         cargo test --verbose

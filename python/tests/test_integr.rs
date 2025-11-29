@@ -8,7 +8,7 @@ use yarobot_rs::{
 // tests/integration_test.rs
 #[test]
 fn test_integr() {
-    let malware_path = String::from("..\\tests\\data\\");
+    let malware_path = String::from("tests\\data\\");
     let recursive = true;
     let extensions = None;
     let minssize = 10;
@@ -56,7 +56,7 @@ fn test_integr() {
 
 #[test]
 fn test_dex() {
-    let fdata = fs::read("..\\tests\\data\\classes.dex").unwrap();
+    let fdata = fs::read("tests\\data\\classes.dex").unwrap();
     let opcodes = extract_dex_opcodes(fdata.clone()).unwrap();
     let strings = extract_and_count_ascii_strings(&&fdata, 5, 128);
     println!("{:?}", strings);

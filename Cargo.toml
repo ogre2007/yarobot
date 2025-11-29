@@ -17,12 +17,9 @@ repository = "https://github.com/ogre2007/yarobot"
 authors = ["ogre2007 <oogre@vk.com>"]
 homepage = "https://github.com/ogre2007/yarobot"
 keywords = [
-    "python",
-    "rust",
+    "strings",
     "malware",
     "yara",
-    "yara-rules",
-    "malware-detection",
     "maturin",
     "yara-generator",
 ]
