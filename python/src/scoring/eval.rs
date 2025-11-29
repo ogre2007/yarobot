@@ -3,7 +3,7 @@ use crate::{
     TokenInfo, TokenType,
 };
 use base64;
-use log::{debug, info, warn};
+use log::{info, warn};
 use pyo3::prelude::*;
 use std::{
     collections::{HashMap, HashSet},
@@ -61,7 +61,7 @@ pub fn get_pestudio_score(
     let tuple = (&"".to_string(), &(0 as i64, "".to_string())); // Implementation would go here
     pestudio_strings
         .iter()
-        .find(|(&ref x, &ref y)| x.to_lowercase() == string.to_lowercase())
+        .find(|(&ref x,  _)| x.to_lowercase() == string.to_lowercase())
         .unwrap_or(tuple)
         .1
         .clone()
@@ -87,7 +87,7 @@ pub fn find_combinations(
     let mut combinations = HashMap::new();
     let mut max_combi_count = 0;
 
-    for (token, info) in stats {
+    for (_, info) in stats {
         if info.files.len() > 1 {
             /*debug!(
                 "OVERLAP Count: {}\nString: \"{}\"\nFILE: {}",
@@ -132,7 +132,7 @@ pub fn extract_stats_by_file<'a>(
     min: Option<usize>,
     max: Option<usize>,
 ) {
-    for (token, value) in stats {
+    for (_, value) in stats {
         let count = value.count;
         if count >= min.unwrap_or(0) && count < max.unwrap_or(usize::MAX) {
             /*debug!(
@@ -443,7 +443,7 @@ impl ScoringEngine {
         let min_strings: usize = self.superrule_overlap;
 
         for combi_count in (2..=max_combi_count).rev() {
-            for (combi_key, combo) in combinations.iter_mut() {
+            for (_, combo) in combinations.iter_mut() {
                 if combo.count == combi_count {
                     // Convert FileStats to Tokens for filtering
                     let tokens: Vec<TokenInfo> = combo.strings.clone();

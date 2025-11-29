@@ -1,7 +1,7 @@
 //use anyhow::Ok;
 use log::info;
 use pyo3::prelude::*;
-use std::{cmp::{max, min}, collections::HashMap, fs, path::Path};
+use std::{cmp::{min}, collections::HashMap};
 
 
 pub use stringzz::*; // re-exported from crates
@@ -60,7 +60,7 @@ pub fn init_analysis(
 #[pyfunction]
 pub fn process_buffer(
     buffer: Vec<u8>,
-    mut fp: PyRefMut<FileProcessor>,
+    fp: PyRefMut<FileProcessor>,
     mut scoring_engine: PyRefMut<ScoringEngine>,
 ) -> PyResult<(
     HashMap<String, FileInfo>,

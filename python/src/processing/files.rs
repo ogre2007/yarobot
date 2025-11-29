@@ -87,7 +87,7 @@ pub fn process_buffer_u8(
     HashMap<String, TokenInfo>,
 )> {
     let fi: FileInfo = get_file_info(&buffer).unwrap();
-    let (mut strings, mut utf16strings) = (
+    let (strings, utf16strings) = (
         extract_and_count_ascii_strings(&buffer, minssize, maxssize),
         extract_and_count_utf16_strings(&buffer, minssize, maxssize),
     );

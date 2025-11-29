@@ -1,4 +1,3 @@
-use regex::Regex;
 use std::collections::HashMap;
 
 use crate::{
@@ -23,7 +22,7 @@ pub fn get_pestudio_score(
     (0, String::new())
 }
 
-fn filter_rg(tok: &mut TokenInfo, regex_base: &RegexRules, ignore_case: bool) -> (i64, String) {
+fn filter_rg(tok: &mut TokenInfo, regex_base: &RegexRules, _ignore_case: bool) -> (i64, String) {
     let mut score_local = 0;
     let mut cats = String::new();
 
