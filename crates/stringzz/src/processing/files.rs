@@ -30,8 +30,26 @@ pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, 
     }
 }
 
+impl Default for FileProcessor {
+    fn default() -> Self {
+        Self {
+            recursive: false,
+            extensions: None,
+            minssize: 5,
+            maxssize: 128,
+            fsize: 10,
+            get_opcodes: false,
+            debug: true,
+            strings: Default::default(),
+            utf16strings: Default::default(),
+            opcodes: Default::default(),
+            file_infos: Default::default(),
+        }
+    }
+}
+
 #[pyclass]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct FileProcessor {
     pub recursive: bool,
     pub extensions: Option<Vec<String>>,

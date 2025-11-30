@@ -1,4 +1,4 @@
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyTypeError, prelude::*};
 use sha2::{Digest, Sha256};
 
 use crate::get_pe_info;
@@ -30,17 +30,22 @@ impl FileInfo {
 
 #[pyfunction]
 pub fn get_file_info(file_data: &[u8]) -> PyResult<FileInfo> {
-    let mut hasher = Sha256::new();
-    hasher.update(file_data);
-    let mut fi = FileInfo {
-        sha256: hex::encode(hasher.finalize()),
-        imphash: Default::default(),
-        exports: Default::default(),
-        size: file_data.len(),
-        magic: file_data[0..4].try_into().unwrap(),
-    };
-    if fi.magic[0..2] == *b"MZ" {
-        get_pe_info(file_data, &mut fi);
+    if file_data.len() < 4 {
+        Err(PyErr::new::<PyTypeError, _>("file len is less than 4 bytes"))
     }
-    Ok(fi)
+    else {
+        let mut hasher = Sha256::new();
+        hasher.update(file_data);
+        let mut fi = FileInfo {
+            sha256: hex::encode(hasher.finalize()),
+            imphash: Default::default(),
+            exports: Default::default(),
+            size: file_data.len(),
+            magic: file_data[0..4].try_into()?,
+        };
+        if fi.magic[0..2] == *b"MZ" {
+            get_pe_info(file_data, &mut fi);
+        }
+        Ok(fi)
+    }
 }

@@ -30,6 +30,7 @@ md5 = "0.8.0"
 log = "0.4.28"
 
 walkdir = "2.5.0"
+tempfile.workspace = true
 
 [[bin]]
 name = "stringzz" 
