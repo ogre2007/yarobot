@@ -24,7 +24,7 @@ fn main() {
             for (_, ti) in vec {
                 println!("{}", ti.__str__());
             }
-            for (_, ti) in &fp.utf16strings {
+            for ti in fp.utf16strings.values() {
                 println!("{}", ti.__str__());
             }
             println!(

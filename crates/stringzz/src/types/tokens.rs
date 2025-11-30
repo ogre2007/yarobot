@@ -116,7 +116,7 @@ impl TokenInfo {
 
     pub fn merge_existed(&mut self, value: &Self) {
         self.count += value.count;
-        self.files.extend(value.files.clone()); 
+        self.files.extend(value.files.clone());
         self.notes += &value.notes;
         self.score = max(value.score, self.score);
         if !self.fullword {
@@ -125,7 +125,6 @@ impl TokenInfo {
         if !self.also_wide {
             self.also_wide = value.also_wide;
         }
-        
     }
 
     pub fn add_file(&mut self, value: String) {

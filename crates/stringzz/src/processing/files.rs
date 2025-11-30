@@ -11,7 +11,7 @@ use crate::{
     get_file_info, FileInfo, TokenInfo, TokenType,
 };
 
-use anyhow::{Error, Result};
+use anyhow::Result;
 use log::debug;
 use pyo3::prelude::*;
 use walkdir::WalkDir;
@@ -98,7 +98,6 @@ pub fn process_buffer_u8(
 
     Ok((fi, strings, utf16strings, opcodes))
 }
-  
 
 #[pymethods]
 impl FileProcessor {
@@ -209,8 +208,6 @@ impl FileProcessor {
         true
     }
 
-
-
     pub fn deduplicate_strings(&mut self) {
         let binding = self.utf16strings.clone();
         let duplicates: Vec<&String> = binding
@@ -228,17 +225,16 @@ impl FileProcessor {
         let binding = self.strings.clone();
         let mut keys = binding.keys();
         let duplicates: Vec<(String, String)> = binding
-            .keys().fold(
-                Vec::new(), 
-                |mut tuples, key| {
-                    let m = keys.find(|x| key!=*x && key.contains(*x));
-                    if let Some(found) = m {
-                        tuples.push((key.clone(), found.clone()))
-                    }
-                    tuples
+            .keys()
+            .fold(Vec::new(), |mut tuples, key| {
+                let m = keys.find(|x| key != *x && key.contains(*x));
+                if let Some(found) = m {
+                    tuples.push((key.clone(), found.clone()))
                 }
-            )
-            .into_iter().collect();
+                tuples
+            })
+            .into_iter()
+            .collect();
         println!("found {} duplicate strings, shrinking", duplicates.len());
         for (big, small) in duplicates {
             println!("deduplicating {} into {}", big, small);
