@@ -5,10 +5,7 @@ use crate::{
 use base64;
 use log::{info, warn};
 use pyo3::prelude::*;
-use std::{
-    collections::{HashMap, HashSet},
-    usize,
-};
+use std::collections::{HashMap, HashSet};
 
 #[pyclass]
 #[derive(Debug, Clone)]

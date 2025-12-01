@@ -227,38 +227,37 @@ impl FileProcessor {
     }
 
     pub fn deduplicate_strings(&mut self) {
-        let binding = self.utf16strings.clone();
-        let duplicates: Vec<&String> = binding
+        let utf16_keys: Vec<String> = self
+            .utf16strings
             .keys()
-            .filter(|&x| self.strings.contains_key(x))
+            .filter(|k| self.strings.contains_key(*k))
+            .cloned()
             .collect();
-        for &d in duplicates.iter() {
-            self.strings.entry(d.to_string()).and_modify(|x| {
-                x.count += self.utf16strings[d].clone().count;
-                x.also_wide = true
-            });
-            self.utf16strings.remove(d);
+        for key in utf16_keys {
+            if let Some(wide_info) = self.utf16strings.remove(&key) {
+                if let Some(ascii_info) = self.strings.get_mut(&key) {
+                    ascii_info.count += wide_info.count;
+                    ascii_info.also_wide = true;
+                    ascii_info.files.extend(wide_info.files);
+                }
+            }
         }
 
-        let binding = self.strings.clone();
-        let mut keys = binding.keys();
-        let duplicates: Vec<(String, String)> = binding
-            .keys()
-            .fold(Vec::new(), |mut tuples, key| {
-                let m = keys.find(|x| key != *x && key.contains(*x));
-                if let Some(found) = m {
-                    tuples.push((key.clone(), found.clone()))
+        let keys: Vec<String> = self.strings.keys().cloned().collect();
+        for i in 0..keys.len() {
+            for j in 0..keys.len() {
+                if i != j && keys[i].contains(&keys[j]) {
+                    // Merge the shorter string (keys[j]) into the longer one (keys[i])
+                    let shorter = keys[j].clone();
+                    let longer = keys[i].clone();
+                    if let Some(longer_info) = self.strings.remove(&longer) {
+                        if let Some(shorter_info) = self.strings.get_mut(&shorter) {
+                            shorter_info.merge_existed(&longer_info);
+                            println!("deduplicating {} into {}", longer, shorter);
+                        }
+                    }
                 }
-                tuples
-            })
-            .into_iter()
-            .collect();
-        println!("found {} duplicate strings, shrinking", duplicates.len());
-        for (big, small) in duplicates {
-            println!("deduplicating {} into {}", big, small);
-            let bigti = &self.strings[&big].clone();
-            self.strings.get_mut(&small).unwrap().merge_existed(bigti);
-            self.strings.remove_entry(&big);
+            }
         }
     }
 

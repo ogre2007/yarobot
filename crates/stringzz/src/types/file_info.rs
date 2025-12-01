@@ -31,9 +31,10 @@ impl FileInfo {
 #[pyfunction]
 pub fn get_file_info(file_data: &[u8]) -> PyResult<FileInfo> {
     if file_data.len() < 4 {
-        Err(PyErr::new::<PyTypeError, _>("file len is less than 4 bytes"))
-    }
-    else {
+        Err(PyErr::new::<PyTypeError, _>(
+            "file len is less than 4 bytes",
+        ))
+    } else {
         let mut hasher = Sha256::new();
         hasher.update(file_data);
         let mut fi = FileInfo {
@@ -44,7 +45,7 @@ pub fn get_file_info(file_data: &[u8]) -> PyResult<FileInfo> {
             magic: file_data[0..4].try_into()?,
         };
         if fi.magic[0..2] == *b"MZ" {
-            get_pe_info(file_data, &mut fi);
+            let _ = get_pe_info(file_data, &mut fi);
         }
         Ok(fi)
     }

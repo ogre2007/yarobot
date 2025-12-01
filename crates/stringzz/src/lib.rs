@@ -1,3 +1,26 @@
+// lib.rs - Add module docs
+#![doc = r##"
+# stringzz Library
+
+A high-performance library for extracting strings, opcodes, and metadata from various file formats.
+
+## Features
+- ASCII and UTF-16 string extraction
+- PE/ELF/DEX opcode extraction
+- File metadata and hash calculation
+- Configurable deduplication strategies
+- Parallel processing support
+
+## Performance
+- Zero-copy operations where possible
+- Optimized hash map usage
+- Lazy regex compilation
+- Memory-efficient processing
+
+## Error Handling
+Comprehensive error types with automatic Python exception conversion.
+"##]
+
 pub mod parsing;
 pub use parsing::*;
 
@@ -7,13 +30,17 @@ pub use types::*;
 pub mod processing;
 pub use processing::*;
 
+pub mod err;
+pub use err::*;
+pub mod config;
+
+pub use config::*;
+
 use pyo3::{
     pymodule,
     types::{PyModule, PyModuleMethods},
     wrap_pyfunction, Bound, PyResult, Python,
 };
-
-
 
 use std::{
     cmp::min,
@@ -179,7 +206,6 @@ pub fn remove_non_ascii_drop(data: &[u8]) -> PyResult<String> {
 }
 
 /// Gets the contents of a file (limited to 1024 characters)
-
 pub fn is_ascii_string(data: &[u8], padding_allowed: bool) -> bool {
     for &b in data {
         if padding_allowed {
@@ -223,7 +249,6 @@ pub fn is_hex_encoded(s: String, check_length: bool) -> PyResult<bool> {
         }
     }
 }
-
 
 #[pymodule]
 #[pyo3(name = "stringzz")]

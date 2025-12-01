@@ -167,7 +167,6 @@ pub fn process_malware(
     ))
 }
 
-
 #[pymodule]
 #[pyo3(name = "yarobot_rs")]
 fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {

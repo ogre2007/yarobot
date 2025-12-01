@@ -1,94 +1,91 @@
-
-
 #[cfg(test)]
-mod tests { 
+mod tests {
     use std::fs::{self, File};
     use std::io::Write;
     use std::path::Path;
 
-    use stringzz::{FileInfo, FileProcessor, get_files, get_pe_info, is_ascii_string, is_base_64, is_hex_encoded};
- 
+    use stringzz::{
+        get_files, get_pe_info, is_ascii_string, is_base_64, is_hex_encoded, FileInfo,
+        FileProcessor,
+    };
 
-    use super::*; 
     use tempfile::TempDir;
 
- 
     #[test]
     fn test() {
         let test_dir = "tests/fixtures";
         let _ = fs::create_dir_all(test_dir);
-        
+
         let mut file = File::create(Path::new(test_dir).join("strings_test.bin")).unwrap();
         let mut data = Vec::new();
-        
+
         // 1. Simple ASCII strings of various lengths
         data.extend(b"short\0");
         data.extend(b"longer_string\0");
         data.extend(b"very_long_string_that_exceeds_typical_minimum_length\0");
-        
+
         // 2. Strings with special characters
         data.extend(b"path/to/file.txt\0");
         data.extend(b"user@example.com\0");
         data.extend(b"$SPECIAL_CHARS%^&*\0");
-        
+
         // 3. Strings at strategic positions
         data.push(0); // null byte separator
         data.extend(b"string_after_null\0");
-        
+
         // 4. UTF-8 encoded strings
         data.extend("unicode_βββ".as_bytes());
         data.extend("emoji_😀😀😀".as_bytes());
-        
+
         // 5. Invalid UTF-8 sequences
         data.extend(&[0xCE, 0xFA, 0xCE]); // incomplete sequence
         data.extend(&[0xFF, 0xFE]); // BOM fragments
-        
+
         // 6. Mixed encodings challenge
         data.extend(&[0x00, 0x00, 0x00]); // padding
         data.extend(b"mixed_");
         data.extend(&[0x41, 0x00, 0x42, 0x00]); // UTF-16-like (A\0B\0)
         data.extend(b"_content");
-        
+
         // 7. Edge case: string exactly at minimum length
         data.extend(b"four");
-        
+
         // 8. Binary data that looks like strings
         data.extend(&[0x41, 0x41, 0x41, 0x41]); // AAAA
-        for _ in 0..500 { data.push(0x41); } // long run of 'A's
-        
+        data.extend(std::iter::repeat_n(0x41, 500));
         let _ = file.write_all(&data);
-        
-        
-        println!("Test files generated in {}", test_dir); 
+
+        println!("Test files generated in {}", test_dir);
     }
 
     #[test]
     fn test_extraction() {
-        let test_dir = "tests/fixtures"; 
+        let test_dir = "tests/fixtures";
         let mut fp = FileProcessor::default();
         fp.parse_sample_dir(test_dir.to_owned()).unwrap();
-        for v in fp.strings.keys() {
+        for _v in fp.strings.keys() {
             //println!("{:?}, {:?}, equals {}", v, "longer_string", v == "longer_string");
         }
-        assert_eq!(fp.strings.keys().any(|x| x.eq("longer_string")), true);
-        assert_eq!(fp.strings.keys().any(|x| x == "string_after_null"), true);
-        assert_eq!(fp.strings.keys().any(|x| x == "$SPECIAL_CHARS%^&*"), true);
-        assert_eq!(fp.strings.keys().any(|x| x == "user@example.com"), true);
-        assert_eq!(fp.strings.keys().any(|x| x == "path/to/file.txt"), true);
-        assert_eq!(fp.strings.keys().any(|x| x == "very_long_string_that_exceeds_typical_minimum_length"), true);
-        assert_eq!(fp.strings.keys().any(|x| x == "short"), true);
-        assert_eq!(fp.strings.keys().any(|x| x == "four"), false);
-
-
+        assert!(fp.strings.keys().any(|x| x.eq("longer_string")));
+        assert!(fp.strings.keys().any(|x| x == "string_after_null"));
+        assert!(fp.strings.keys().any(|x| x == "$SPECIAL_CHARS%^&*"));
+        assert!(fp.strings.keys().any(|x| x == "user@example.com"));
+        assert!(fp.strings.keys().any(|x| x == "path/to/file.txt"));
+        assert!(fp
+            .strings
+            .keys()
+            .any(|x| x == "very_long_string_that_exceeds_typical_minimum_length"));
+        assert!(fp.strings.keys().any(|x| x == "short"));
+        assert!(!fp.strings.keys().any(|x| x == "four"));
     }
 
-       #[test]
+    #[test]
     fn test_get_pe_info() {
         // Test with non-PE data
         let non_pe_data = b"Not a PE file";
         let mut fi: FileInfo = Default::default();
 
-        get_pe_info(non_pe_data, &mut fi);
+        let _ = get_pe_info(non_pe_data, &mut fi);
         assert!(fi.imphash.is_empty());
         assert!(fi.exports.is_empty());
 
@@ -96,7 +93,7 @@ mod tests {
         let small_data = vec![0x4D, 0x5A]; // MZ header only
         let mut fi: FileInfo = Default::default();
 
-        get_pe_info(&small_data, &mut fi);
+        let _ = get_pe_info(&small_data, &mut fi);
 
         assert!(fi.imphash.is_empty());
         assert!(fi.exports.is_empty());
@@ -226,7 +223,7 @@ mod tests {
 
         // Test with empty data
         let fi = &mut Default::default();
-        get_pe_info(&[], fi);
+        let _ = get_pe_info(&[], fi);
         assert!(fi.imphash.is_empty());
         assert!(fi.exports.is_empty());
 
@@ -235,9 +232,8 @@ mod tests {
         mz_header.extend(vec![0u8; 60]); // padding to reach 0x3C
         mz_header.extend(vec![0x00, 0x00, 0x00, 0x00]); // e_lfanew = 0
         let fi = &mut Default::default();
-        get_pe_info(&mz_header, fi);
+        let _ = get_pe_info(&mz_header, fi);
         assert!(fi.imphash.is_empty());
         assert!(fi.exports.is_empty());
     }
-
 }
