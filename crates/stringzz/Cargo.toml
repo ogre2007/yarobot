@@ -17,7 +17,6 @@ license.workspace = true
 authors.workspace = true
 edition.workspace = true
 
-
 [dependencies]   
 goblin = "0.9.3"
 dex = "0.5.0"
@@ -30,7 +29,17 @@ md5 = "0.8.0"
 log = "0.4.28"
 
 walkdir = "2.5.0"
+
+thiserror = "2.0.17"
+derive_builder = "0.20.2"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
 tempfile.workspace = true
+
+[[bench]]
+name = "benchmark"
+harness = false
 
 [[bin]]
 name = "stringzz" 
