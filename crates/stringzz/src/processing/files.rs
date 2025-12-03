@@ -30,10 +30,8 @@ pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, 
     }
 }
 
-
 #[pyclass]
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct FileProcessor {
     pub config: Config,
 
