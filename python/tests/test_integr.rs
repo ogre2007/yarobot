@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fs};
 
 use pyo3::{Py, Python};
+use stringzz::Config;
 use yarobot_rs::{
     extract_and_count_ascii_strings, extract_dex_opcodes, init_analysis, process_malware,
 };
@@ -9,13 +10,6 @@ use yarobot_rs::{
 #[test]
 fn test_integr() {
     let malware_path = String::from("tests\\data\\");
-    let recursive = true;
-    let extensions = None;
-    let minssize = 10;
-    let maxssize = 100;
-    let fsize: usize = 10;
-    let get_opcodes = true;
-    let debug: bool = true;
     let excludegood = false;
     let min_score = 10;
     let superrule_overlap = 5;
@@ -27,21 +21,15 @@ fn test_integr() {
     let good_exports_db: HashMap<String, usize> = HashMap::new();
     let pestudio_strings: HashMap<String, (i64, String)> = HashMap::new();
     let (fp, se) = init_analysis(
-        recursive,
-        extensions,
-        minssize,
-        maxssize,
-        fsize,
-        get_opcodes,
-        debug,
+        Some(Config::default()),
         excludegood,
         min_score,
         superrule_overlap,
-        good_strings_db,
-        good_opcodes_db,
-        good_imphashes_db,
-        good_exports_db,
-        pestudio_strings,
+        Some(good_strings_db),
+        Some(good_opcodes_db),
+        Some(good_imphashes_db),
+        Some(good_exports_db),
+        Some(pestudio_strings),
     )
     .unwrap();
     pyo3::prepare_freethreaded_python();

@@ -103,15 +103,7 @@ fn bench_file_processing(c: &mut Criterion) {
 
     group.bench_function("process_small_file", |b| {
         b.iter(|| {
-            let mut processor = FileProcessor::new(
-                false,
-                Some(vec!["exe".to_string(), "dll".to_string()]),
-                8,
-                128,
-                10,
-                false,
-                false,
-            );
+            let mut processor = FileProcessor::default();
             processor.process_file_with_checks("tests/fixtures/test.exe.bin".to_string())
         })
     });
@@ -125,10 +117,8 @@ fn bench_memory_usage(c: &mut Criterion) {
 
     // Use Criterion's built-in memory measurement
     group.bench_function("deduplicate_strings", |b| {
-        let mut processor = FileProcessor {
-            minssize: 8,
-            ..Default::default()
-        };
+        let mut processor = FileProcessor::default();
+        processor.config.min_string_len = 10;
         // Add some test data
         for i in 0..10000 {
             processor.strings.insert(

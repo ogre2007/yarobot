@@ -3,8 +3,8 @@ use stringzz::{FileProcessor, TokenInfo};
 fn main() {
     // Collect the arguments into a Vector of Strings
     let args: Vec<String> = env::args().collect();
-    let mut fp = FileProcessor::new(false, None, 10, 128, 10, true, true);
-    fp.fsize = 10;
+    let mut fp = FileProcessor::default();
+    fp.config.max_file_size_mb = 10;
     // The first argument (index 0) is always the program's executable path
     println!("Program path: {}", args[0]);
 

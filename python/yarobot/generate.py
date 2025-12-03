@@ -130,17 +130,17 @@ def process_folder(
         logging.getLogger("yarobot").warning(
             "no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set."
         )
-        # sys.exit(1)
-
+    
     # Scan malware files
+    config = yarobot_rs.Config(recursive=args.recursive,
+                               extensions=RELEVANT_EXTENSIONS,
+                               min_string_len=args.min_size,
+                               max_string_len=args.max_size,
+                               max_file_size_mb=args.max_file_size,
+                               extract_opcodes=args.get_opcodes,
+                               debug=args.debug)
     fp, se = yarobot_rs.init_analysis(
-        args.recursive,
-        RELEVANT_EXTENSIONS,
-        args.min_size,
-        args.max_size,
-        args.max_file_size,
-        args.get_opcodes,
-        args.debug,
+        config,
         args.excludegood,
         args.min_score,
         args.superrule_overlap,

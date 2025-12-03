@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod tests {
     use std::fs::{self, File};
-    use std::io::Write;
-    use std::path::Path;
 
     use stringzz::{
         get_files, get_pe_info, is_ascii_string, is_base_64, is_hex_encoded, FileInfo,
@@ -12,57 +10,11 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn test() {
-        let test_dir = "tests/fixtures";
-        let _ = fs::create_dir_all(test_dir);
-
-        let mut file = File::create(Path::new(test_dir).join("strings_test.bin")).unwrap();
-        let mut data = Vec::new();
-
-        // 1. Simple ASCII strings of various lengths
-        data.extend(b"short\0");
-        data.extend(b"longer_string\0");
-        data.extend(b"very_long_string_that_exceeds_typical_minimum_length\0");
-
-        // 2. Strings with special characters
-        data.extend(b"path/to/file.txt\0");
-        data.extend(b"user@example.com\0");
-        data.extend(b"$SPECIAL_CHARS%^&*\0");
-
-        // 3. Strings at strategic positions
-        data.push(0); // null byte separator
-        data.extend(b"string_after_null\0");
-
-        // 4. UTF-8 encoded strings
-        data.extend("unicode_βββ".as_bytes());
-        data.extend("emoji_😀😀😀".as_bytes());
-
-        // 5. Invalid UTF-8 sequences
-        data.extend(&[0xCE, 0xFA, 0xCE]); // incomplete sequence
-        data.extend(&[0xFF, 0xFE]); // BOM fragments
-
-        // 6. Mixed encodings challenge
-        data.extend(&[0x00, 0x00, 0x00]); // padding
-        data.extend(b"mixed_");
-        data.extend(&[0x41, 0x00, 0x42, 0x00]); // UTF-16-like (A\0B\0)
-        data.extend(b"_content");
-
-        // 7. Edge case: string exactly at minimum length
-        data.extend(b"four");
-
-        // 8. Binary data that looks like strings
-        data.extend(&[0x41, 0x41, 0x41, 0x41]); // AAAA
-        data.extend(std::iter::repeat_n(0x41, 500));
-        let _ = file.write_all(&data);
-
-        println!("Test files generated in {}", test_dir);
-    }
-
-    #[test]
     fn test_extraction() {
-        let test_dir = "tests/fixtures";
+        let test = "tests/fixtures/strings_test.bin";
         let mut fp = FileProcessor::default();
-        fp.parse_sample_dir(test_dir.to_owned()).unwrap();
+
+        fp.process_file_with_checks(test.to_owned());
         for _v in fp.strings.keys() {
             //println!("{:?}, {:?}, equals {}", v, "longer_string", v == "longer_string");
         }

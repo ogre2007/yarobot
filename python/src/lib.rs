@@ -9,32 +9,35 @@ pub mod scoring;
 pub use scoring::*;
 
 #[pyfunction]
+#[pyo3(signature = (
+        config = None,
+        excludegood = true,
+        min_score = 5,
+        superrule_overlap = 5,
+        good_strings_db = None,
+        good_opcodes_db = None,
+        good_imphashes_db = None,
+        good_exports_db = None,
+        pestudio_strings = None,
+    ))]
 pub fn init_analysis(
-    recursive: bool,
-    extensions: Option<Vec<String>>,
-    minssize: usize,
-    maxssize: usize,
-    fsize: usize,
-    get_opcodes: bool,
-    debug: bool,
+    config: Option<Config>,
     excludegood: bool,
     min_score: i64,
     superrule_overlap: usize,
-    good_strings_db: HashMap<String, usize>,
-    good_opcodes_db: HashMap<String, usize>,
-    good_imphashes_db: HashMap<String, usize>,
-    good_exports_db: HashMap<String, usize>,
-    pestudio_strings: HashMap<String, (i64, String)>,
+    good_strings_db: Option<HashMap<String, usize>>,
+    good_opcodes_db: Option<HashMap<String, usize>>,
+    good_imphashes_db: Option<HashMap<String, usize>>,
+    good_exports_db: Option<HashMap<String, usize>>,
+    pestudio_strings: Option<HashMap<String, (i64, String)>>,
 ) -> PyResult<(FileProcessor, ScoringEngine)> {
-    let fp = FileProcessor::new(
-        recursive,
-        extensions,
-        minssize,
-        maxssize,
-        fsize,
-        get_opcodes,
-        debug,
-    );
+    let fp = FileProcessor::new(config)?;
+    let good_strings_db = good_strings_db.unwrap();
+    let good_opcodes_db = good_opcodes_db.unwrap();
+    let good_imphashes_db = good_imphashes_db.unwrap();
+    let good_exports_db = good_exports_db.unwrap();
+    let pestudio_strings = pestudio_strings.unwrap();
+
     let scoring_engine = ScoringEngine {
         good_strings_db,
         good_opcodes_db,
@@ -68,10 +71,8 @@ pub fn process_buffer(
     let mut file_infos = HashMap::new();
 
     let (fi, string_stats, utf16strings, opcodes) = processing::process_buffer_u8(
-        buffer[..min(fp.fsize * 1024 * 1024, buffer.len())].to_vec(),
-        fp.minssize,
-        fp.maxssize,
-        fp.get_opcodes,
+        buffer[..min(fp.config.max_file_size_mb * 1024 * 1024, buffer.len())].to_vec(),
+        &fp.config,
     )
     .unwrap();
     let mut file_strings = HashMap::new();
@@ -183,6 +184,8 @@ fn yarobot_rs(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(process_buffer, m)?)?;
 
     m.add_class::<stringzz::TokenInfo>()?;
+    m.add_class::<stringzz::Config>()?;
+
     m.add_class::<stringzz::TokenType>()?;
     m.add_class::<stringzz::FileProcessor>()?;
     m.add_class::<ScoringEngine>()?;

@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     extract_and_count_ascii_strings, extract_and_count_utf16_strings, extract_opcodes,
-    get_file_info, FileInfo, TokenInfo, TokenType,
+    get_file_info, Config, FileInfo, TokenInfo, TokenType,
 };
 
 use anyhow::Result;
@@ -30,34 +30,12 @@ pub fn merge_stats(new: HashMap<String, TokenInfo>, stats: &mut HashMap<String, 
     }
 }
 
-impl Default for FileProcessor {
-    fn default() -> Self {
-        Self {
-            recursive: false,
-            extensions: None,
-            minssize: 5,
-            maxssize: 128,
-            fsize: 10,
-            get_opcodes: false,
-            debug: true,
-            strings: Default::default(),
-            utf16strings: Default::default(),
-            opcodes: Default::default(),
-            file_infos: Default::default(),
-        }
-    }
-}
 
 #[pyclass]
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct FileProcessor {
-    pub recursive: bool,
-    pub extensions: Option<Vec<String>>,
-    pub minssize: usize,
-    pub maxssize: usize,
-    pub fsize: usize,
-    pub get_opcodes: bool,
-    pub debug: bool,
+    pub config: Config,
 
     pub strings: HashMap<String, TokenInfo>,
     pub utf16strings: HashMap<String, TokenInfo>,
@@ -95,9 +73,7 @@ pub fn get_files(folder: String, recursive: bool) -> PyResult<Vec<String>> {
 
 pub fn process_buffer_u8(
     buffer: Vec<u8>,
-    minssize: usize,
-    maxssize: usize,
-    get_opcodes: bool,
+    config: &Config,
 ) -> Result<(
     FileInfo,
     HashMap<String, TokenInfo>,
@@ -106,11 +82,11 @@ pub fn process_buffer_u8(
 )> {
     let fi: FileInfo = get_file_info(&buffer).unwrap();
     let (strings, utf16strings) = (
-        extract_and_count_ascii_strings(&buffer, minssize, maxssize),
-        extract_and_count_utf16_strings(&buffer, minssize, maxssize),
+        extract_and_count_ascii_strings(&buffer, config.min_string_len, config.max_string_len),
+        extract_and_count_utf16_strings(&buffer, config.min_string_len, config.max_string_len),
     );
     let mut opcodes = Default::default();
-    if get_opcodes {
+    if config.extract_opcodes {
         opcodes = extract_opcodes(buffer).unwrap();
     }
 
@@ -120,28 +96,14 @@ pub fn process_buffer_u8(
 #[pymethods]
 impl FileProcessor {
     #[new]
-    pub fn new(
-        recursive: bool,
-        extensions: Option<Vec<String>>,
-        minssize: usize,
-        maxssize: usize,
-        fsize: usize,
-        get_opcodes: bool,
-        debug: bool,
-    ) -> Self {
-        if fsize == 0 {
-            panic!()
-        }
-        Self {
-            recursive,
-            extensions,
-            minssize,
-            maxssize,
-            fsize,
-            get_opcodes,
-            debug,
+    #[pyo3(signature = (config = None))]
+    pub fn new(config: Option<Config>) -> PyResult<Self> {
+        let config = config.unwrap_or_default();
+        config.validate()?;
+        Ok(Self {
+            config,
             ..Default::default()
-        }
+        })
     }
 
     pub fn parse_sample_dir(
@@ -153,7 +115,7 @@ impl FileProcessor {
         HashMap<String, TokenInfo>,
         HashMap<String, FileInfo>,
     )> {
-        for file_path in get_files(dir, self.recursive).unwrap().into_iter() {
+        for file_path in get_files(dir, self.config.recursive).unwrap().into_iter() {
             self.process_file_with_checks(file_path);
         }
         Ok((
@@ -176,7 +138,7 @@ impl FileProcessor {
     pub fn process_file_with_checks(&mut self, file_path: String) -> bool {
         let os_path = path::Path::new(&file_path);
 
-        if let Some(extensions) = &self.extensions {
+        if let Some(extensions) = &self.config.extensions {
             if let Some(ext) = os_path.extension().and_then(OsStr::to_str) {
                 if !extensions
                     .iter()
@@ -198,7 +160,7 @@ impl FileProcessor {
             self.process_single_file(file_path.to_string()).unwrap();
 
         if self.file_infos.iter().any(|x| x.1.sha256 == fi.sha256) {
-            if self.debug {
+            if self.config.debug {
                 println!(
                     "[-] Skipping strings/opcodes from {} due to MD5 duplicate detection",
                     file_path
@@ -213,7 +175,7 @@ impl FileProcessor {
         //let mut
         self.deduplicate_strings();
 
-        if self.debug {
+        if self.config.debug {
             println!(
                 "[+] Processed {} Size: {} Strings: {} Utf16Strings: {} OpCodes: {}",
                 file_path,
@@ -242,7 +204,7 @@ impl FileProcessor {
                 }
             }
         }
-
+        println!("{:?}", self.strings);
         let keys: Vec<String> = self.strings.keys().cloned().collect();
         for i in 0..keys.len() {
             for j in 0..keys.len() {
@@ -253,7 +215,7 @@ impl FileProcessor {
                     if let Some(longer_info) = self.strings.remove(&longer) {
                         if let Some(shorter_info) = self.strings.get_mut(&shorter) {
                             shorter_info.merge_existed(&longer_info);
-                            println!("deduplicating {} into {}", longer, shorter);
+                            //println!("deduplicating {} into {}", longer, shorter);
                         }
                     }
                 }
@@ -271,12 +233,16 @@ impl FileProcessor {
         HashMap<String, TokenInfo>,
     )> {
         let file = File::open(&file_path)?;
-        let mut limited_reader = file.take((self.fsize * 1024 * 1024).try_into().unwrap());
+        let mut limited_reader = file.take(
+            (self.config.max_file_size_mb * 1024 * 1024)
+                .try_into()
+                .unwrap(),
+        );
         let mut buffer = Vec::new();
         limited_reader.read_to_end(&mut buffer)?;
 
         let (fi, mut strings, mut utf16strings, mut opcodes) =
-            process_buffer_u8(buffer, self.minssize, self.maxssize, self.get_opcodes).unwrap();
+            process_buffer_u8(buffer, &self.config).unwrap();
         for (_, ti) in strings.iter_mut() {
             ti.files.insert(file_path.clone());
         }

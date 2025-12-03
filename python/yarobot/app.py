@@ -67,14 +67,9 @@ def initialize_databases(db_path):
 def init_context(dbs, pestudio):
     # Scan malware files
     global FP, SE
+    config = yarobot_rs.Config()
     fp, se = yarobot_rs.init_analysis(
-        True,
-        RELEVANT_EXTENSIONS,
-        5,
-        128,
-        10,
-        True,
-        False,
+        config,
         False,
         5,
         5,
