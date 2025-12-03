@@ -127,7 +127,7 @@ jobs:
           override: true
       
       - name: Run benchmarks
-        run: cargo bench --bench extraction -- --output-format bencher | tee benchmark_results.txt
+        run: cargo bench --bench benchmark -- --output-format bencher | tee benchmark_results.txt
       
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4

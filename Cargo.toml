@@ -9,7 +9,7 @@ resolver = "2"
 
 
 [workspace.package]
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 readme = "README.md"
 description = "YARA rules generator"
@@ -17,8 +17,6 @@ repository = "https://github.com/ogre2007/yarobot"
 authors = ["ogre2007 <oogre@vk.com>"]
 homepage = "https://github.com/ogre2007/yarobot"
 license = "GPL-3.0-only"
-
-
 
 
 [workspace.dependencies]
@@ -37,7 +35,6 @@ anyhow = "1.0.100"
 base64 = "0.22.1"
 env_logger = "0.11.8"
 log = "0.4.28"
-
 
 
 [workspace.build-dependencies]
