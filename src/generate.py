@@ -31,17 +31,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import os
 import logging
 
-import time
 
 from .common import (
-    emptyFolder,
     getIdentifier,
     getPrefix,
     getReference,
     initialize_pestudio_strings,
-    load,
     load_databases,
-    load_db,
     common_multi_analysis_options,
     common_single_analysis_options,
 )
@@ -57,7 +53,6 @@ from .config import RELEVANT_EXTENSIONS
 import stringzz
 
 import click
-import os
 
 
 def process_bytes(

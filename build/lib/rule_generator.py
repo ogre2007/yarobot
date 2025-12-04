@@ -9,7 +9,7 @@ import re
 import logging
 
 
-from stringzz import ScoringEngine, TokenInfo, TokenType
+from stringzz import TokenInfo
 
 
 def _get_uint_string(magic):
@@ -518,7 +518,7 @@ class RuleGenerator:
         file_info_super = {}
         for filePath in super_rule.files:
             file_info_super[filePath] = infos[filePath]
-        condition_strings = self._generate_general_condition(
+        self._generate_general_condition(
             infos,
             self.args.nofilesize,
             self.args.filesize_multiplier,

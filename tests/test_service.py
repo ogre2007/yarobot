@@ -8,8 +8,8 @@ import io
 from werkzeug.datastructures import FileStorage
 
 # Import the app module
-from yarobot.app import app, initialize_databases, AnalysisRequest, save_uploaded_files
-from yarobot.app import init_context
+from src.app import app, initialize_databases, AnalysisRequest, save_uploaded_files
+from src.app import init_context
 
 
 @pytest.fixture
@@ -25,8 +25,8 @@ def client():
 @pytest.fixture
 def mock_databases():
     """Mock the database initialization"""
-    with patch("yarobot.app.DATABASES", ({}, {}, {}, {})):
-        with patch("yarobot.app.PESTUDIO_STRINGS", {}):
+    with patch("src.app.DATABASES", ({}, {}, {}, {})):
+        with patch("src.app.PESTUDIO_STRINGS", {}):
             yield
 
 
@@ -152,7 +152,7 @@ class TestAnalyzeEndpoint:
         assert data["error"] == "No files provided"
 
     @pytest.mark.http
-    @patch("yarobot.generate.process_folder")
+    @patch("src.generate.process_folder")
     def test_invalid_parameter_types(self, mock_process, client, mock_databases, sample_file):
         """Test analysis with invalid parameter types"""
         with open(sample_file, "rb") as f:

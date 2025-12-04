@@ -11,6 +11,6 @@ def pytest_configure(config):
 @pytest.fixture
 def mock_databases():
     """Mock the database initialization"""
-    with patch("yarobot.app.DATABASES", ({}, {}, {}, {})):
-        with patch("yarobot.initialization.PESTUDIO_STRINGS", {}):
+    with patch("src.app.DATABASES", ({}, {}, {}, {})):
+        with patch("src.initialization.PESTUDIO_STRINGS", {}):
             yield

@@ -5,24 +5,19 @@ File upload only version
 """
 
 from argparse import ArgumentParser
-import cProfile
 import os
-import pstats
 import tempfile
-import time
 import uuid
 import click
 from flask import Flask, render_template, request, jsonify
-from .config import RELEVANT_EXTENSIONS
 from werkzeug.utils import secure_filename
 import logging
 from typing import Dict
 
-from .generate import process_folder, process_bytes
+from .generate import process_bytes
 from .common import (
     load_databases,
     initialize_pestudio_strings,
-    getIdentifier,
     getPrefix,
     getReference,
 )
@@ -207,7 +202,7 @@ def analyze():
     params = request.form.to_dict()
 
     # Convert string parameters to appropriate types
-    if DATABASES == None:
+    if DATABASES is None:
         initialize_databases(DB_PATH)
         init_context(DATABASES, PESTUDIO_STRINGS)
     # Create analysis request

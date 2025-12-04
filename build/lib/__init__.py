@@ -1,4 +1,4 @@
-# yarobot/__init__.py
+# src/__init__.py
 from . import *
 
 __all__ = ["generate"]
