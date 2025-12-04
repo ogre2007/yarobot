@@ -54,15 +54,15 @@ from .rule_generator import RuleGenerator
 # from app.scoring import extract_stats_by_file, sample_string_evaluation
 from .config import RELEVANT_EXTENSIONS
 
-from . import yarobot_rs
+import stringzz
 
 import click
 import os
 
 
 def process_bytes(
-    fp: yarobot_rs.FileProcessor,
-    se: yarobot_rs.ScoringEngine,
+    fp: stringzz.FileProcessor,
+    se: stringzz.ScoringEngine,
     args,
     data: bytes,
     good_strings_db={},
@@ -79,7 +79,7 @@ def process_bytes(
         file_strings,
         file_opcodes,
         file_utf16strings,
-    ) = yarobot_rs.process_buffer(data, fp, se)
+    ) = stringzz.process_buffer(data, fp, se)
     # print(file_strings)
     file_strings = {fpath: strings for fpath, strings in file_strings.items()}
 
@@ -132,14 +132,14 @@ def process_folder(
         )
     
     # Scan malware files
-    config = yarobot_rs.Config(recursive=args.recursive,
+    config = stringzz.Config(recursive=args.recursive,
                                extensions=RELEVANT_EXTENSIONS,
                                min_string_len=args.min_size,
                                max_string_len=args.max_size,
                                max_file_size_mb=args.max_file_size,
                                extract_opcodes=args.get_opcodes,
                                debug=args.debug)
-    fp, se = yarobot_rs.init_analysis(
+    fp, se = stringzz.init_analysis(
         config,
         args.excludegood,
         args.min_score,
@@ -163,7 +163,7 @@ def process_folder(
         file_opcodes,
         file_utf16strings,
         file_info,
-    ) = yarobot_rs.process_malware(folder, fp, se)
+    ) = stringzz.process_malware(folder, fp, se)
     # Apply intelligent filters
     logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
     file_strings = {fpath: se.filter_string_set(strings) for fpath, strings in file_strings.items()}

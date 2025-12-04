@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs};
 
 use pyo3::{Py, Python};
 use stringzz::Config;
-use yarobot_rs::{
+use stringzz::{
     extract_and_count_ascii_strings, extract_dex_opcodes, init_analysis, process_malware,
 };
 

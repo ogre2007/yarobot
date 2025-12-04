@@ -4,13 +4,13 @@ from typing import Any, List
 
 from typing import Tuple
 
-# import yarobot_rs
+# import stringzz
 import os
 import re
 import logging
 
 
-from .yarobot_rs import ScoringEngine, TokenInfo, TokenType
+from stringzz import ScoringEngine, TokenInfo, TokenType
 
 
 def _get_uint_string(magic):

@@ -30,14 +30,14 @@ import logging
 import os
 
 import click
-from yarobot import yarobot_rs
+from yarobot import stringzz
 
 from .common import get_abs_path, load, save
 from .config import RELEVANT_EXTENSIONS
 
 
 def process_goodware_folder(goodware_path, extensions, recursive, minssize, maxssize, fsize, get_opcodes, debug):
-    fp = yarobot_rs.FileProcessor(
+    fp = stringzz.FileProcessor(
         recursive,
         extensions,
         minssize,

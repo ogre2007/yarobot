@@ -7,11 +7,13 @@ requires-python = ">=3.10"
 description = "YARA generator inspired by yarGen"
 readme = "README.md"
 license = { text = "GPL-3.0-only" }
-dependencies = ["flask>=3.1.2", "click>=8.3.0", "lxml>=4.9.0", "orjson>=3.11"]
-
-[build-system]
-requires = ["maturin>=1.0,<2.0"]
-build-backend = "maturin"
+dependencies = [
+    "flask>=3.1.2",
+    "click>=8.3.0",
+    "lxml>=4.9.0",
+    "orjson>=3.11",
+    "stringzz",
+]
 
 [project.scripts]
 yarobot = "yarobot.generate:generate"
@@ -21,15 +23,10 @@ yarobot-web = "yarobot.app:main"
 Homepage = "https://github.com/ogre2007/yarobot"
 Issues = "https://github.com/ogre2007/issues"
 
-[tool.maturin]
-python-source = "."
-features = ["pyo3/extension-module"]
-module-name = "yarobot.yarobot_rs"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
-#python_files = "test_*.py" 
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -49,6 +46,7 @@ markers = [
 
 
 pythonpath = ["."]
+
 
 [dependency-groups]
 dev = [

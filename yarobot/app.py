@@ -26,7 +26,7 @@ from .common import (
     getPrefix,
     getReference,
 )
-from . import yarobot_rs
+import stringzz
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -67,8 +67,8 @@ def initialize_databases(db_path):
 def init_context(dbs, pestudio):
     # Scan malware files
     global FP, SE
-    config = yarobot_rs.Config()
-    fp, se = yarobot_rs.init_analysis(
+    config = stringzz.Config()
+    fp, se = stringzz.init_analysis(
         config,
         False,
         5,
