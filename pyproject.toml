@@ -30,9 +30,7 @@ include = [
 where = ["src"]
 
 [project.scripts]
-yarobot = "yarobot.generate:generate"
-yarobot-web = "yarobot.app:main"
-#app = "yarobot.app:main"
+app = "yarobot.app:main"
 
 [project.urls]
 Homepage = "https://github.com/ogre2007/yarobot"
