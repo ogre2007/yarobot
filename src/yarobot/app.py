@@ -13,7 +13,6 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import logging
 from typing import Dict
-
 from .generate import process_bytes
 from .common import (
     load_databases,

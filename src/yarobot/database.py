@@ -31,7 +31,6 @@ import os
 
 import click
 import stringzz
-
 from .common import get_abs_path, load, save
 from .config import RELEVANT_EXTENSIONS
 
