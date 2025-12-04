@@ -30,7 +30,7 @@ import logging
 import os
 
 import click
-from yarobot import stringzz
+import stringzz
 
 from .common import get_abs_path, load, save
 from .config import RELEVANT_EXTENSIONS

@@ -20,5 +20,4 @@ target/
 *.lock
 dist/* 
 test.yar
-python/yarobot/stringzz.cp313-win_amd64.pyd
 .vercel
