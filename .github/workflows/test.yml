@@ -27,12 +27,10 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          cd python
           uv sync --all-extras --dev
 
       - name: Run Python tests
         run: |
-          cd python
           uv run coverage run -m pytest && uv run coverage report
 
  
