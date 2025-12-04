@@ -22,3 +22,4 @@ dist/*
 test.yar
 .vercel
 src/yarobot.egg-info/*
+build
