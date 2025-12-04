@@ -1,3 +1,0 @@
-[console_scripts]
-yarobot = yarobot.generate:generate
-yarobot-web = yarobot.app:main
