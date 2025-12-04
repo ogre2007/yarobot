@@ -26,6 +26,8 @@ include = [
     "src/yarobot/3dparty/*", # Example: Include all JSON files in a data subdirectory
     "src/yarobot/templates/*", # Example: Include a templates directory
 ]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [project.scripts]
 yarobot = "yarobot.generate:generate"
