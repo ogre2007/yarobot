@@ -148,6 +148,7 @@ class AnalysisRequest:
         self.output_rule_file = params.get("output_file", "yarobot_rules.yar")
         self.output_dir_strings = params.get("output_dir_strings", "")
 
+
 # Web Routes
 @app.route("/")
 def index():
@@ -210,7 +211,9 @@ def analyze():
 
     # Process files and generate rules
     if len(files) == 1:
-        rules_content = process_bytes(FP, SE, args, files[0].read(), *DATABASES, PESTUDIO_STRINGS)
+        rules_content = process_bytes(
+            FP, SE, args, files[0].read(), *DATABASES, PESTUDIO_STRINGS
+        )
 
     else:
         return jsonify({"error": "no many file analysis yet"}), 400
@@ -273,8 +276,11 @@ def create_template_directories():
     static_dir = os.path.join(current_dir, "static")
     os.makedirs(static_dir, exist_ok=True)
 
+
 @click.command()
-@click.option('-g', type=click.Path(exists=True), help="path to folder with goodware dbs")
+@click.option(
+    "-g", type=click.Path(exists=True), help="path to folder with goodware dbs"
+)
 def main(g=None):
     global DB_PATH
     if g:
@@ -298,6 +304,5 @@ def main(g=None):
     )
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

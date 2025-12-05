@@ -35,7 +35,9 @@ from .common import get_abs_path, load, save
 from .config import RELEVANT_EXTENSIONS
 
 
-def process_goodware_folder(goodware_path, extensions, recursive, minssize, maxssize, fsize, get_opcodes, debug):
+def process_goodware_folder(
+    goodware_path, extensions, recursive, minssize, maxssize, fsize, get_opcodes, debug
+):
     fp = stringzz.FileProcessor(
         recursive,
         extensions,
@@ -45,7 +47,9 @@ def process_goodware_folder(goodware_path, extensions, recursive, minssize, maxs
         get_opcodes,
         debug,
     )
-    (string_scores, opcodes, utf16strings, file_infos) = fp.parse_sample_dir(goodware_path)
+    (string_scores, opcodes, utf16strings, file_infos) = fp.parse_sample_dir(
+        goodware_path
+    )
     # print(file_infos)
     good_json = Counter({k: v.count for k, v in string_scores.items()})
     good_opcodes_json = {k: v.count for k, v in opcodes.items()}
@@ -81,7 +85,9 @@ def cli():
 
 @cli.command()
 @click.argument("goodware_path", type=click.Path(exists=True), required=True)
-@click.option("-i", "--identifier", help="Identifier for the database files", required=True)
+@click.option(
+    "-i", "--identifier", help="Identifier for the database files", required=True
+)
 @click.option(
     "--update",
     help="Update existing database with new goodware samples",
@@ -93,7 +99,9 @@ def update(goodware_path, **kwargs):
     """Manage goodware databases"""
     args = type("Args", (), kwargs)()
     print("[+] Processing goodware files ...")
-    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = process_goodware_folder(goodware_path)
+    good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
+        process_goodware_folder(goodware_path)
+    )
 
     # Update existing databases
     if args.update:

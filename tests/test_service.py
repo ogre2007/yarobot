@@ -8,8 +8,10 @@ import io
 from werkzeug.datastructures import FileStorage
 
 # Import the app module
-from src.yarobot.app import app, initialize_databases, AnalysisRequest, save_uploaded_files
-from src.yarobot.app import init_context
+from src.yarobot.app import (
+    app,
+    AnalysisRequest,
+)
 
 
 @pytest.fixture
@@ -47,35 +49,6 @@ class TestAnalysisRequest:
         assert args.author == "yarobot HTTP Service"
 
 
-class TestFileHandling:
-    """Test file handling utilities"""
-
-    @pytest.mark.unit
-    def test_save_uploaded_files(self):
-        """Test saving uploaded files to temporary directory"""
-        from werkzeug.datastructures import FileStorage
-
-        mock_file1 = FileStorage(stream=io.BytesIO(b"test content 1"), filename="test1.exe")
-        mock_file2 = FileStorage(stream=io.BytesIO(b"test content 2"), filename="test2.dll")
-
-        files = [mock_file1, mock_file2]
-
-        temp_dir = save_uploaded_files(files)
-
-        try:
-            assert os.path.exists(temp_dir)
-            assert os.path.isdir(temp_dir)
-
-            saved_files = os.listdir(temp_dir)
-            assert "test1.exe" in saved_files
-            assert "test2.dll" in saved_files
-
-        finally:
-            import shutil
-
-            shutil.rmtree(temp_dir)
-
-
 class TestHealthEndpoints:
     """Test health and status endpoints"""
 
@@ -103,7 +76,10 @@ class TestAnalyzeEndpoint:
     def sample_file(self):
         """Create a sample test file"""
         with tempfile.NamedTemporaryFile(delete=False, suffix=".exe") as f:
-            f.write(b"MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xffaaaaaaaaaaaaaaaaaaaaa" * 35)
+            f.write(
+                b"MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xffaaaaaaaaaaaaaaaaaaaaa"
+                * 35
+            )
             f.flush()
             yield f.name
         if os.path.exists(f.name):
@@ -117,7 +93,9 @@ class TestAnalyzeEndpoint:
         # initialize_databases()
         with open(sample_file, "rb") as f:
             # print(f.read())
-            file_storage = FileStorage(stream=f, filename="test_file.txt", content_type="text/plain")
+            file_storage = FileStorage(
+                stream=f, filename="test_file.txt", content_type="text/plain"
+            )
             response = client.post(
                 "/api/analyze",
                 data={"files": file_storage, "min_score": "0", "get_opcodes": "true"},
@@ -153,7 +131,9 @@ class TestAnalyzeEndpoint:
 
     @pytest.mark.http
     @patch("src.yarobot.generate.process_folder")
-    def test_invalid_parameter_types(self, mock_process, client, mock_databases, sample_file):
+    def test_invalid_parameter_types(
+        self, mock_process, client, mock_databases, sample_file
+    ):
         """Test analysis with invalid parameter types"""
         with open(sample_file, "rb") as f:
             response = client.post(

@@ -37,7 +37,11 @@ def _sanitize_rule_name(path: str, file: str) -> str:
 
 
 def _get_timestamp_basic(date_obj=None):
-    return date_obj.strftime("%Y-%m-%d") if date_obj else datetime.datetime.now().strftime("%Y-%m-%d")
+    return (
+        date_obj.strftime("%Y-%m-%d")
+        if date_obj
+        else datetime.datetime.now().strftime("%Y-%m-%d")
+    )
 
 
 def _get_file_range(size, fm_size):
@@ -126,7 +130,9 @@ class RuleGenerator:
         self.args = args
         self.scoring_engine = scoring_engine
 
-    def _generate_general_condition(self, file_info, nofilesize, filesize_multiplier, noextras):
+    def _generate_general_condition(
+        self, file_info, nofilesize, filesize_multiplier, noextras
+    ):
         """
         Generates a general condition for a set of files
         :param file_info:
@@ -243,8 +249,16 @@ class RuleGenerator:
                 if rule := self.generate_simple_rule(
                     printed_rules,
                     file_strings[filePath] if filePath in file_strings.keys() else [],
-                    (file_opcodes[filePath] if self.args.get_opcodes and filePath in file_opcodes.keys() else []),
-                    (file_utf16strings[filePath] if filePath in file_utf16strings.keys() else []),
+                    (
+                        file_opcodes[filePath]
+                        if self.args.get_opcodes and filePath in file_opcodes.keys()
+                        else []
+                    ),
+                    (
+                        file_utf16strings[filePath]
+                        if filePath in file_utf16strings.keys()
+                        else []
+                    ),
                     file_info[filePath],
                     filePath,
                 ):
@@ -283,7 +297,9 @@ class RuleGenerator:
 
         return (rule_count, super_rule_count, fdata)
 
-    def format_rule(self, rule_name, file, hashes, rule_strings, rule_opcodes, conditions):
+    def format_rule(
+        self, rule_name, file, hashes, rule_strings, rule_opcodes, conditions
+    ):
         # Print rule title
         rule = (
             f"rule {rule_name} {{\n"
@@ -353,12 +369,17 @@ class RuleGenerator:
 
         def add_extras():
             # Add imphash - if certain conditions are met
-            if info.imphash not in self.scoring_engine.good_imphashes_db and info.imphash != "":
+            if (
+                info.imphash not in self.scoring_engine.good_imphashes_db
+                and info.imphash != ""
+            ):
                 # Comment to imphash
                 imphash = info.imphash
                 comment = ""
                 # Add imphash to condition
-                condition_pe_part1.append('pe.imphash() == "{0}"{1}'.format(imphash, comment))
+                condition_pe_part1.append(
+                    'pe.imphash() == "{0}"{1}'.format(imphash, comment)
+                )
                 self.pe_module_necessary = True
             if info.exports:
                 e_count = 0
@@ -378,7 +399,9 @@ class RuleGenerator:
             basic_conditions: List[Any] = []
             # Filesize
             if not args.nofilesize:
-                basic_conditions.insert(0, _get_file_range(info.size, args.filesize_multiplier))
+                basic_conditions.insert(
+                    0, _get_file_range(info.size, args.filesize_multiplier)
+                )
             # Magic
             if info.magic != b"":
                 uint_string = _get_uint_string(info.magic)
@@ -432,7 +455,9 @@ class RuleGenerator:
             condition_string,
         )
 
-    def _generate_rule_tokens(self, strings, utf16strings, opcodes, opcode_num) -> Tuple[List[str], int, List[str]]:
+    def _generate_rule_tokens(
+        self, strings, utf16strings, opcodes, opcode_num
+    ) -> Tuple[List[str], int, List[str]]:
         # Rule String generation
         (
             rule_strings,

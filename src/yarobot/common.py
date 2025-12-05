@@ -180,14 +180,18 @@ def common_single_analysis_options(f):
         is_flag=True,
         default=False,
     )
-    @click.option("-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar")
+    @click.option(
+        "-o", "--output-rule-file", help="Output rule file", default="yarobot_rules.yar"
+    )
     @click.option(
         "-e",
         "--output-dir-strings",
         help="Output directory for string exports",
         default="",
     )
-    @click.option("-a", "--author", help="Author Name", default="yarobot Rule Generator")
+    @click.option(
+        "-a", "--author", help="Author Name", default="yarobot Rule Generator"
+    )
     @click.option(
         "--ref",
         help="Reference (can be string or text file)",

@@ -65,7 +65,9 @@ def process_bytes(
     good_exports_db={},
     pestudio_strings={},
 ):
-    logging.getLogger("yarobot").info(f"[+] Generating YARA rules from buffer len {len(data)}")
+    logging.getLogger("yarobot").info(
+        f"[+] Generating YARA rules from buffer len {len(data)}"
+    )
     # print(fp, se)
 
     (
@@ -79,7 +81,9 @@ def process_bytes(
 
     file_opcodes = {fpath: opcodes for fpath, opcodes in file_opcodes.items()}
 
-    file_utf16strings = {fpath: utf16strings for fpath, utf16strings in file_utf16strings.items()}
+    file_utf16strings = {
+        fpath: utf16strings for fpath, utf16strings in file_utf16strings.items()
+    }
 
     # Create Rule Files
     rg = RuleGenerator(args, se)
@@ -124,15 +128,17 @@ def process_folder(
         logging.getLogger("yarobot").warning(
             "no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set."
         )
-    
+
     # Scan malware files
-    config = stringzz.Config(recursive=args.recursive,
-                               extensions=RELEVANT_EXTENSIONS,
-                               min_string_len=args.min_size,
-                               max_string_len=args.max_size,
-                               max_file_size_mb=args.max_file_size,
-                               extract_opcodes=args.get_opcodes,
-                               debug=args.debug)
+    config = stringzz.Config(
+        recursive=args.recursive,
+        extensions=RELEVANT_EXTENSIONS,
+        min_string_len=args.min_size,
+        max_string_len=args.max_size,
+        max_file_size_mb=args.max_file_size,
+        extract_opcodes=args.get_opcodes,
+        debug=args.debug,
+    )
     fp, se = stringzz.init_analysis(
         config,
         args.excludegood,
@@ -159,12 +165,21 @@ def process_folder(
         file_info,
     ) = stringzz.process_malware(folder, fp, se)
     # Apply intelligent filters
-    logging.getLogger("yarobot").info("[-] Applying intelligent filters to string findings ...")
-    file_strings = {fpath: se.filter_string_set(strings) for fpath, strings in file_strings.items()}
+    logging.getLogger("yarobot").info(
+        "[-] Applying intelligent filters to string findings ..."
+    )
+    file_strings = {
+        fpath: se.filter_string_set(strings) for fpath, strings in file_strings.items()
+    }
 
-    file_opcodes = {fpath: se.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()}
+    file_opcodes = {
+        fpath: se.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()
+    }
 
-    file_utf16strings = {fpath: se.filter_string_set(utf16strings) for fpath, utf16strings in file_utf16strings.items()}
+    file_utf16strings = {
+        fpath: se.filter_string_set(utf16strings)
+        for fpath, utf16strings in file_utf16strings.items()
+    }
 
     # Create Rule Files
     rg = RuleGenerator(args, se)
@@ -213,12 +228,18 @@ def generate(malware_path, **kwargs):
 
     pestudio_strings = initialize_pestudio_strings()
     print("[+] Reading goodware strings from database 'good-strings.db' ...")
-    print("    (This could take some time and uses several Gigabytes of RAM depending on your db size)")
+    print(
+        "    (This could take some time and uses several Gigabytes of RAM depending on your db size)"
+    )
 
     if args.goodware_dbs:
-        good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = load_databases(args.goodware_dbs)
+        good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
+            load_databases(args.goodware_dbs)
+        )
     else:
-        logging.getLogger("yarobot").warning("No goodware databases found. Please create new databases.")
+        logging.getLogger("yarobot").warning(
+            "No goodware databases found. Please create new databases."
+        )
         good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
             {},
             {},
@@ -238,7 +259,9 @@ def generate(malware_path, **kwargs):
     pr.disable()
 
     stats = pstats.Stats(pr)
-    stats.sort_stats("cumulative").print_stats(10)  # Sort by cumulative time and print top 10
+    stats.sort_stats("cumulative").print_stats(
+        10
+    )  # Sort by cumulative time and print top 10
 
 
 # MAIN ################################################################

@@ -67,7 +67,9 @@ def test_integration(shared_datadir):
         strings_per_rule=10,
         nosuper=False,
     )
-    data = shared_datadir.joinpath("binary").read_bytes()[: 1024 * 1024 * args.max_file_size]
+    data = shared_datadir.joinpath("binary").read_bytes()[
+        : 1024 * 1024 * args.max_file_size
+    ]
 
     rules = process_folder(args, str(shared_datadir))
     # pr.disable()
