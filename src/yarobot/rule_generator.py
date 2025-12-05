@@ -193,107 +193,105 @@ class RuleGenerator:
         file_info,
     ):
         fdata = ""
-        with open(self.args.output_rule_file, "w") as fh:
-            # General Info
-            general_info = "/*\n"
-            general_info += "   YARA Rule Set\n"
-            general_info += f"   Author: {self.args.author}\n"
-            general_info += f"   Date: {_get_timestamp_basic()}\n"
-            general_info += f"   Identifier: {self.args.identifier}\n"
-            general_info += f"   Reference: {self.args.ref}\n"
-            if license != "":
-                general_info += f"   License: {self.args.license}\n"
-            general_info += "*/\n\n"
-            fdata += general_info
+        # General Info
+        general_info = "/*\n"
+        general_info += "   YARA Rule Set\n"
+        general_info += f"   Author: {self.args.author}\n"
+        general_info += f"   Date: {_get_timestamp_basic()}\n"
+        general_info += f"   Identifier: {self.args.identifier}\n"
+        general_info += f"   Reference: {self.args.ref}\n"
+        if license != "":
+            general_info += f"   License: {self.args.license}\n"
+        general_info += "*/\n\n"
+        fdata += general_info
 
-            # GLOBAL RULES ----------------------------------------------------
-            if self.args.globalrule:
-                condition = self._generate_general_condition(
-                    file_info,
-                    self.args.nofilesize,
-                    self.args.filesize_multiplier,
-                    self.args.noextras,
+        # GLOBAL RULES ----------------------------------------------------
+        if self.args.globalrule:
+            condition = self._generate_general_condition(
+                file_info,
+                self.args.nofilesize,
+                self.args.filesize_multiplier,
+                self.args.noextras,
+            )
+
+            # Global Rule
+            if condition != "":
+                global_rule = (
+                    "/* Global Rule -------------------------------------------------------------- */\n"
+                    "/* Will be evaluated first, speeds up scanning process, remove at will */\n\n"
+                    "global private rule gen_characteristics {\n"
+                    "\tcondition:\n"
+                    f"\t\t{condition}\n}}\n\n"
                 )
 
-                # Global Rule
-                if condition != "":
-                    global_rule = (
-                        "/* Global Rule -------------------------------------------------------------- */\n"
-                        "/* Will be evaluated first, speeds up scanning process, remove at will */\n\n"
-                        "global private rule gen_characteristics {\n"
-                        "\tcondition:\n"
-                        f"\t\t{condition}\n}}\n\n"
-                    )
+                fdata += global_rule
 
-                    fdata += global_rule
+        # General vars
+        rules = ""
+        printed_rules = {}
+        rule_count = 0
+        super_rule_count = 0
 
-            # General vars
-            rules = ""
-            printed_rules = {}
-            rule_count = 0
-            super_rule_count = 0
+        # PROCESS SIMPLE RULES ----------------------------------------------------
+        logging.getLogger("yarobot").info("[+] Generating Simple Rules ...")
 
-            # PROCESS SIMPLE RULES ----------------------------------------------------
-            logging.getLogger("yarobot").info("[+] Generating Simple Rules ...")
+        # logging.getLogger("yarobot").info(file_strings)
 
-            # logging.getLogger("yarobot").info(file_strings)
+        # GENERATE SIMPLE RULES -------------------------------------------
+        fdata += "/* Rule Set ----------------------------------------------------------------- */\n\n"
+        all_files_set = set(file_strings.keys())
+        if self.args.get_opcodes:
+            all_files_set.update(file_opcodes.keys())
+        all_files_set.update(file_utf16strings.keys())
 
-            # GENERATE SIMPLE RULES -------------------------------------------
-            fdata += "/* Rule Set ----------------------------------------------------------------- */\n\n"
-            all_files_set = set(file_strings.keys())
-            if self.args.get_opcodes:
-                all_files_set.update(file_opcodes.keys())
-            all_files_set.update(file_utf16strings.keys())
+        for filePath in all_files_set:
+            if rule := self.generate_simple_rule(
+                printed_rules,
+                file_strings[filePath] if filePath in file_strings.keys() else [],
+                (
+                    file_opcodes[filePath]
+                    if self.args.get_opcodes and filePath in file_opcodes.keys()
+                    else []
+                ),
+                (
+                    file_utf16strings[filePath]
+                    if filePath in file_utf16strings.keys()
+                    else []
+                ),
+                file_info[filePath],
+                filePath,
+            ):
+                rules += rule
+                rule_count += 1
 
-            for filePath in all_files_set:
-                if rule := self.generate_simple_rule(
+        # GENERATE SUPER RULES --------------------------------------------
+        if not self.args.nosuper:
+            rules += "/* Super Rules ------------------------------------------------------------- */\n\n"
+            super_rule_names = []
+
+            print("[+] Generating Super Rules ...")
+            printed_combi = {}
+            for super_rule in super_rules + opcode_super_rules + utf16_super_rules:
+                rules += self.generate_super_rule(
+                    super_rule,
+                    file_info,
                     printed_rules,
-                    file_strings[filePath] if filePath in file_strings.keys() else [],
-                    (
-                        file_opcodes[filePath]
-                        if self.args.get_opcodes and filePath in file_opcodes.keys()
-                        else []
-                    ),
-                    (
-                        file_utf16strings[filePath]
-                        if filePath in file_utf16strings.keys()
-                        else []
-                    ),
-                    file_info[filePath],
-                    filePath,
-                ):
-                    rules += rule
-                    rule_count += 1
+                    super_rule_names,
+                    printed_combi,
+                    super_rule_count,
+                    None,
+                )
+                super_rule_count += 1
 
-            # GENERATE SUPER RULES --------------------------------------------
-            if not self.args.nosuper:
-                rules += "/* Super Rules ------------------------------------------------------------- */\n\n"
-                super_rule_names = []
-
-                print("[+] Generating Super Rules ...")
-                printed_combi = {}
-                for super_rule in super_rules + opcode_super_rules + utf16_super_rules:
-                    rules += self.generate_super_rule(
-                        super_rule,
-                        file_info,
-                        printed_rules,
-                        super_rule_names,
-                        printed_combi,
-                        super_rule_count,
-                        None,
-                    )
-                    super_rule_count += 1
-
-            # WRITING RULES TO FILE
-            # PE Module -------------------------------------------------------
-            if not self.args.noextras:
-                if "pe." in rules:
-                    fdata += 'import "pe"\n\n'
-            # RULES ------------------------------
-            fdata += rules
-            fh.write(fdata)
-            # Print rules to command line -------------------------------------
-            logging.getLogger("yarobot").debug(rules)
+        # WRITING RULES TO FILE
+        # PE Module -------------------------------------------------------
+        if not self.args.noextras:
+            if "pe." in rules:
+                fdata += 'import "pe"\n\n'
+        # RULES ------------------------------
+        fdata += rules
+        # Print rules to command line -------------------------------------
+        logging.getLogger("yarobot").debug(rules)
 
         return (rule_count, super_rule_count, fdata)
 
