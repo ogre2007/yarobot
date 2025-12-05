@@ -9,8 +9,11 @@
 ## 🚀 Features
 
 - **Automated YARA Rule Generation**: Create both simple and super rules from malware samples
-- **Intelligent Scoring System**: Advanced string scoring with goodware database comparison
-- **High Performance**: Core engine written in Rust for maximum speed
+- **Scoring System**: Advanced string scoring with goodware database comparison
+- **Separated and reusable core engine**: High-performance file processing and string analysis library - check out [stringZZ](https://github.com/ogre2007/yarobot) project
+- **Python Interface**: CLI management, database operations, and rule formatting
+- **Web UI**: Fancy and useful web&http interface
+ 
 
 ## 🛠 Installation
 
@@ -45,7 +48,6 @@ py -m yarobot.generate /path/to/malware/samples --output-rule-file my_rules.yar
 ### Start as web service
 ```bash
 py -m yarobot.app [-g <goodware dbs path>]
-app
 ```
 then locate http://localhost:5000
 or use api directly from anywhere:
@@ -94,18 +96,7 @@ py -m yarobot.database create /path/to/goodware --opcodes
 - `--update`: Update existing databases with new samples
 - `--only-executable`: Only process executable file extensions
 
-## 🏗 Architecture
 
-yarobot combines the performance of Rust with the flexibility of Python:
-
-### Core Components
-
-- **Rust Engine** (`stringzz`): High-performance file processing and string analysis
-- **Python Interface**: CLI management, database operations, and rule formatting
-- **Scoring Engine**: Intelligent string scoring with goodware comparison
-- **Rule Generator**: YARA rule synthesis and optimization
-
- 
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -114,11 +105,11 @@ yarobot combines the performance of Rust with the flexibility of Python:
 4. Add tests
 5. Submit a pull request
 
-## TODO
+## TODO's
 - [x] global project refactoring & packaging
 - [x] token extraction&processing code rewritten in Rust
 - [x] tests & ci/cd
-- [x] pypi release
+- [x] multiplatform pypi release
 - [x] http-service
 - [x] Web UI
 - [ ] store regexps in config
