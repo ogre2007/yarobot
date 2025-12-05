@@ -284,8 +284,10 @@ def create_template_directories():
     static_dir = os.path.join(current_dir, "static")
     os.makedirs(static_dir, exist_ok=True)
 
-
-def main():
+@click.command()
+@click.option('-g', type=click.Path(exists=True), help="path to folder with goodware dbs")
+def main(g=None):
+    DB_PATH = g
     # Initialize databases before starting the server
 
     initialize_databases(DB_PATH)
@@ -305,9 +307,6 @@ def main():
     )
 
 
-if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument("-g", type=click.Path(exists=True))
-    args = parser.parse_args()
-    DB_PATH = args.g
+
+if __name__ == '__main__':
     main()
