@@ -12,10 +12,26 @@
 
 - **Automated YARA Rule Generation**: Create both simple and super rules from malware samples
 - **Advanced Scoring System**: String scoring with goodware database comparison
-- **High-Performance Engine**: Rust-based core [stringZZ](https://github.com/ogre2007/yarobot) for fast file processing
+- **High-Performance Engine**: Rust-based core [stringZZ](https://github.com/ogre2007/stringzz) for fast file processing
 - **Multiple Interfaces**: CLI, Python API, and web interface
 - **Intelligent Filtering**: Automatic exclusion of common goodware strings for your specific dataset
 - **Super Rules**: Automatic creation of rules that match multiple related samples
+
+## 🏗️ Architecture
+```mermaid
+flowchart TD
+    A[CLI] --> D
+    B[Web Upload] --> D
+    C[API Call] --> D
+    
+    D[Token extraction] --> E[Scoring]
+    F[Goodware DB] --> E
+    
+    E --> G[YARA Generator]
+    G --> H[Rule file]
+    G --> I[Web Display]
+    G --> J[API JSON]
+```
 
 ## 🛠 Installation
 
@@ -137,7 +153,7 @@ py -m yarobot.database create /path/to/goodware --opcodes
 - [ ] Fix/improve imphash/exports handling
 - [ ] Include default databases
 - [ ] Rule generation improvements
-- [x] Separate token extraction to stringzz package
+- [x] Separate token extraction to [stringZZ](https://github.com/ogre2007/stringzz) package
 - [ ] Regexp generation
 - [ ] LLM Scoring support
 
@@ -152,8 +168,4 @@ This project is licensed under the GPLv3 License - see the [LICENSE](LICENSE) fi
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/ogre2007/yarobot/issues) 
-
-```mermaid
-  info
-```
+- **Issues**: [GitHub Issues](https://github.com/ogre2007/yarobot/issues)
