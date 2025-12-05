@@ -22,6 +22,10 @@ from .common import (
 )
 import stringzz
 
+DB_PATH = os.environ.get("YAROBOT_DB_PATH", "./dbs")
+
+MAX_FILES = 10
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("yarobot-service")
@@ -42,7 +46,6 @@ DATABASES = None
 PESTUDIO_STRINGS = None
 FP = None
 SE = None
-DB_PATH = None
 
 
 def initialize_databases(db_path):
@@ -145,23 +148,6 @@ class AnalysisRequest:
         self.output_rule_file = params.get("output_file", "yarobot_rules.yar")
         self.output_dir_strings = params.get("output_dir_strings", "")
 
-
-def save_uploaded_files(files) -> str:
-    """Save uploaded files to temporary directory and return path"""
-    temp_dir = tempfile.mkdtemp(prefix="yarobot_")
-
-    for file in files:
-        if file.filename:
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(temp_dir, filename)
-            file.save(file_path)
-            logger.info(f"Saved uploaded file: {file_path}")
-        else:
-            print("no file name!")
-
-    return temp_dir
-
-
 # Web Routes
 @app.route("/")
 def index():
@@ -194,6 +180,9 @@ def analyze():
         return jsonify({"error": "No files provided"}), 400
 
     files = request.files.getlist("files")
+    if len(files) > MAX_FILES:
+        return jsonify({"error": f"Too many files, max {MAX_FILES}"}), 400
+
     if not files or all(file.filename == "" for file in files):
         return jsonify({"error": "No files selected"}), 400
     print(f"fsize:{len(files)}")
@@ -287,7 +276,9 @@ def create_template_directories():
 @click.command()
 @click.option('-g', type=click.Path(exists=True), help="path to folder with goodware dbs")
 def main(g=None):
-    DB_PATH = g
+    global DB_PATH
+    if g:
+        DB_PATH = g
     # Initialize databases before starting the server
 
     initialize_databases(DB_PATH)

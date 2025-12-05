@@ -1,53 +1,73 @@
 # yarobot
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![Rust](https://img.shields.io/badge/rust-powered-orange.svg)](https://www.rust-lang.org/)
+[![PyPI version](https://badge.fury.io/py/yarobot.svg)](https://pypi.org/project/yarobot/)
 
 **[yarobot](https://github.com/ogre2007/yarobot)** is a high-performance YARA rule generator inspired by yarGen project, designed to automatically create quality YARA rules from malware samples while minimizing false positives through intelligent goodware database comparison.
 ![screenshot](img/web.png)
-## 🚀 Features
+
+## ✨ Features
 
 - **Automated YARA Rule Generation**: Create both simple and super rules from malware samples
-- **Scoring System**: Advanced string scoring with goodware database comparison
-- **Separated and reusable core engine**: High-performance file processing and string analysis library - check out [stringZZ](https://github.com/ogre2007/yarobot) project
-- **Python Interface**: CLI management, database operations, and rule formatting
-- **Web UI**: Fancy and useful web&http interface
- 
+- **Advanced Scoring System**: String scoring with goodware database comparison
+- **High-Performance Engine**: Rust-based core [stringZZ](https://github.com/ogre2007/yarobot) for fast file processing
+- **Multiple Interfaces**: CLI, Python API, and web interface
+- **Intelligent Filtering**: Automatic exclusion of common goodware strings for your specific dataset
+- **Super Rules**: Automatic creation of rules that match multiple related samples
 
 ## 🛠 Installation
 
-### Install from PyPI
+### 1. Install from PyPI
 
 ```bash
 pip install yarobot
 ```
 
-### Install from Source
+### 2. Install from Source
 
 ```bash
+# Clone repository
 git clone https://github.com/ogre2007/yarobot
 cd yarobot
-pip install .
+
+# Install in development mode
+pip install -e .
+
+# Or install with all dependencies
+pip install ".[dev]"
 ```
 
 ## 📖 Quick Start
 
-### Create Custom Goodware Database (if needed)
+### 1. First-Time Setup (optional but recommended)
 
 ```bash
-py -m yarobot.database create /path/to/goodware/files --recursive
+# Create a goodware database
+mkdir -p ./dbs
+py -m yarobot.database create /path/to/goodware/files --recursive --opcodes
+
+# The database will be saved in ./dbs/
 ```
 
-### Generate Rules from Malware Samples (cli)
+### 2. Generate Your First Rules
 
 ```bash
-py -m yarobot.generate /path/to/malware/samples --output-rule-file my_rules.yar
+# Basic rule generation
+py -m yarobot.generate /path/to/malware/samples \
+  --output-rule-file my_rules.yar \
+  --author "Your Name" \
+  --ref "Case-001"
+
 ```
 
-### Start as web service
+### 3. Launch Web Interface
 ```bash
-py -m yarobot.app [-g <goodware dbs path>]
+# Start with your database
+py -m yarobot.app -g ./dbs
+
+# Access at http://localhost:5000
 ```
 then locate http://localhost:5000
 or use api directly from anywhere:
@@ -55,7 +75,7 @@ or use api directly from anywhere:
 curl -X POST -F "files=@tests\\data\\binary" http://localhost:5000/api/analyze -F "min_score=5" -F "get_opcodes=true"
 ```
 
-### Advanced Configuration
+### 4. Advanced Configuration
 
 ```bash
 py -m yarobot.generate /malware/samples -g <goodware dbs path> \
@@ -67,7 +87,7 @@ py -m yarobot.generate /malware/samples -g <goodware dbs path> \
   --strings-per-rule 15
 ```
 
-### Database Management
+### 5. Database Management
 
 ```bash
 # Update existing database with new goodware samples
@@ -106,19 +126,20 @@ py -m yarobot.database create /path/to/goodware --opcodes
 5. Submit a pull request
 
 ## TODO's
-- [x] global project refactoring & packaging
-- [x] token extraction&processing code rewritten in Rust
-- [x] tests & ci/cd
-- [x] multiplatform pypi release
-- [x] http-service
-- [x] Web UI
-- [ ] store regexps in config
-- [x] wide/ascii token merging
-- [x] token deduplication
-- [ ] fix/drop imphash/exports
-- [ ] default databases
-- [ ] rule generation rewriting
-- [x] token extraction&processing separated in different package
+- [x] Global project refactoring & packaging
+- [x] Token extraction rewritten in Rust
+- [x] Tests & CI/CD pipeline
+- [x] Multiplatform PyPI release
+- [x] HTTP service with web UI
+- [ ] Store regex patterns in configuration
+- [x] Wide/ASCII token merging
+- [x] Token deduplication
+- [ ] Fix/improve imphash/exports handling
+- [ ] Include default databases
+- [ ] Rule generation improvements
+- [x] Separate token extraction to stringzz package
+- [ ] Regexp generation
+- [ ] LLM Scoring support
 
 ## 📄 License
 
@@ -133,3 +154,6 @@ This project is licensed under the GPLv3 License - see the [LICENSE](LICENSE) fi
 
 - **Issues**: [GitHub Issues](https://github.com/ogre2007/yarobot/issues) 
 
+```mermaid
+  info
+```
