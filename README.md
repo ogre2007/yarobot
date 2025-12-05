@@ -4,7 +4,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![Rust](https://img.shields.io/badge/rust-powered-orange.svg)](https://www.rust-lang.org/)
 
-**yarobot** is a high-performance YARA rule generator inspired by [yarGen](https://github.com/Neo23x0/yarGen), designed to automatically create quality YARA rules from malware samples while minimizing false positives through intelligent goodware database comparison.
+**[yarobot](https://github.com/ogre2007/yarobot)** is a high-performance YARA rule generator inspired by yarGen project, designed to automatically create quality YARA rules from malware samples while minimizing false positives through intelligent goodware database comparison.
 ![screenshot](img/web.png)
 ## 🚀 Features
 
@@ -19,11 +19,6 @@
 ```bash
 pip install yarobot
 ```
-
-### Build Prerequisites
-
-- Python 3.11 or higher
-- Rust toolchain (for building the native extension)
 
 ### Install from Source
 
@@ -105,21 +100,13 @@ yarobot combines the performance of Rust with the flexibility of Python:
 
 ### Core Components
 
-- **Rust Engine** (`yarobot-rs`): High-performance file processing and string analysis
+- **Rust Engine** (`stringzz`): High-performance file processing and string analysis
 - **Python Interface**: CLI management, database operations, and rule formatting
 - **Scoring Engine**: Intelligent string scoring with goodware comparison
 - **Rule Generator**: YARA rule synthesis and optimization
 
-### Database Structure
-
-- `good-strings.db`: Common strings from goodware samples
-- `good-opcodes.db`: Opcode frequency database
-- `good-imphashes.db`: Import hash database
-- `good-exports.db`: Export function database
  
 ## 🤝 Contributing
-
-We welcome contributions! 
 
 1. Fork the repository
 2. Create a feature branch
@@ -128,24 +115,28 @@ We welcome contributions!
 5. Submit a pull request
 
 ## TODO
+- [x] global project refactoring & packaging
+- [x] token extraction&processing code rewritten in Rust
+- [x] tests & ci/cd
+- [x] pypi release
 - [x] http-service
-- [x] web interface
+- [x] Web UI
 - [ ] store regexps in config
-- [x] token merging
+- [x] wide/ascii token merging
+- [x] token deduplication
 - [ ] fix/drop imphash/exports
 - [ ] default databases
 - [ ] rule generation rewriting
-- [x] tokenizer code separated in different package
+- [x] token extraction&processing separated in different package
 
 ## 📄 License
 
 This project is licensed under the GPLv3 License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-- Based on **yarGen** by Florian Roth
-- Built with **Pyo3** for Python-Rust integration
-- Uses **goblin** for binary parsing
+## 🙏 Credits
+- **yarGen** by Florian Roth (initial idea and implementation)
+- **Pyo3** for Python-Rust integration
+- **goblin** for binary parsing
 
 ## 📞 Support
 
