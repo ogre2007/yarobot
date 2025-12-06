@@ -329,6 +329,7 @@ def load(filename, just_json=False):
 
 
 def save(db_path, object, filename):
+    os.makedirs(db_path, exist_ok=True)
     path = os.path.join(db_path, filename)
     with open(path, "wb") as file:
         file.write(bytes(json.dumps(object)))

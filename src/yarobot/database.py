@@ -31,43 +31,47 @@ import os
 
 import click
 import stringzz
-from .common import get_abs_path, load, save
+from .common import load, save
 from .config import RELEVANT_EXTENSIONS
+
+DB_PATH = "dbs"
 
 
 def process_goodware_folder(
     goodware_path, extensions, recursive, minssize, maxssize, fsize, get_opcodes, debug
 ):
-    fp = stringzz.FileProcessor(
-        recursive,
-        extensions,
-        minssize,
-        maxssize,
-        fsize,
-        get_opcodes,
-        debug,
+    config = stringzz.Config(
+        extensions=extensions,
+        recursive=recursive,
+        min_string_len=minssize,
+        max_string_len=maxssize,
+        max_file_size_mb=fsize,
+        debug=debug,
     )
-    (string_scores, opcodes, utf16strings, file_infos) = fp.parse_sample_dir(
-        goodware_path
-    )
+    fp = stringzz.FileProcessor(config=config)
+    results = fp.parse_sample_dir(goodware_path)
     # print(file_infos)
-    good_json = Counter({k: v.count for k, v in string_scores.items()})
-    good_opcodes_json = {k: v.count for k, v in opcodes.items()}
-    good_json.update({k: v.count for k, v in utf16strings.items()})
-    good_exports_json = [fi.exports for _, fi in file_infos.items() if fi.exports]
-    good_imphashes_json = [fi.imphash for _, fi in file_infos.items() if fi.imphash]
+    good_json = Counter({k: v.count for k, v in results.strings.items()})
+    good_opcodes_json = {k: v.count for k, v in results.opcodes.items()}
+    good_json.update({k: v.count for k, v in results.utf16strings.items()})
+    good_exports_json = [
+        fi.exports for _, fi in results.file_infos.items() if fi.exports
+    ]
+    good_imphashes_json = [
+        fi.imphash for _, fi in results.file_infos.items() if fi.imphash
+    ]
 
     # print(sorted(good_json.items(), key=lambda x: x[1], reverse=True)[:10])
 
     # Save
-    save(good_json, "good-strings.json")
-    save(good_opcodes_json, "good-opcodes.json")
-    save(good_exports_json, "good-exports.json")
-    save(good_imphashes_json, "good-imphashes.json")
+    save(DB_PATH, good_json, "good-strings.json")
+    save(DB_PATH, good_opcodes_json, "good-opcodes.json")
+    save(DB_PATH, good_exports_json, "good-exports.json")
+    save(DB_PATH, good_imphashes_json, "good-imphashes.json")
 
     click.echo(
         "New database with %d string, %d opcode, %d imphash, %d export entries created. "
-        "(remember to use --opcodes to extract opcodes from the samples and create the opcode databases)"
+        # "(remember to use --opcodes to extract opcodes from the samples and create the opcode databases)"
         % (
             len(good_json),
             len(good_opcodes_json),
@@ -118,7 +122,7 @@ def update(goodware_path, **kwargs):
 
         # Strings -----------------------------------------------------
         print("[+] Updating %s ..." % strings_db)
-        good_pickle = load(get_abs_path(strings_db))
+        good_pickle = load(strings_db)
         print("Old string database entries: %s" % len(good_pickle))
         good_pickle.update(good_strings_db)
         print("New string database entries: %s" % len(good_pickle))
@@ -126,7 +130,7 @@ def update(goodware_path, **kwargs):
 
         # Opcodes -----------------------------------------------------
         print("[+] Updating %s ..." % opcodes_db)
-        good_opcode_pickle = load(get_abs_path(opcodes_db))
+        good_opcode_pickle = load(opcodes_db)
         print("Old opcode database entries: %s" % len(good_opcode_pickle))
         good_opcode_pickle.update(good_opcodes_db)
         print("New opcode database entries: %s" % len(good_opcode_pickle))
@@ -134,7 +138,7 @@ def update(goodware_path, **kwargs):
 
         # Imphashes ---------------------------------------------------
         print("[+] Updating %s ..." % imphashes_db)
-        good_imphashes_pickle = load(get_abs_path(imphashes_db))
+        good_imphashes_pickle = load(imphashes_db)
         print("Old opcode database entries: %s" % len(good_imphashes_pickle))
         good_imphashes_pickle.update(good_imphashes_db)
         print("New opcode database entries: %s" % len(good_imphashes_pickle))
@@ -142,7 +146,7 @@ def update(goodware_path, **kwargs):
 
         # Exports -----------------------------------------------------
         print("[+] Updating %s ..." % exports_db)
-        good_exports_pickle = load(get_abs_path(exports_db))
+        good_exports_pickle = load(exports_db)
         print("Old opcode database entries: %s" % len(good_exports_pickle))
         good_exports_pickle.update(good_exports_db)
         print("New opcode database entries: %s" % len(good_exports_pickle))
@@ -208,7 +212,7 @@ def create(goodware_path, **kwargs):
         args.min_size,
         args.max_size,
         args.max_file_size,
-        args.get_opcodes,
+        False,
         args.debug,
     )
 

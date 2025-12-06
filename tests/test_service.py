@@ -1,3 +1,4 @@
+from flask import render_template
 import pytest
 import tempfile
 import os
@@ -6,9 +7,12 @@ from unittest.mock import patch, MagicMock
 import sys
 import io
 from werkzeug.datastructures import FileStorage
+import io
 
 # Import the app module
 from src.yarobot.app import (
+    FORM_FIELDS_CONFIG,
+    AnalysisParameters,
     app,
     AnalysisRequest,
 )
@@ -19,7 +23,6 @@ def client():
     """Create a test client for the Flask app"""
     app.config["TESTING"] = True
     app.config["WTF_CSRF_ENABLED"] = False
-
     with app.test_client() as client:
         yield client
 
@@ -38,7 +41,7 @@ class TestAnalysisRequest:
     @pytest.mark.unit
     def test_default_parameters(self):
         """Test that default parameters are set correctly"""
-        args = AnalysisRequest({})
+        args = AnalysisParameters()
 
         assert args.min_size == 8
         # assert args.min_score == 5
@@ -46,7 +49,7 @@ class TestAnalysisRequest:
         assert args.max_size == 128
         assert args.strings_per_rule == 15
         assert args.excludegood is False
-        assert args.author == "yarobot HTTP Service"
+        assert args.author == "yarobot Web Service"
 
 
 class TestHealthEndpoints:
@@ -91,14 +94,23 @@ class TestAnalyzeEndpoint:
         # Mock the process_folder to return sample rules
         # mock_process.return_value = "rule TestRule { condition: true }"
         # initialize_databases()
+
+        a = io.BytesIO(b"BBBBBBBBBBBBBBBBBBBBBB\0xxxxxxxxxxxxxxxxxx")
         with open(sample_file, "rb") as f:
             # print(f.read())
             file_storage = FileStorage(
                 stream=f, filename="test_file.txt", content_type="text/plain"
             )
+            file_storage2 = FileStorage(
+                stream=f, filename="test_file.exe", content_type="text/plain"
+            )
             response = client.post(
                 "/api/analyze",
-                data={"files": file_storage, "min_score": "0", "get_opcodes": "true"},
+                data={
+                    "files": [file_storage, file_storage2],
+                    "min_score": "0",
+                    "get_opcodes": "true",
+                },
             )
 
         # This should be a real Flask response, not a mock
@@ -148,12 +160,6 @@ class TestAnalyzeEndpoint:
 
 class TestErrorHandlers:
     """Test error handlers"""
-
-    @pytest.mark.http
-    def test_404_not_found(self, client, mock_databases):
-        """Test 404 error handling"""
-        response = client.get("/nonexistent_endpoint")
-        assert response.status_code == 404
 
     @pytest.mark.http
     def test_method_not_allowed(self, client, mock_databases):

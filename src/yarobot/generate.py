@@ -54,6 +54,58 @@ import stringzz
 import click
 
 
+def process_many_buffers(
+    fp: stringzz.FileProcessor,
+    se: stringzz.ScoringEngine,
+    args,
+    data: list[bytes],
+    good_strings_db={},
+    good_opcodes_db={},
+    good_imphashes_db={},
+    good_exports_db={},
+    pestudio_strings={},
+):
+    logging.getLogger("yarobot").info(
+        f"[+] Generating YARA rules from buffer len {len(data)}"
+    )
+    # print(fp, se)
+
+    print("excludegood", args.excludegood)
+    se.excludegood = args.excludegood
+    (
+        string_combis,
+        string_superrules,
+        utf16_combis,
+        utf16_superrules,
+        opcode_combis,
+        opcode_superrules,
+        file_strings,
+        file_opcodes,
+        file_utf16strings,
+        file_infos,
+    ) = stringzz.analyze_buffers_comprehensive(data, fp, se)
+    # print(file_strings)
+
+    # Create Rule Files
+    rg = RuleGenerator(args, se)
+    (rule_count, super_rule_count, rules) = rg.generate_rules(
+        file_strings,
+        file_opcodes,
+        file_utf16strings,
+        string_superrules,
+        opcode_superrules,
+        utf16_superrules,
+        file_infos,
+    )
+
+    print("[=] Generated %s SIMPLE rules." % str(rule_count))
+    if not args.nosuper:
+        print("[=] Generated %s SUPER rules." % str(super_rule_count))
+    if "output_rule_file" in args.__dict__.keys() and args.output_rule_file:
+        print("[=] All rules written to %s" % args.output_rule_file)
+    return rules
+
+
 def process_bytes(
     fp: stringzz.FileProcessor,
     se: stringzz.ScoringEngine,
@@ -100,7 +152,8 @@ def process_bytes(
     print("[=] Generated %s SIMPLE rules." % str(rule_count))
     if not args.nosuper:
         print("[=] Generated %s SUPER rules." % str(super_rule_count))
-    print("[=] All rules written to %s" % args.output_rule_file)
+    if "output_rule_file" in args.__dict__.keys() and args.output_rule_file:
+        print("[=] All rules written to %s" % args.output_rule_file)
     return rules
 
 
@@ -196,7 +249,8 @@ def process_folder(
     print("[=] Generated %s SIMPLE rules." % str(rule_count))
     if not args.nosuper:
         print("[=] Generated %s SUPER rules." % str(super_rule_count))
-    print("[=] All rules written to %s" % args.output_rule_file)
+    if "output_rule_file" in args.__dict__.keys() and args.output_rule_file:
+        print("[=] All rules written to %s" % args.output_rule_file)
     return rules
 
 

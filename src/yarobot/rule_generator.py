@@ -129,6 +129,7 @@ class RuleGenerator:
         self.ref = args.ref
         self.args = args
         self.scoring_engine = scoring_engine
+        self.pe_module_necessary = False
 
     def _generate_general_condition(
         self, file_info, nofilesize, filesize_multiplier, noextras
