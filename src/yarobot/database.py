@@ -38,7 +38,7 @@ DB_PATH = "dbs"
 
 
 def process_goodware_folder(
-    goodware_path, extensions, recursive, minssize, maxssize, fsize, get_opcodes, debug
+    goodware_path, extensions=None, recursive=None, minssize=None, maxssize=None, fsize=None, get_opcodes=None, debug=None, max_file_count=None
 ):
     config = stringzz.Config(
         extensions=extensions,
@@ -47,8 +47,9 @@ def process_goodware_folder(
         max_string_len=maxssize,
         max_file_size_mb=fsize,
         debug=debug,
+        max_file_count=max_file_count
     )
-    fp = stringzz.FileProcessor(config=config)
+    fp = stringzz.FileProcessor(config)
     results = fp.parse_sample_dir(goodware_path)
     # print(file_infos)
     good_json = Counter({k: v.count for k, v in results.strings.items()})
@@ -98,13 +99,19 @@ def cli():
     is_flag=True,
     default=False,
 )
+@click.option(
+    "--max-file-count",
+    help="Max number of files to process",
+    type=int,
+    default=10000
+)
 @click.option("--debug", help="Debug output", is_flag=True, default=False)
 def update(goodware_path, **kwargs):
     """Manage goodware databases"""
     args = type("Args", (), kwargs)()
     print("[+] Processing goodware files ...")
     good_strings_db, good_opcodes_db, good_imphashes_db, good_exports_db = (
-        process_goodware_folder(goodware_path)
+        process_goodware_folder(goodware_path, max_file_count=args.max_file_count)
     )
 
     # Update existing databases
@@ -201,6 +208,12 @@ def update(goodware_path, **kwargs):
     is_flag=True,
     default=False,
 )
+@click.option(
+    "--max-file-count",
+    help="Max number of files to process (default=10_000)",
+    type=int,
+    default=10_000
+)
 @click.argument("goodware_path", type=click.Path(exists=True), required=True)
 def create(goodware_path, **kwargs):
     args = type("Args", (), kwargs)()
@@ -214,6 +227,7 @@ def create(goodware_path, **kwargs):
         args.max_file_size,
         False,
         args.debug,
+        args.max_file_count
     )
 
 

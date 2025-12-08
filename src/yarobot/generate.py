@@ -168,18 +168,18 @@ def process_folder(
 ):
     if args.get_opcodes and len(good_opcodes_db) < 1:
         logging.getLogger("yarobot").warning(
-            "Missing goodware opcode databases.    Please run 'yarobot update' to retrieve the newest database set."
+            "Missing goodware opcode databases."
         )
         args.get_opcodes = False
 
     if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
         logging.getLogger("yarobot").warning(
-            "Missing goodware imphash/export databases.     Please run 'yarobot update' to retrieve the newest database set."
+            "Missing goodware imphash/export databases."
         )
 
     if len(good_strings_db) < 1:
         logging.getLogger("yarobot").warning(
-            "no goodware databases found.     Please run 'yarobot update' to retrieve the newest database set."
+            "no goodware databases found. "
         )
 
     # Scan malware files
@@ -191,6 +191,7 @@ def process_folder(
         max_file_size_mb=args.max_file_size,
         extract_opcodes=args.get_opcodes,
         debug=args.debug,
+        max_file_count=args.max_file_count,
     )
     fp, se = stringzz.init_analysis(
         config,

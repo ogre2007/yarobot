@@ -310,6 +310,12 @@ def common_multi_analysis_options(f):
         is_flag=True,
         default=False,
     )
+    @click.option(
+        "--max-file-count",
+        help="Max number of files to process",
+        type=int,
+        default=10000
+    )
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         return f(*args, **kwargs)
