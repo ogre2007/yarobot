@@ -66,6 +66,7 @@ def test_integration(shared_datadir):
         high_scoring=10,
         strings_per_rule=10,
         nosuper=False,
+        max_file_count=10000
     )
     data = shared_datadir.joinpath("binary").read_bytes()[
         : 1024 * 1024 * args.max_file_size

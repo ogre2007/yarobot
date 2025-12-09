@@ -191,7 +191,7 @@ def process_folder(
         max_file_size_mb=args.max_file_size,
         extract_opcodes=args.get_opcodes,
         debug=args.debug,
-        max_file_count=args.max_file_count,
+        max_file_count=args.max_file_count if args.max_file_count else None,
     )
     fp, se = stringzz.init_analysis(
         config,

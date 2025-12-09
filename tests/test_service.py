@@ -102,7 +102,7 @@ class TestAnalyzeEndpoint:
                 stream=f, filename="test_file.txt", content_type="text/plain"
             )
             file_storage2 = FileStorage(
-                stream=f, filename="test_file.exe", content_type="text/plain"
+                stream=a, filename="test_file.exe", content_type="text/plain"
             )
             response = client.post(
                 "/api/analyze",
@@ -118,7 +118,7 @@ class TestAnalyzeEndpoint:
         data = json.loads(response.data)
         assert data["status"] == "success"
         assert data["rules_generated"] is True
-        assert data["rules_count"] == 1
+        assert data["rules_count"] == 2
         print(data["rules_content"])
 
         # Verify the mock was called
