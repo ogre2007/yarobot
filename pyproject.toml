@@ -12,8 +12,7 @@ dependencies = [
     "click>=8.3.0",
     "lxml>=4.9.0",
     "orjson>=3.11",
-    "stringzz",
-    #"stringzz @ file:///D:/dev/stringzz"
+    "stringzz>=0.4.1",
 ]
 
 # Example using hatchling
