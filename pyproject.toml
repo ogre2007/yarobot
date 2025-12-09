@@ -1,6 +1,6 @@
 [project]
 name = "yarobot"
-version = "0.5.1a"
+version = "0.5.1b"
 authors = [{ name = "ogre2007", email = "oogre@vk.com" }]
 
 requires-python = ">=3.10"
@@ -12,7 +12,7 @@ dependencies = [
     "click>=8.3.0",
     "lxml>=4.9.0",
     "orjson>=3.11",
-    "stringzz>=0.4.1",
+    "stringzz>=0.4.2",
 ]
 
 # Example using hatchling
