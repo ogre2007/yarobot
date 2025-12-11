@@ -38,7 +38,15 @@ DB_PATH = "dbs"
 
 
 def process_goodware_folder(
-    goodware_path, extensions=None, recursive=None, minssize=None, maxssize=None, fsize=None, get_opcodes=None, debug=None, max_file_count=None
+    goodware_path,
+    extensions=None,
+    recursive=None,
+    minssize=None,
+    maxssize=None,
+    fsize=None,
+    get_opcodes=None,
+    debug=None,
+    max_file_count=None,
 ):
     config = stringzz.Config(
         extensions=extensions,
@@ -47,7 +55,7 @@ def process_goodware_folder(
         max_string_len=maxssize,
         max_file_size_mb=fsize,
         debug=debug,
-        max_file_count=max_file_count
+        max_file_count=max_file_count,
     )
     fp = stringzz.FileProcessor(config)
     results = fp.parse_sample_dir(goodware_path)
@@ -100,10 +108,7 @@ def cli():
     default=False,
 )
 @click.option(
-    "--max-file-count",
-    help="Max number of files to process",
-    type=int,
-    default=10000
+    "--max-file-count", help="Max number of files to process", type=int, default=10000
 )
 @click.option("--debug", help="Debug output", is_flag=True, default=False)
 def update(goodware_path, **kwargs):
@@ -212,7 +217,7 @@ def update(goodware_path, **kwargs):
     "--max-file-count",
     help="Max number of files to process (default=10_000)",
     type=int,
-    default=10_000
+    default=10_000,
 )
 @click.argument("goodware_path", type=click.Path(exists=True), required=True)
 def create(goodware_path, **kwargs):
@@ -227,7 +232,7 @@ def create(goodware_path, **kwargs):
         args.max_file_size,
         False,
         args.debug,
-        args.max_file_count
+        args.max_file_count,
     )
 
 

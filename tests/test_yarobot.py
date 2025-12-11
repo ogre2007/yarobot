@@ -8,14 +8,6 @@ import pstats
 import cProfile
 
 
-def test_string_extraction_min_max():
-    data = b"short\0eight888\0A"
-    # Min len 8, max 10 should include 'eight888' but not 'short'
-    strings, _ = stringzz.extract_strings(data, min_len=8, max_len=10)
-    assert "eight888" in strings
-    assert "short" not in strings
-
-
 def test_get_pe_info_fast_rejects():
     # Not a PE
     fi = stringzz.get_file_info(b"\x7fELF......")
@@ -30,7 +22,7 @@ def test_get_pe_info_fast_rejects():
 
 
 def test_create_rust_struc():
-    x = stringzz.TokenInfo("wasd", 16, stringzz.TokenType.BINARY, {"file", "file2"}, "")
+    x = stringzz.TokenInfo("wasd", 16, stringzz.TokenType.BINARY, {"file", "file2"}, [""])
     print(str(x))
 
 

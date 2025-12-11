@@ -13,7 +13,7 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import logging
 from typing import Dict, List, Optional, Any, Tuple
-from .generate import process_bytes, process_many_buffers
+from .generate import process_buffers
 from .common import (
     load_databases,
     initialize_pestudio_strings,
@@ -90,7 +90,7 @@ class AnalysisParameters:
 
     # Integer parameters with defaults
     min_size: int = 8
-    min_score: int = 0
+    min_score: int = 5
     high_scoring: int = 30
     max_size: int = 128
     strings_per_rule: int = 15
@@ -101,7 +101,7 @@ class AnalysisParameters:
 
     # Boolean parameters with defaults
     excludegood: bool = False
-    score: bool = False
+    score: bool = True
     nomagic: bool = False
     nofilesize: bool = False
     only_executable: bool = False
@@ -514,7 +514,7 @@ def analyze():
     try:
         # Create analysis request from Flask request
         analysis_request = AnalysisRequest.from_flask_request(request)
-
+        print(analysis_request)
         # Ensure databases are initialized
         ensure_databases_initialized()
         global db_context
@@ -523,8 +523,7 @@ def analyze():
         db_context.se.min_score = analysis_request.parameters.min_score
         db_context.se.excludegood = analysis_request.parameters.excludegood
         db_context.se.superrule_overlap = analysis_request.parameters.superrule_overlap
-
-        rules_content = process_many_buffers(
+        rules_content = process_buffers(
             db_context.fp,
             db_context.se,
             analysis_request.parameters,
@@ -587,7 +586,7 @@ def internal_error(e):
 
 @app.errorhandler(404)
 def not_found(e):
-    return render_template("index.html"), 404
+    return render_template("index.html", form_config=FORM_FIELDS_CONFIG), 404
 
 
 def create_template_directories():

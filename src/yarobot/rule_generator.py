@@ -455,18 +455,17 @@ class RuleGenerator:
         )
 
     def _generate_rule_tokens(
-        self, strings, utf16strings, opcodes, opcode_num
+        self, strings, utf16strings, opcodes, opcode_num, comments: bool = True
     ) -> Tuple[List[str], int, List[str]]:
         # Rule String generation
         (
             rule_strings,
             high_scoring_strings,
         ) = self.scoring_engine.generate_rule_strings(
-            True,  # self.args.score,
-            self.args.min_score,
             self.args.high_scoring,
             self.args.strings_per_rule,
             (strings or []) + (utf16strings or []),
+            comments,
         )  # generate_rule_strings(args,(strings or []) + (utf16strings or []),)
 
         rule_opcodes = []

@@ -46,7 +46,6 @@ import pstats
 import cProfile
 from .rule_generator import RuleGenerator
 
-# from app.scoring import extract_stats_by_file, sample_string_evaluation
 from .config import RELEVANT_EXTENSIONS
 
 import stringzz
@@ -54,7 +53,15 @@ import stringzz
 import click
 
 
-def process_many_buffers(
+def print_generated_stats(args, rule_count, super_rule_count):
+    print("[=] Generated %s SIMPLE rules." % str(rule_count))
+    if not args.nosuper:
+        print("[=] Generated %s SUPER rules." % str(super_rule_count))
+    if "output_rule_file" in args.__dict__.keys() and args.output_rule_file:
+        print("[=] All rules written to %s" % args.output_rule_file)
+
+
+def process_buffers(
     fp: stringzz.FileProcessor,
     se: stringzz.ScoringEngine,
     args,
@@ -66,12 +73,11 @@ def process_many_buffers(
     pestudio_strings={},
 ):
     logging.getLogger("yarobot").info(
-        f"[+] Generating YARA rules from buffer len {len(data)}"
+        f"[+] Generating YARA rules from  {len(data)} buffers "
     )
     # print(fp, se)
 
     print("excludegood", args.excludegood)
-    se.excludegood = args.excludegood
     (
         string_combis,
         string_superrules,
@@ -85,9 +91,9 @@ def process_many_buffers(
         file_infos,
     ) = stringzz.analyze_buffers_comprehensive(data, fp, se)
     # print(file_strings)
-
     # Create Rule Files
     rg = RuleGenerator(args, se)
+    print("fs", file_strings)
     (rule_count, super_rule_count, rules) = rg.generate_rules(
         file_strings,
         file_opcodes,
@@ -98,62 +104,8 @@ def process_many_buffers(
         file_infos,
     )
 
-    print("[=] Generated %s SIMPLE rules." % str(rule_count))
-    if not args.nosuper:
-        print("[=] Generated %s SUPER rules." % str(super_rule_count))
-    if "output_rule_file" in args.__dict__.keys() and args.output_rule_file:
-        print("[=] All rules written to %s" % args.output_rule_file)
-    return rules
+    print_generated_stats(args, rule_count, super_rule_count)
 
-
-def process_bytes(
-    fp: stringzz.FileProcessor,
-    se: stringzz.ScoringEngine,
-    args,
-    data: bytes,
-    good_strings_db={},
-    good_opcodes_db={},
-    good_imphashes_db={},
-    good_exports_db={},
-    pestudio_strings={},
-):
-    logging.getLogger("yarobot").info(
-        f"[+] Generating YARA rules from buffer len {len(data)}"
-    )
-    # print(fp, se)
-
-    (
-        file_infos,
-        file_strings,
-        file_opcodes,
-        file_utf16strings,
-    ) = stringzz.process_buffer(data, fp, se)
-    # print(file_strings)
-    file_strings = {fpath: strings for fpath, strings in file_strings.items()}
-
-    file_opcodes = {fpath: opcodes for fpath, opcodes in file_opcodes.items()}
-
-    file_utf16strings = {
-        fpath: utf16strings for fpath, utf16strings in file_utf16strings.items()
-    }
-
-    # Create Rule Files
-    rg = RuleGenerator(args, se)
-    (rule_count, super_rule_count, rules) = rg.generate_rules(
-        file_strings,
-        file_opcodes,
-        file_utf16strings,
-        [],
-        [],
-        [],
-        file_infos,
-    )
-
-    print("[=] Generated %s SIMPLE rules." % str(rule_count))
-    if not args.nosuper:
-        print("[=] Generated %s SUPER rules." % str(super_rule_count))
-    if "output_rule_file" in args.__dict__.keys() and args.output_rule_file:
-        print("[=] All rules written to %s" % args.output_rule_file)
     return rules
 
 
@@ -167,9 +119,7 @@ def process_folder(
     pestudio_strings={},
 ):
     if args.get_opcodes and len(good_opcodes_db) < 1:
-        logging.getLogger("yarobot").warning(
-            "Missing goodware opcode databases."
-        )
+        logging.getLogger("yarobot").warning("Missing goodware opcode databases.")
         args.get_opcodes = False
 
     if len(good_exports_db) < 1 and len(good_imphashes_db) < 1:
@@ -178,9 +128,7 @@ def process_folder(
         )
 
     if len(good_strings_db) < 1:
-        logging.getLogger("yarobot").warning(
-            "no goodware databases found. "
-        )
+        logging.getLogger("yarobot").warning("no goodware databases found. ")
 
     # Scan malware files
     config = stringzz.Config(
@@ -222,18 +170,6 @@ def process_folder(
     logging.getLogger("yarobot").info(
         "[-] Applying intelligent filters to string findings ..."
     )
-    file_strings = {
-        fpath: se.filter_string_set(strings) for fpath, strings in file_strings.items()
-    }
-
-    file_opcodes = {
-        fpath: se.filter_opcode_set(opcodes) for fpath, opcodes in file_opcodes.items()
-    }
-
-    file_utf16strings = {
-        fpath: se.filter_string_set(utf16strings)
-        for fpath, utf16strings in file_utf16strings.items()
-    }
 
     # Create Rule Files
     rg = RuleGenerator(args, se)
@@ -247,11 +183,7 @@ def process_folder(
         file_info,
     )
 
-    print("[=] Generated %s SIMPLE rules." % str(rule_count))
-    if not args.nosuper:
-        print("[=] Generated %s SUPER rules." % str(super_rule_count))
-    if "output_rule_file" in args.__dict__.keys() and args.output_rule_file:
-        print("[=] All rules written to %s" % args.output_rule_file)
+    print_generated_stats(args, rule_count, super_rule_count)
     return rules
 
 
@@ -302,7 +234,7 @@ def generate(malware_path, **kwargs):
             {},
         )
     # exit()
-    process_folder(
+    rules = process_folder(
         args,
         malware_path,
         good_strings_db,
@@ -311,6 +243,8 @@ def generate(malware_path, **kwargs):
         good_exports_db,
         pestudio_strings,
     )
+    with open(args.output_rule_file, "wt") as f:
+        f.write(rules)
     pr.disable()
 
     stats = pstats.Stats(pr)
