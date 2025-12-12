@@ -1,11 +1,13 @@
 from pathlib import Path
 from types import SimpleNamespace
-from src.yarobot.generate import process_folder
+from src.yarobot.generate import process_buffers, process_folder
 import stringzz
 import yara
 import pstats
 
 import cProfile
+
+from yarobot.app import init_analysis_context
 
 
 def test_get_pe_info_fast_rejects():
@@ -25,7 +27,14 @@ def test_create_rust_struc():
     x = stringzz.TokenInfo("wasd", 16, stringzz.TokenType.BINARY, {"file", "file2"}, [""])
     print(str(x))
 
-
+'''
+def test_zip_processing(shared_datadir):
+    data = shared_datadir.joinpath("vfcompat.zip").read_bytes()[
+        : 1024 * 1024 * 10
+    ]
+    fp, se = init_analysis_context() 
+    process_buffers(fp, se, None, [data])
+'''
 def test_integration(shared_datadir):
     # pr = cProfile.Profile()
     # pr.enable()

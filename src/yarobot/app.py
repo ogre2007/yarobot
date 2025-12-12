@@ -13,7 +13,7 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 import logging
 from typing import Dict, List, Optional, Any, Tuple
-from .generate import process_buffers
+from .generate import UnknownPasswordError, process_buffers
 from .common import (
     load_databases,
     initialize_pestudio_strings,
@@ -545,6 +545,12 @@ def analyze():
     except ValueError as e:
         logger.error(f"Validation error: {e}")
         return jsonify(AnalysisResult.error(str(e)).to_dict()), 400
+    except UnknownPasswordError as e:
+        logger.error(f"{e}")
+        return (
+            jsonify(AnalysisResult.error("Unknown password").to_dict()),
+            400,
+        )
     # except Exception as e:
     #    logger.error(f"Error during analysis: {e}")
     #    return jsonify(AnalysisResult.error("Internal server error").to_dict()), 500

@@ -28,8 +28,10 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 """
 
+import io
 import os
 import logging
+from zipfile import ZipFile
 
 from .common import (
     getIdentifier,
@@ -47,11 +49,32 @@ import cProfile
 from .rule_generator import RuleGenerator
 
 from .config import RELEVANT_EXTENSIONS
+import pyzipper
 
 import stringzz
 
 import click
 
+
+class UnknownPasswordError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+def check_password_required(zf: pyzipper.AESZipFile) -> bool: 
+    try:
+        zf.setpassword(b'') # Try with no password
+        zf.testzip()
+        print(f"'zip' does not require a password (or the password is blank).")
+        return False
+    except RuntimeError as e:
+        if 'Bad password for file' in str(e) or 'encrypted' in str(e):
+            print(f"'zip' is encrypted and requires a password.")
+            return True
+        else:
+            # Handle other potential RuntimeError reasons
+            print(f"An unexpected error occurred: {e}")
+            raise e
 
 def print_generated_stats(args, rule_count, super_rule_count):
     print("[=] Generated %s SIMPLE rules." % str(rule_count))
@@ -76,6 +99,21 @@ def process_buffers(
         f"[+] Generating YARA rules from  {len(data)} buffers "
     )
     # print(fp, se)
+    new_data = []
+    for buf in data:
+        if buf.startswith(b"PK") and len(buf) > 100:
+            in_memory_zip = io.BytesIO(buf)
+            try:
+                with pyzipper.AESZipFile(in_memory_zip) as zf:
+                    if check_password_required(zf):
+                        zf.setpassword(b'infected')
+                    files = [zf.read(name) for name in zf.namelist()]
+                    new_data += files
+            except RuntimeError as e:
+                raise UnknownPasswordError("Zip extraction error:" + str(e)) 
+        else:
+            new_data.append(buf)
+        
 
     print("excludegood", args.excludegood)
     (
@@ -89,7 +127,7 @@ def process_buffers(
         file_opcodes,
         file_utf16strings,
         file_infos,
-    ) = stringzz.analyze_buffers_comprehensive(data, fp, se)
+    ) = stringzz.analyze_buffers_comprehensive(new_data, fp, se)
     # print(file_strings)
     # Create Rule Files
     rg = RuleGenerator(args, se)
