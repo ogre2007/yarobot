@@ -625,8 +625,9 @@ def main(g=None):
     # Start Flask app
     app.run(
         host=os.getenv("YAROBOT_HOST", "0.0.0.0"),
-        port=int(os.getenv("YAROBOT_PORT", 5000)),
+        port=int(os.getenv("YAROBOT_PORT", 4443)),
         debug=os.getenv("YAROBOT_DEBUG", "false").lower() == "true",
+        ssl_context='adhoc',  
     )
 
 
